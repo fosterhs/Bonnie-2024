@@ -28,6 +28,8 @@ public class Robot extends TimedRobot {
   private static final String auto4 = "Auto 4"; 
   private String autoSelected;
 
+  Thrower thrower = new Thrower();
+
   public void robotInit() {
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
@@ -155,6 +157,12 @@ public class Robot extends TimedRobot {
       swerve.drive(xVel, yVel, angVel, true, -0.29, -0.29);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
+    }
+
+    // Thrower
+    thrower.periodic();
+    if (stick.getRawButton(1)) {
+      thrower.commandThrow(80.0);
     }
   }
 

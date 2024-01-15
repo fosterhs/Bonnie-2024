@@ -19,7 +19,8 @@ class SwerveModule {
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0;
   private static final double driveGearRatio = 57.0/7.0;
-  private static final double currentLimit = 40.0; // Single motor current limit in amps.
+  private static final double driveMotorCurrentLimit = 40.0; // Single motor current limit in amps.
+  private static final double turnMotorCurrentLimit = 20.0; // Single motor current limit in amps.
   private final AnalogEncoder wheelEncoder;
   private final double wheelEncoderZero;
   private final TalonFX driveMotor;
@@ -225,8 +226,8 @@ class SwerveModule {
     driveMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     driveMotorConfigs.MotorOutput.Inverted = invertDrive ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
     driveMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    driveMotorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
-    driveMotorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
+    driveMotorConfigs.CurrentLimits.SupplyCurrentLimit = driveMotorCurrentLimit;
+    driveMotorConfigs.CurrentLimits.SupplyCurrentThreshold = driveMotorCurrentLimit;
     driveMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
     driveMotorConfigs.Slot0.kP = 0.008;
     driveMotorConfigs.Slot0.kI = 0.06;
@@ -253,8 +254,8 @@ class SwerveModule {
     turnMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     turnMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
     turnMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    turnMotorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
-    turnMotorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
+    turnMotorConfigs.CurrentLimits.SupplyCurrentLimit = turnMotorCurrentLimit;
+    turnMotorConfigs.CurrentLimits.SupplyCurrentThreshold = turnMotorCurrentLimit;
     turnMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
     turnMotorConfigs.Slot0.kP = 0.8;
     turnMotorConfigs.Slot0.kI = 2.0;
