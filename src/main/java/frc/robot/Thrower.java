@@ -17,71 +17,82 @@ public class Thrower {
   private boolean indexMotorFailure = false;
   private final DigitalInput sensor0 = new DigitalInput(0);
   private final DigitalInput sensor1 = new DigitalInput(1);
-  private final Timer intakeTimer = new Timer();
-  private final Timer throwTimer = new Timer();
-  private boolean previousSensor = false;
-  private boolean previousFlywheelAtSpeed = false;
+  private final Timer noteLoadedTimer = new Timer();
+  private final Timer noteUnloadedTimer = new Timer();
+  private final Timer spinUpTimer = new Timer();
+  private boolean pastSensor = true;
+  private boolean currSensor = true;
+  private boolean pastIsSpinningUp = false;
+  private boolean currIsSpinningUp = false;
+  private boolean isSpunUp = false;
   private boolean throwCommanded = false;
-  private double flywheelVel = 0.0;
+  private double flywheelVel = 80.0;
 
   public Thrower() {
     configIndexMotor();
     configThrowMotor();
-    intakeTimer.start();
-    throwTimer.start();
+    noteLoadedTimer.start();
+    noteUnloadedTimer.start();
+    spinUpTimer.start();
   }
 
-  // Causes the thrower to spin up and throw a note if a note is loaded.
+  // Should be called when a note would like to be thrown.
   public void commandThrow(double _flywheelVel) {
-    throwCommanded = getSensor() || throwTimer.get() < 0.3;
     flywheelVel = _flywheelVel;
+    throwCommanded = true;
   }
 
   // Should be called periodically during teleop and auto.
   public void periodic() {
-    if (throwCommanded) {
+    currSensor = getSensor();
+    if (currSensor && !pastSensor) {
+      noteLoadedTimer.restart();
+    } else if (!currSensor && pastSensor) {
+      noteUnloadedTimer.restart();
+    }
+    pastSensor = currSensor;
+
+    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0 || spinUpTimer.get() > 1.0;
+    currIsSpinningUp = !isSpunUp && currSensor && noteLoadedTimer.get() > 0.3;
+    if (currIsSpinningUp && !pastIsSpinningUp) {
+      spinUpTimer.restart();
+    }
+    pastIsSpinningUp = currIsSpinningUp;
+
+    throwCommanded = throwCommanded && (getSensor() || noteUnloadedTimer.get() < 0.6);
+
+    if (throwCommanded && isSpunUp) {
       throwNote();
-      if (throwTimer.get() > 0.6 && previousFlywheelAtSpeed) {
-        throwCommanded = false;
-      }
-    } else {
+    } else if (!throwCommanded && (!currSensor || noteLoadedTimer.get() < 0.3)) {
       intakeNote();
+    } else {
+      spinUp();
     }
   }
 
+  public boolean isThrowing() {
+    return throwCommanded;
+  }
+
   // Returns true if either proximity sensor on the thrower is triggered.
+  // Also restarts the relevant timer if a change in the sensor reading is detected.
   public boolean getSensor() {
     return !sensor0.get() || !sensor1.get();
   }
   
-  private void intakeNote() {
-    boolean sensor = getSensor();
-    if (sensor != previousSensor) {
-      intakeTimer.restart();
-    }
-    previousSensor = sensor;
-
-    if (getSensor() && intakeTimer.get() > 0.3) {
-      throwMotor.setControl(new VelocityDutyCycle(0.0));
-      indexMotor.setControl(new VelocityDutyCycle(0.0));
-    } else {
-      throwMotor.setControl(new VelocityDutyCycle(-2.0));
-      indexMotor.setControl(new VelocityDutyCycle(-2.0));
-    }
-  }
-
   private void throwNote() {
     throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
+    indexMotor.setControl(new VelocityDutyCycle(flywheelVel));
+  }
 
-    boolean flywheelAtSpeed = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0;
-    if (flywheelAtSpeed != previousFlywheelAtSpeed) {
-        throwTimer.restart();
-    }
-    previousFlywheelAtSpeed = flywheelAtSpeed;
+  private void spinUp() {
+    throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
+    indexMotor.setControl(new VelocityDutyCycle(0.0));
+  }
 
-    if (flywheelAtSpeed) {
-      indexMotor.setControl(new VelocityDutyCycle(flywheelVel));
-    }
+  private void intakeNote() {
+    throwMotor.setControl(new VelocityDutyCycle(-2.0));
+    indexMotor.setControl(new VelocityDutyCycle(-2.0));
   }
 
   private void configThrowMotor() {
