@@ -1,7 +1,5 @@
 package frc.robot;
 
-import com.revrobotics.CANSparkFlex;
-import com.revrobotics.CANSparkLowLevel.MotorType;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
@@ -31,7 +29,6 @@ public class Robot extends TimedRobot {
   private String autoSelected;
 
   Thrower thrower = new Thrower();
-  CANSparkFlex vortex = new CANSparkFlex(11, MotorType.kBrushless);
 
   public void robotInit() {
     // Allows the user to choose which auto to do
