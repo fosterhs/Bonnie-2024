@@ -122,7 +122,7 @@ class Drivetrain {
   // pathReversal: Whether the path should be followed in forwards or reverse. 
   public void loadPath(String pathName) {
     PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
-    if (DriverStation.getAlliance().equals(Alliance.Red)) {
+    if (DriverStation.getAlliance().get() == Alliance.Red) {
       path.flipPath();
     }
     paths.add(path);
@@ -213,12 +213,12 @@ class Drivetrain {
 
   // Returns true if the robot is on the red alliance.
   public boolean isRedAlliance() {
-    return DriverStation.getAlliance().equals(Alliance.Red);
+    return DriverStation.getAlliance().get() == Alliance.Red;
   }
 
   // Returns true if the robot is on the blue alliance.
   public boolean isBlueAlliance() {
-    return DriverStation.getAlliance().equals(Alliance.Blue);
+    return DriverStation.getAlliance().get() == Alliance.Red;
   }
 
   
