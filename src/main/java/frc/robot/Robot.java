@@ -136,7 +136,9 @@ public class Robot extends TimedRobot {
     }
   }
 
-  public void teleopInit() {}
+  public void teleopInit() {
+    thrower.init();
+  }
 
   public void teleopPeriodic() {
     double speedScaleFactor = (-stick.getThrottle() + 1 + 2 * minSpeedScaleFactor) / (2 + 2 * minSpeedScaleFactor); // Creates a scale factor for the maximum speed of the robot based on the throttle position.

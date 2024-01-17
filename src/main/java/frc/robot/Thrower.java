@@ -24,16 +24,12 @@ public class Thrower {
 
   private final Timer noteLoadedTimer = new Timer(); // Stores the number of seconds since the proximity sensors detected a note.
   private final Timer noteUnloadedTimer = new Timer(); // Stores the number of seconds since the proximity sensor detected the abscense of a note.
-  private final Timer spinUpTimer = new Timer(); // Stores the number of seconds since the thrower flywheel began to spin up.
 
   // Stores the current and immediately previous sensor reading. Used to check for changes in the sensor reading.
   private boolean pastSensor = true;
   private boolean currSensor = true;
-
-  // Tracks whether the thrower flywheel is spinning up. Stores the current and immediately previous values. Used to detect when the thrower flywheel began spinning up and restart the associated timer.
-  private boolean pastIsSpinningUp = false;
-  private boolean currIsSpinningUp = false;
-
+  
+  private int maxDutyCycleIterations = 0; // Counts the number of 20ms periods where the thrower motor has remained at 100% duty cycle
   private boolean isSpunUp = false; // Returns true if the thrower flywheel is at speed, or at least 1 second has passed since the thrower flywheel attempted to get to speed (in case the flywheel cannot reach the demanded angular velocity).
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed.
   private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 120 rps is roughly the max speed of a free spining Falcon.
@@ -43,13 +39,26 @@ public class Thrower {
     configThrowMotor();
     noteLoadedTimer.start();
     noteUnloadedTimer.start();
-    spinUpTimer.start();
   }
 
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in rotations per second.
   public void commandThrow(double _flywheelVel) {
     flywheelVel = _flywheelVel;
     throwCommanded = true;
+  }
+
+  // Resets thrower's state upon start up. Should be called in teleopInit() and autoInit()
+  public void init() {
+    maxDutyCycleIterations = 0;
+    isSpunUp = false;
+    throwCommanded = false;
+    pastSensor = getSensor();
+    currSensor = pastSensor;
+  }
+
+  // Call to set the flywheel velocity to a different value without throwing a note. flywheelVel is in rotations per second.
+  public void setFlywheelVel(double _flywheelVel) {
+    flywheelVel = _flywheelVel;
   }
 
   // This function should be called periodically during teleop and auto. It updates the internal state of the thrower.
@@ -62,15 +71,14 @@ public class Thrower {
       noteUnloadedTimer.restart();
     }
     pastSensor = currSensor;
-
-    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0 || spinUpTimer.get() > 1.0; // Checks to see whether the flywheel has reached the target angular velocity, or if 1 second as elapsed since it began trying.
-    currIsSpinningUp = !isSpunUp && currSensor && noteLoadedTimer.get() > 0.3; // The flywheel is spinning up if !isSpinUp and a note is not being intaked.
-    if (currIsSpinningUp && !pastIsSpinningUp) {
-      spinUpTimer.restart();
+    
+    if (throwMotor.getDutyCycle().getValueAsDouble() == 1.0) {
+      maxDutyCycleIterations++;
+    } else {
+      maxDutyCycleIterations = 0;
     }
-    pastIsSpinningUp = currIsSpinningUp;
-
-    throwCommanded = throwCommanded && (getSensor() || noteUnloadedTimer.get() < 0.6); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
+    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0 || maxDutyCycleIterations > 25; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
+    throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < 0.6); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
 
     if (throwCommanded && isSpunUp) {
       throwNote();
