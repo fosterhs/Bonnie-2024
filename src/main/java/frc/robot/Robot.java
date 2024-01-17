@@ -137,7 +137,7 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopInit() {
-    thrower.init();
+    thrower.init(); // Should be called in autoInit() and teleopInit(). Gets the thrower ready.
   }
 
   public void teleopPeriodic() {
@@ -161,10 +161,9 @@ public class Robot extends TimedRobot {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
 
-    // Thrower
-    thrower.periodic();
+    thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (stick.getRawButton(1)) {
-      thrower.commandThrow(120.0);
+      thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
     }
   }
 

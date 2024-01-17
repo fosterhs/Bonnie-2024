@@ -11,25 +11,29 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Timer;
 
 public class Thrower {
+  private final double spinUpDelay = 0.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
+  private final double loadDelay = 0.3; // The amount of the time in seconds that the thrower will continute to intake after detecting a note.
+  private final double unloadDelay = 0.6; // The amount of time in seconds that the thrower will continue to throw after it has detected that the note is no longer present.
+  private final double throwMotorCurrentLimit = 40.0; // Throw motor current limit in amps. Should be based on the breaker used in the PDP.
+  private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
+  private final int maxMotorFailures = 20; // The number of times a motor will attempt to reconfigure on start up.
+
   private final TalonFX throwMotor = new TalonFX(10); // The motor running the outer flywheel (thrower).
   private final TalonFX indexMotor = new TalonFX(9); // The motor running the inner flywheel (indexer).
-
-  // Indicates whether the motor failed to configure on startup. Each motor re-attempts startup configuration up to 20 times before this value is true.
-  private boolean throwMotorFailure = false; 
-  private boolean indexMotorFailure = false;
 
   // Initializes the proximity sensors. These return false if an object is detected and true if no object is detected.
   private final DigitalInput sensor0 = new DigitalInput(0);
   private final DigitalInput sensor1 = new DigitalInput(1);
 
+  // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
+  private boolean throwMotorFailure = false; 
+  private boolean indexMotorFailure = false;
+
   private final Timer noteLoadedTimer = new Timer(); // Stores the number of seconds since the proximity sensors detected a note.
   private final Timer noteUnloadedTimer = new Timer(); // Stores the number of seconds since the proximity sensor detected the abscense of a note.
-
-  // Stores the current and immediately previous sensor reading. Used to check for changes in the sensor reading.
-  private boolean pastSensor = true;
-  private boolean currSensor = true;
-  
-  private int maxDutyCycleIterations = 0; // Counts the number of 20ms periods where the thrower motor has remained at 100% duty cycle
+  private final Timer spinUpTimer = new Timer(); // Keeps track of how long the thrower motor has spent at 100% power. 
+  private boolean pastSensor = true; // Stores the previous sensor reading. Used to check for changes in the sensor reading.
+  private boolean currSensor = true; // Stores the current sensor reading. 
   private boolean isSpunUp = false; // Returns true if the thrower flywheel is at speed, or at least 1 second has passed since the thrower flywheel attempted to get to speed (in case the flywheel cannot reach the demanded angular velocity).
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed.
   private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 120 rps is roughly the max speed of a free spining Falcon.
@@ -39,26 +43,16 @@ public class Thrower {
     configThrowMotor();
     noteLoadedTimer.start();
     noteUnloadedTimer.start();
-  }
-
-  // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in rotations per second.
-  public void commandThrow(double _flywheelVel) {
-    flywheelVel = _flywheelVel;
-    throwCommanded = true;
+    spinUpTimer.start();
   }
 
   // Resets thrower's state upon start up. Should be called in teleopInit() and autoInit()
   public void init() {
-    maxDutyCycleIterations = 0;
+    spinUpTimer.restart();
     isSpunUp = false;
     throwCommanded = false;
     pastSensor = getSensor();
     currSensor = pastSensor;
-  }
-
-  // Call to set the flywheel velocity to a different value without throwing a note. flywheelVel is in rotations per second.
-  public void setFlywheelVel(double _flywheelVel) {
-    flywheelVel = _flywheelVel;
   }
 
   // This function should be called periodically during teleop and auto. It updates the internal state of the thrower.
@@ -72,21 +66,33 @@ public class Thrower {
     }
     pastSensor = currSensor;
     
-    if (throwMotor.getDutyCycle().getValueAsDouble() == 1.0) {
-      maxDutyCycleIterations++;
-    } else {
-      maxDutyCycleIterations = 0;
+    // Restarts the spinUpTimer if the thrower motor is not running at 100% power.
+    if (throwMotor.getDutyCycle().getValueAsDouble() != 1.0) {
+      spinUpTimer.restart();
     }
-    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0 || maxDutyCycleIterations > 25; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
-    throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < 0.6); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
 
-    if (throwCommanded && isSpunUp) {
+    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0 || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
+    throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < unloadDelay); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
+
+    // Determines the state (throw, intake, spin up) of the thrower.
+    if (throwCommanded && isSpunUp) { // Throws a note if a throw is commanded and the thrower motor is spun up.
       throwNote();
-    } else if (!currSensor || noteLoadedTimer.get() < 0.3) { // Intakes a note if one is not detected or if less than 0.3s has passed since a note was detected.
+    } else if (!currSensor || noteLoadedTimer.get() < loadDelay) { // Intakes a note if one is not detected or if less than 0.3s has passed since a note was detected.
       intakeNote();
-    } else {
+    } else { // Spins up the thrower motor if neither of the previous conditions is met.
       spinUp();
     }
+  }
+
+  // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in rotations per second.
+  public void commandThrow(double _flywheelVel) {
+    flywheelVel = _flywheelVel;
+    throwCommanded = true;
+  }
+
+  // Call to set the flywheel velocity to a different value without throwing a note. flywheelVel is in rotations per second.
+  public void setFlywheelVel(double _flywheelVel) {
+    flywheelVel = _flywheelVel;
   }
 
   // Returns true if the thrower is in the process of spinning up and throwing a note.
@@ -119,25 +125,30 @@ public class Thrower {
 
   // Sets velocity PIDV constants, brake mode, and enforces a 40 A current limit.
   private void configThrowMotor() {
+    // Creates a configurator and config object to configure the motor.
     TalonFXConfigurator throwMotorConfigurator = throwMotor.getConfigurator();
     TalonFXConfiguration throwMotorConfigs = new TalonFXConfiguration();
 
-    throwMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    throwMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
+    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
+
+    // Setting current limits
     throwMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    throwMotorConfigs.CurrentLimits.SupplyCurrentLimit = 40.0;
-    throwMotorConfigs.CurrentLimits.SupplyCurrentThreshold = 40.0;
+    throwMotorConfigs.CurrentLimits.SupplyCurrentLimit = throwMotorCurrentLimit;
+    throwMotorConfigs.CurrentLimits.SupplyCurrentThreshold = throwMotorCurrentLimit;
     throwMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+
+    // Velocity PIDV constants for reaching flywheel velocities
     throwMotorConfigs.Slot0.kP = 0.008;
     throwMotorConfigs.Slot0.kI = 0.06;
     throwMotorConfigs.Slot0.kD = 0.0002;
     throwMotorConfigs.Slot0.kV = 0.009;
     
-
+    // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int throwMotorErrors = 0;
     while (throwMotorConfigurator.apply(throwMotorConfigs, 0.03) != StatusCode.OK) {
         throwMotorErrors++;
-      throwMotorFailure = throwMotorErrors > 20;
+      throwMotorFailure = throwMotorErrors > maxMotorFailures;
       if (throwMotorFailure) {
         break;
       }
@@ -146,24 +157,30 @@ public class Thrower {
 
   // Sets velocity PIDV constants, brake mode, and enforces a 20 A current limit.
   private void configIndexMotor() {
+    // Creates a configurator and config object to configure the motor.
     TalonFXConfigurator indexMotorConfigurator = indexMotor.getConfigurator();
     TalonFXConfiguration indexMotorConfigs = new TalonFXConfiguration();
 
-    indexMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    indexMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    indexMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
+    indexMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
+
+    // Setting current limits
     indexMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    indexMotorConfigs.CurrentLimits.SupplyCurrentLimit = 20.0;
-    indexMotorConfigs.CurrentLimits.SupplyCurrentThreshold = 20.0;
+    indexMotorConfigs.CurrentLimits.SupplyCurrentLimit = indexMotorCurrentLimit;
+    indexMotorConfigs.CurrentLimits.SupplyCurrentThreshold = indexMotorCurrentLimit;
     indexMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+
+    // Velocity PIDV constants for reaching flywheel velocities
     indexMotorConfigs.Slot0.kP = 0.008;
     indexMotorConfigs.Slot0.kI = 0.06;
     indexMotorConfigs.Slot0.kD = 0.0002;
     indexMotorConfigs.Slot0.kV = 0.009;
     
+    // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int indexMotorErrors = 0;
     while (indexMotorConfigurator.apply(indexMotorConfigs, 0.03) != StatusCode.OK) {
       indexMotorErrors++;
-      indexMotorFailure = indexMotorErrors > 20;
+      indexMotorFailure = indexMotorErrors > maxMotorFailures;
       if (indexMotorFailure) {
         break;
       }
