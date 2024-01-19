@@ -37,10 +37,10 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module object.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, 112.0); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 316.0);
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 72.5);
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, 164.1);
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, 148.7); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 98.2);
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, -83.1);
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, 93.1);
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.

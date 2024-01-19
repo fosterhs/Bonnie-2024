@@ -14,6 +14,8 @@ public class Thrower {
   private final double spinUpDelay = 0.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double loadDelay = 0.3; // The amount of the time in seconds that the thrower will continute to intake after detecting a note.
   private final double unloadDelay = 0.6; // The amount of time in seconds that the thrower will continue to throw after it has detected that the note is no longer present.
+  private final double intakeVel = 2.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
+  private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
   private final double throwMotorCurrentLimit = 40.0; // Throw motor current limit in amps. Should be based on the breaker used in the PDP.
   private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 20; // The number of times a motor will attempt to reconfigure on start up.
@@ -71,7 +73,7 @@ public class Thrower {
       spinUpTimer.restart();
     }
 
-    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < 2.0 || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
+    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
     throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < unloadDelay); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
 
     // Determines the state (throw, intake, spin up) of the thrower.
@@ -119,8 +121,8 @@ public class Thrower {
 
   // Runs both motors backwards to load a note.
   private void intakeNote() {
-    throwMotor.setControl(new VelocityDutyCycle(-2.0));
-    indexMotor.setControl(new VelocityDutyCycle(-2.0));
+    throwMotor.setControl(new VelocityDutyCycle(-intakeVel));
+    indexMotor.setControl(new VelocityDutyCycle(-intakeVel));
   }
 
   // Sets velocity PIDV constants, brake mode, and enforces a 40 A current limit.
