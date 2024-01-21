@@ -89,6 +89,7 @@ public class Robot extends TimedRobot {
   }
   
   public void autonomousInit() {
+    swerve.pushCalibrationEstimate();
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
@@ -137,6 +138,7 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopInit() {
+    swerve.pushCalibrationEstimate();
     thrower.init(); // Should be called in autoInit() and teleopInit(). Gets the thrower ready.
   }
 
@@ -169,9 +171,13 @@ public class Robot extends TimedRobot {
     // vortex.set(stick.getThrottle());
   }
 
-  public void disabledInit() {}
+  public void disabledInit() {
+    swerve.resetCalibrationEstimator();
+  }
   
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+    swerve.addCalibrationEstimate();
+  }
 
   public void updateVision() {
     boolean isSquare = isSquare();

@@ -86,6 +86,13 @@ class Drivetrain {
   private double pathYPos = 0.0; // Unit: meters
   private double pathAngPos = 0.0; // Unit degrees
 
+  // Calibration Variables
+  private final int calibrationFrames = 50; // The number of Limelight frames that will be averaged to determine the position of the robot when it is disabled()
+  private double[][] calibrationPosition = new double[3][calibrationFrames]; // An array that stores the Limelight botpose for the most recent frames, up to the number of frames specified by calibrationFrames
+  private int calibrationIndex = 0; // The index of the most recent entry into the calibrationPosition array. The index begins at 0 and goes up to calibrationFrames-1, after which it returns to 0 and repeats.
+  private int calibrationPoints = 0; // The current number of frames stored in the calibrationPosition array. 
+  private long lastCalibrationFrame = 0; // The Limelight frame number of the last frame stored in the calibrationPosition array. Used to detect whether a new frame was recieved.
+
   public Drivetrain() {
     // Sets autonomous swerve controller parameters
     xController.setIntegratorRange(-I_driveMax, I_driveMax);
@@ -177,6 +184,43 @@ class Drivetrain {
       double[] botpose = isBlueAlliance() ? LimelightHelpers.getBotPose_wpiBlue("") : LimelightHelpers.getBotPose_wpiRed(""); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
       odometry.addVisionMeasurement(new Pose2d(botpose[0], botpose[1], Rotation2d.fromDegrees(getGyroAng())), Timer.getFPGATimestamp()-botpose[6]/1000.0, VecBuilder.fill(xSD, ySD, Units.degreesToRadians(0.5)));
     }
+  }
+
+  // Should be called during disabledInit(). Wipes previous calibration data from the calibrator.
+  public void resetCalibrationEstimator() {
+    calibrationPosition = new double[3][calibrationFrames];
+    calibrationIndex = 0;
+    calibrationPoints = 0;
+    lastCalibrationFrame = 0;
+  }
+
+  // Should be called during disabled(). Calibrates the robot's starting position based on any April Tags in sight of the Limelight.
+  public void addCalibrationEstimate() {
+    if (!getVisionDisconnected() && !visionDisabled && LimelightHelpers.getTV("")) { // Checks to see whether there is at least 1 vision target and the limelight is connected and enabled
+      long currentCalibrationFrame =LimelightHelpers.getLimelightNTTableEntry("limelight", "hb").getInteger(0); // Gets the Limelight frame number from network tables.
+      if (currentCalibrationFrame != lastCalibrationFrame) { // Checks to see whether the current frame is new.
+        double[] botpose = isBlueAlliance() ? LimelightHelpers.getBotPose_wpiBlue("") : LimelightHelpers.getBotPose_wpiRed(""); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
+        calibrationPosition[0][calibrationIndex] = botpose[0]; // Adds an x-position entry to the calibrationPosition array. 
+        calibrationPosition[1][calibrationIndex] = botpose[1]; // Adds a y-position entry to the calibrationPosition array. 
+        calibrationPosition[2][calibrationIndex] = botpose[5]; // Adds a angle-position entry to the calibrationPosition array. 
+        calibrationIndex = (calibrationIndex + 1) % calibrationFrames; // Handles the looping of the calibrationIndex variable. 
+        if (calibrationPoints < calibrationFrames) { // Increments calibrationPoints until the calibrationPosition array is full.
+          calibrationPoints++; 
+        }
+      }
+      lastCalibrationFrame = currentCalibrationFrame;
+    }
+  }
+
+  // Should be called during autoInit() or teleopInit() to update the robot's starting position based on its April Tag calibration
+  public void pushCalibrationEstimate() {
+    double[] calibrationSum = new double[3];
+    for (int index = 0; index < calibrationPoints; index++) {
+      calibrationSum[0] = calibrationSum[0] + calibrationPosition[0][index];
+      calibrationSum[1] = calibrationSum[1] + calibrationPosition[1][index];
+      calibrationSum[2] = calibrationSum[2] + calibrationPosition[2][index];
+    }
+    odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), new Pose2d(calibrationSum[0]/calibrationPoints, calibrationSum[1]/calibrationPoints, Rotation2d.fromDegrees(calibrationSum[2]/calibrationPoints))); // Averages the values in the calibrationPosition Array and sets the robot position based on the averages.
   }
   
   // Indicates whether the limelight is disconnected by determining whether a new frame has been recently uploaded to network tables.
@@ -376,7 +420,7 @@ class Drivetrain {
     SmartDashboard.putBooleanArray("Modules Disabled", modulesDisabled);
     SmartDashboard.putBooleanArray("Module Turn Motor Failures", moduleTurnMotorFailures);
     SmartDashboard.putBooleanArray("Module Drive Motor Failures", moduleDriveMotorFailures);
-    SmartDashboard.putNumberArray("Robot Position", new double[] {getXPos(), getYPos(), getGyroAng()});
+    SmartDashboard.putNumberArray("Robot Position", new double[] {getXPos(), getYPos(), getFusedAng()});
     SmartDashboard.putNumber("Gyro Angle", getGyroAng());
     SmartDashboard.putNumberArray("Demanded Velocity", new double[] {xVel, yVel, angVel});
     SmartDashboard.putNumberArray("Path Position", new double[] {pathXPos, pathYPos, pathAngPos});
