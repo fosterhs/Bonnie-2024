@@ -1,5 +1,8 @@
 package frc.robot;
 
+import com.revrobotics.CANSparkFlex;
+import com.revrobotics.CANSparkBase.IdleMode;
+import com.revrobotics.CANSparkLowLevel.MotorType;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
@@ -29,8 +32,11 @@ public class Robot extends TimedRobot {
   private String autoSelected;
 
   Thrower thrower = new Thrower();
+  CANSparkFlex vortex = new CANSparkFlex(11, MotorType.kBrushless);
 
   public void robotInit() {
+    configVortex(vortex);
+
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
@@ -44,20 +50,14 @@ public class Robot extends TimedRobot {
     swerve.followPath(0);
     swerve.atEndpoint(0, 0.01, 0.01, 0.5);
     swerve.drive(0.1, 0.0, 0.0, false, 0.0, 0.0);
-    swerve.addVisionEstimate(0.1, 0.1, 5.0);
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
   }
 
   public void robotPeriodic() {
-    boolean isSquare = isSquare();
-    SmartDashboard.putBoolean("isSquare", isSquare);
-    double[] presentDistanceArray = LimelightHelpers.getLimelightNTTableEntry("limelight", "botpose_targetspace").getDoubleArray(new double[6]);
-    double presentDistance = -presentDistanceArray[2];
-    SmartDashboard.putNumber("Distance to Tag", presentDistance);
+    updateVision();
     swerve.updateDash();
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    addVisionEstimate(); // Uses the limelight to estimate the position of the robot.  
     // Allows the driver to toggle whether each of the swerve modules is on. Useful in the case of an engine failure in match. 
     if (stick.getRawButtonPressed(5)) {
       swerve.toggleFL();
@@ -92,7 +92,7 @@ public class Robot extends TimedRobot {
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
-        // AutoInit 1 code goes here. 
+        initAim();
         break;
       case auto2:
         // AutoInit 2 code goes here.
@@ -111,7 +111,7 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        rotateToAprilTag();
+        aim(1.6, 4.4, 180);
         break;
       case auto2:
         // Auto 2 code goes here.
@@ -165,15 +165,25 @@ public class Robot extends TimedRobot {
     if (stick.getRawButton(1)) {
       thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
     }
+
+    // vortex.set(stick.getThrottle());
   }
 
   public void disabledInit() {}
   
   public void disabledPeriodic() {}
 
-  // Standard deviation for tag count, distance; odometry is more accurate for angle, vision more accurate for x & y
-  public void addVisionEstimate() {
-    swerve.addVisionEstimate(0.02, 0.02, 5.0);
+  public void updateVision() {
+    boolean isSquare = isSquare();
+    SmartDashboard.putBoolean("isSquare", isSquare);
+    double[] presentDistanceArray = LimelightHelpers.getLimelightNTTableEntry("limelight", "botpose_targetspace").getDoubleArray(new double[6]);
+    double presentDistance = -presentDistanceArray[2];
+    SmartDashboard.putNumber("Distance to Tag", presentDistance);
+    double ta = LimelightHelpers.getTA("");
+    double tid = LimelightHelpers.getFiducialID("");
+    if (!isSquare && ta > 1.5 && ((tid == 8 && swerve.isBlueAlliance()) || (tid == 4 && swerve.isRedAlliance()))) {
+      swerve.addVisionEstimate(0.04, 0.04);
+    }
   }
 
   ProfiledPIDController angController = new ProfiledPIDController(0.14, 0.0, 0.004, new TrapezoidProfile.Constraints(1/4*Math.PI, 1/2*Math.PI));
@@ -222,5 +232,40 @@ public class Robot extends TimedRobot {
     } else {
       return false;
     }
+  }
+
+  ProfiledPIDController xController = new ProfiledPIDController(0.1, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0,3.0));
+  ProfiledPIDController yController = new ProfiledPIDController(0.1, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0,3.0));
+  ProfiledPIDController angleController = new ProfiledPIDController(0.000000001, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0,3.0));
+  public void initAim() {
+    xController.reset(swerve.getXPos());
+    yController.reset(swerve.getYPos());
+    angController.reset(swerve.getGyroAng());
+    angController.enableContinuousInput(-180.0,180.0);
+    angController.setTolerance(3.0);
+    xController.setTolerance(0.1);
+    yController.setTolerance(0.1);
+  }
+
+  public void aim(double targetX, double targetY, double targetAng) {
+    xController.setGoal(targetX);
+    yController.setGoal(targetY);
+    angController.setGoal(targetAng);
+    // -yController.calculate(targetY-swerve.getYPos(), targetY), -angController.calculate((targetAng-swerve.getGyroAng())*Math.PI/180.0, targetAng*Math.PI/180.0)
+    swerve.drive(xController.atSetpoint() ? 0.0 : xController.calculate(swerve.getXPos(), targetX), yController.atSetpoint() ? 0.0 : yController.calculate(swerve.getYPos(), targetY), angleController.atSetpoint() ? 0.0 : angController.calculate(swerve.getGyroAng(), targetAng), true, 0.0, 0.0);
+  }
+
+  public void configVortex(CANSparkFlex motor) {
+    motor.restoreFactoryDefaults(true);
+    motor.setSmartCurrentLimit(20);
+    motor.setIdleMode(IdleMode.kBrake);
+    motor.getEncoder().setPosition(0);
+    motor.getPIDController().setP(0, 0);
+    motor.getPIDController().setI(0, 0);
+    motor.getPIDController().setD(0, 0);
+    motor.getPIDController().setIMaxAccum(0, 0);
+    motor.getPIDController().setFF(0, 0);
+    motor.getPIDController().setDFilter(0,0);
+    motor.burnFlash();
   }
 }
