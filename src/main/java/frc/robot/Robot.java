@@ -248,17 +248,13 @@ public class Robot extends TimedRobot {
     yController.reset(swerve.getYPos());
     angController.reset(swerve.getGyroAng());
     angController.enableContinuousInput(-180.0,180.0);
-    angController.setTolerance(3.0);
-    xController.setTolerance(0.1);
-    yController.setTolerance(0.1);
   }
 
   public void aim(double targetX, double targetY, double targetAng) {
-    xController.setGoal(targetX);
-    yController.setGoal(targetY);
-    angController.setGoal(targetAng);
-    // -yController.calculate(targetY-swerve.getYPos(), targetY), -angController.calculate((targetAng-swerve.getGyroAng())*Math.PI/180.0, targetAng*Math.PI/180.0)
-    swerve.drive(xController.atSetpoint() ? 0.0 : xController.calculate(swerve.getXPos(), targetX), yController.atSetpoint() ? 0.0 : yController.calculate(swerve.getYPos(), targetY), angleController.atSetpoint() ? 0.0 : angController.calculate(swerve.getGyroAng(), targetAng), true, 0.0, 0.0);
+    double xVel = Math.abs(swerve.getXPos() - targetX) > 0.1 ? xController.calculate(swerve.getXPos(), targetX) : 0.0;
+    double yVel = Math.abs(swerve.getYPos() - targetY) > 0.1 ? yController.calculate(swerve.getYPos(), targetY) : 0.0;
+    double angVel = Math.abs(swerve.getFusedAng() - targetAng) > 3.0 ? angController.calculate(swerve.getFusedAng(), targetAng) : 0.0;
+    swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0);
   }
 
   public void configVortex(CANSparkFlex motor) {
