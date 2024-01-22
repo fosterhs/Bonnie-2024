@@ -1,9 +1,11 @@
 package frc.robot;
 
 import java.util.ArrayList;
+
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
+
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.HolonomicDriveController;
 import edu.wpi.first.math.controller.PIDController;
@@ -24,6 +26,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
+  public static final double fieldWidth = 8.0;
   public static final double maxVel = 4.0; // User defined maximum speed of the robot. Enforced during auto and teleop. Unit: meters per second
   public static final double maxAngularVel = 2*Math.PI; // User defined maximum rotational speed of the robot. Enforced only during teleop. Unit: raidans per second
   public static final double maxAcc = 12.0; // User defined maximum acceleration of the robot. Enforced only during teleop. Unit: meters per second^2
@@ -87,11 +90,13 @@ class Drivetrain {
   private double pathAngPos = 0.0; // Unit degrees
 
   // Calibration Variables
-  private final int calibrationFrames = 50; // The number of Limelight frames that will be averaged to determine the position of the robot when it is disabled()
+  private final int calibrationFrames = 100; // The number of Limelight frames that will be averaged to determine the position of the robot when it is disabled()
   private double[][] calibrationPosition = new double[3][calibrationFrames]; // An array that stores the Limelight botpose for the most recent frames, up to the number of frames specified by calibrationFrames
   private int calibrationIndex = 0; // The index of the most recent entry into the calibrationPosition array. The index begins at 0 and goes up to calibrationFrames-1, after which it returns to 0 and repeats.
   private int calibrationPoints = 0; // The current number of frames stored in the calibrationPosition array. 
   private long lastCalibrationFrame = 0; // The Limelight frame number of the last frame stored in the calibrationPosition array. Used to detect whether a new frame was recieved.
+  private int minCalibrationPoints = 5; // The minimum amount of frames that must be processed to accept a calibration.
+  private boolean isCalibrated = false; // Whether the robots position was successfully calibrated.
 
   public Drivetrain() {
     // Sets autonomous swerve controller parameters
@@ -129,17 +134,14 @@ class Drivetrain {
   // pathReversal: Whether the path should be followed in forwards or reverse. 
   public void loadPath(String pathName) {
     PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
-    if (DriverStation.getAlliance().get() == Alliance.Red) {
-      path.flipPath();
-    }
     paths.add(path);
   }
 
   // Should be called once exactly 1 period prior to the start of calls to followPath() each time a new path is followed. 
   public void resetPathController() {
-    xController.reset();
-    yController.reset();
-    turnController.reset(visionDisabled ? getGyroAng() : getFusedAng(), 0.0);
+    swerveController.getXController().reset();
+    swerveController.getYController().reset();
+    swerveController.getThetaController().reset(visionDisabled ? getGyroAng() : getFusedAng(), 0.0);
     timer.restart();
   }
   
@@ -147,11 +149,11 @@ class Drivetrain {
   public void followPath(int pathIndex) {
     if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled) {
       PathPlannerTrajectory.State currentGoal = paths.get(pathIndex).getTrajectory(new ChassisSpeeds(), new Rotation2d()).sample(timer.get());
-      ChassisSpeeds adjustedSpeeds = swerveController.calculate(new Pose2d(getXPos(), getYPos(), Rotation2d.fromDegrees(visionDisabled ? getGyroAng() : getFusedAng())), currentGoal.getTargetHolonomicPose(), currentGoal.velocityMps, currentGoal.targetHolonomicRotation); // Calculates the required robot velocities to accurately track the trajectory.
-      drive(adjustedSpeeds.vxMetersPerSecond, adjustedSpeeds.vyMetersPerSecond, adjustedSpeeds.omegaRadiansPerSecond, false, 0.0, 0.0); // Sets the robot to the correct velocities. 
       pathXPos = currentGoal.positionMeters.getX();
-      pathYPos = currentGoal.positionMeters.getY();
+      pathYPos = isRedAlliance() ? fieldWidth - currentGoal.positionMeters.getY() : currentGoal.positionMeters.getY();
       pathAngPos = currentGoal.targetHolonomicRotation.getDegrees();
+      ChassisSpeeds adjustedSpeeds = swerveController.calculate(new Pose2d(getXPos(), getYPos(), Rotation2d.fromDegrees(visionDisabled ? getGyroAng() : getFusedAng())), new Pose2d(pathXPos, pathYPos, Rotation2d.fromDegrees(pathAngPos)), currentGoal.velocityMps, currentGoal.targetHolonomicRotation); // Calculates the required robot velocities to accurately track the trajectory.
+      drive(adjustedSpeeds.vxMetersPerSecond, adjustedSpeeds.vyMetersPerSecond, adjustedSpeeds.omegaRadiansPerSecond, false, 0.0, 0.0); // Sets the robot to the correct velocities. 
     } else {
       drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
     }
@@ -162,9 +164,10 @@ class Drivetrain {
   public boolean atEndpoint(int pathIndex, double pathXTol, double pathYTol, double pathAngTol) {
     if (!gyroDisabled && !gyroFailure && !moduleFailure && !moduleDisabled) {
       PathPlannerTrajectory.State endState = paths.get(pathIndex).getTrajectory(new ChassisSpeeds(), new Rotation2d()).getEndState();
+      double endStateYPos = isRedAlliance() ? fieldWidth - endState.positionMeters.getY() : endState.positionMeters.getY();
       return Math.abs((visionDisabled ? getGyroAng() : getFusedAng()) - endState.targetHolonomicRotation.getDegrees()) < pathAngTol 
         && Math.abs(getXPos() - endState.positionMeters.getX()) < pathXTol 
-        && Math.abs(getYPos() - endState.positionMeters.getY()) < pathYTol;
+        && Math.abs(getYPos() - endStateYPos) < pathYTol;
     } else {
       return false;
     }
@@ -182,7 +185,7 @@ class Drivetrain {
   public void addVisionEstimate(double xSD, double ySD) {
     if (!getVisionDisconnected() && !visionDisabled && LimelightHelpers.getTV("")) { // Checks to see whether there is at least 1 vision target and the limelight is connected and enabled
       double[] botpose = isBlueAlliance() ? LimelightHelpers.getBotPose_wpiBlue("") : LimelightHelpers.getBotPose_wpiRed(""); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
-      odometry.addVisionMeasurement(new Pose2d(botpose[0], botpose[1], Rotation2d.fromDegrees(getGyroAng())), Timer.getFPGATimestamp()-botpose[6]/1000.0, VecBuilder.fill(xSD, ySD, Units.degreesToRadians(0.5)));
+      odometry.addVisionMeasurement(new Pose2d(botpose[0], botpose[1], Rotation2d.fromDegrees(getFusedAng())), Timer.getFPGATimestamp()-botpose[6]/1000.0, VecBuilder.fill(xSD, ySD, Units.degreesToRadians(10)));
     }
   }
 
@@ -214,13 +217,26 @@ class Drivetrain {
 
   // Should be called during autoInit() or teleopInit() to update the robot's starting position based on its April Tag calibration
   public void pushCalibrationEstimate() {
-    double[] calibrationSum = new double[3];
-    for (int index = 0; index < calibrationPoints; index++) {
-      calibrationSum[0] = calibrationSum[0] + calibrationPosition[0][index];
-      calibrationSum[1] = calibrationSum[1] + calibrationPosition[1][index];
-      calibrationSum[2] = calibrationSum[2] + calibrationPosition[2][index];
+    if (calibrationPoints > minCalibrationPoints) {
+      double[] calibrationSum = new double[5];
+      for (int index = 0; index < calibrationPoints; index++) {
+        calibrationSum[0] = calibrationSum[0] + calibrationPosition[0][index];
+        calibrationSum[1] = calibrationSum[1] + calibrationPosition[1][index];
+        calibrationSum[2] = calibrationSum[2] + Math.sin(calibrationPosition[2][index]*Math.PI/180.0);
+        calibrationSum[3] = calibrationSum[3] + Math.cos(calibrationPosition[2][index]*Math.PI/180.0);
+        calibrationSum[4] = calibrationSum[4] + Math.abs(calibrationPosition[2][index]);
+      }
+      double calibrationAng = calibrationSum[4]/calibrationPoints > 90.0 ? Math.atan(calibrationSum[2]/calibrationSum[3]) + Math.PI : Math.atan(calibrationSum[2]/calibrationSum[3]);
+      odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), new Pose2d(calibrationSum[0]/calibrationPoints, calibrationSum[1]/calibrationPoints, Rotation2d.fromRadians(calibrationAng))); // Averages the values in the calibrationPosition Array and sets the robot position based on the averages.
+      isCalibrated = true;
+    } else {
+      isCalibrated = false;
     }
-    odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), new Pose2d(calibrationSum[0]/calibrationPoints, calibrationSum[1]/calibrationPoints, Rotation2d.fromDegrees(calibrationSum[2]/calibrationPoints))); // Averages the values in the calibrationPosition Array and sets the robot position based on the averages.
+  }
+
+  // Returns true if the robot has been successfully calibrated the last time pushCalibrationEstimate() was called.
+  public boolean getIsCalibrated() {
+    return isCalibrated;
   }
   
   // Indicates whether the limelight is disconnected by determining whether a new frame has been recently uploaded to network tables.
@@ -257,12 +273,12 @@ class Drivetrain {
 
   // Returns true if the robot is on the red alliance.
   public boolean isRedAlliance() {
-    return DriverStation.getAlliance().get() == Alliance.Red;
+    return DriverStation.getAlliance().get().equals(Alliance.Red);
   }
 
   // Returns true if the robot is on the blue alliance.
   public boolean isBlueAlliance() {
-    return DriverStation.getAlliance().get() == Alliance.Red;
+    return DriverStation.getAlliance().get().equals(Alliance.Blue);
   }
 
   

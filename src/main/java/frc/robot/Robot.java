@@ -1,8 +1,5 @@
 package frc.robot;
 
-import com.revrobotics.CANSparkFlex;
-import com.revrobotics.CANSparkBase.IdleMode;
-import com.revrobotics.CANSparkLowLevel.MotorType;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
@@ -32,10 +29,8 @@ public class Robot extends TimedRobot {
   private String autoSelected;
 
   Thrower thrower = new Thrower();
-  CANSparkFlex vortex = new CANSparkFlex(11, MotorType.kBrushless);
 
   public void robotInit() {
-    configVortex(vortex);
 
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
@@ -90,10 +85,11 @@ public class Robot extends TimedRobot {
   
   public void autonomousInit() {
     swerve.pushCalibrationEstimate();
+    thrower.init();
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
-        initAim();
+        initAim(180.0);
         break;
       case auto2:
         // AutoInit 2 code goes here.
@@ -109,14 +105,18 @@ public class Robot extends TimedRobot {
   }
 
   public void autonomousPeriodic() {
+    thrower.periodic();
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        aim(1.6, 4.4, 180);
+        aim(1.6, 4.4, 180.0);
+        if (atEndpoint) {
+          thrower.commandThrow(120.0);
+        }
         break;
       case auto2:
         // Auto 2 code goes here.
-        if (!swerve.atEndpoint(0, 0.01, 0.01, 0.5)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
+        if (!swerve.atEndpoint(0, 0.03, 0.03, 2.0)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
           swerve.followPath(0); // Follows the path that was previously loaded from Path Planner using loadPath().
         } else {
           swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops driving.
@@ -168,7 +168,16 @@ public class Robot extends TimedRobot {
       thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
     }
 
-    // vortex.set(stick.getThrottle());
+    // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary.
+    if (stick.getRawButtonPressed(2)) {
+      swerve.resetCalibrationEstimator();
+    }
+    if (stick.getRawButton(2)) {
+      swerve.addCalibrationEstimate();
+    }
+    if (stick.getRawButtonReleased(2)) {
+      swerve.pushCalibrationEstimate();
+    }
   }
 
   public void disabledInit() {
@@ -240,34 +249,59 @@ public class Robot extends TimedRobot {
     }
   }
 
-  ProfiledPIDController xController = new ProfiledPIDController(0.1, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0,3.0));
-  ProfiledPIDController yController = new ProfiledPIDController(0.1, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0,3.0));
-  ProfiledPIDController angleController = new ProfiledPIDController(0.000000001, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0,3.0));
-  public void initAim() {
-    xController.reset(swerve.getXPos());
-    yController.reset(swerve.getYPos());
-    angController.reset(swerve.getGyroAng());
-    angController.enableContinuousInput(-180.0,180.0);
+  ProfiledPIDController xController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  ProfiledPIDController yController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  ProfiledPIDController angleController = new ProfiledPIDController(10.0, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  boolean atEndpoint = false;
+  double posTol = 0.03;
+  double angTol = 2.0;
+  double maxVel = 2.0;
+  double maxAngVel = 2.0;
+
+  public void initAim(double targetAng) {
+    xController.reset(swerve.getXPos(), 0.0);
+    yController.reset(swerve.getYPos(), 0.0);
+    angleController.reset(Math.min(Math.abs(swerve.getFusedAng() - targetAng), 360.0-Math.abs(swerve.getFusedAng() - targetAng))*Math.PI/180.0, 0.0); // Determines the shortest distance to the target angle and initializes the PID controller to this value. Built-in wraparounds don't work, so this PID controller drives the shortest distance to 0.
   }
 
   public void aim(double targetX, double targetY, double targetAng) {
-    double xVel = Math.abs(swerve.getXPos() - targetX) > 0.1 ? xController.calculate(swerve.getXPos(), targetX) : 0.0;
-    double yVel = Math.abs(swerve.getYPos() - targetY) > 0.1 ? yController.calculate(swerve.getYPos(), targetY) : 0.0;
-    double angVel = Math.abs(swerve.getFusedAng() - targetAng) > 3.0 ? angController.calculate(swerve.getFusedAng(), targetAng) : 0.0;
-    swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0);
-  }
+    double xVel = xController.calculate(swerve.getXPos(), targetX);
+    double yVel = yController.calculate(swerve.getYPos(), targetY);
+    boolean atXTarget = Math.abs(swerve.getXPos() - targetX) < posTol;
+    boolean atYTarget = Math.abs(swerve.getYPos() - targetY) < posTol;
 
-  public void configVortex(CANSparkFlex motor) {
-    motor.restoreFactoryDefaults(true);
-    motor.setSmartCurrentLimit(20);
-    motor.setIdleMode(IdleMode.kBrake);
-    motor.getEncoder().setPosition(0);
-    motor.getPIDController().setP(0, 0);
-    motor.getPIDController().setI(0, 0);
-    motor.getPIDController().setD(0, 0);
-    motor.getPIDController().setIMaxAccum(0, 0);
-    motor.getPIDController().setFF(0, 0);
-    motor.getPIDController().setDFilter(0,0);
-    motor.burnFlash();
+    double angDistanceA = Math.abs(swerve.getFusedAng() - targetAng);
+    double angDistanceB = 360.0 - Math.abs(swerve.getFusedAng() - targetAng);
+    double angDistanceMin = Math.min(angDistanceA, angDistanceB);
+    boolean atAngTarget = angDistanceMin < angTol;
+    boolean isCurrentAngleLarger = swerve.getFusedAng() > targetAng;
+    boolean CCW = (isCurrentAngleLarger && angDistanceB > angDistanceA) || (!isCurrentAngleLarger && angDistanceB < angDistanceA);
+    double angVel = angleController.calculate(angDistanceMin*Math.PI/180.0, 0.0);
+    if (!CCW) {
+      angVel = -angVel;
+    }
+
+    if (Math.abs(xVel) > maxVel) {
+      xVel = xVel > 0.0 ?  maxVel : -maxVel;
+    }
+    if (Math.abs(yVel) > maxVel) {
+      yVel = yVel > 0.0 ? maxVel : -maxVel;
+    }
+    if (Math.abs(angVel) > maxAngVel) {
+      angVel = angVel > 0.0 ? maxAngVel : -maxAngVel;
+    }
+    
+    if (atXTarget) {
+      xVel = 0.0;
+    }
+    if (atYTarget) {
+      yVel = 0.0;
+    }
+    if (atAngTarget) {
+      angVel = 0.0;
+    }
+
+    swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0);
+    atEndpoint = atXTarget && atYTarget && atAngTarget;
   }
 }
