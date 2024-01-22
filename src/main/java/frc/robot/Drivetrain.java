@@ -108,10 +108,10 @@ class Drivetrain {
 
   public Drivetrain() {
     // Sets autonomous swerve controller parameters
-    xPathController.setIntegratorRange(-I_driveMax, I_driveMax);
-    yPathController.setIntegratorRange(-I_driveMax, I_driveMax);
-    turnPathController.setIntegratorRange(-I_turnMax, I_turnMax);
-    turnPathController.enableContinuousInput(-Math.PI, Math.PI);
+    swervePathController.getXController().setIntegratorRange(-I_driveMax, I_driveMax);
+    swervePathController.getYController().setIntegratorRange(-I_driveMax, I_driveMax);
+    swervePathController.getThetaController().setIntegratorRange(-I_turnMax, I_turnMax);
+    swervePathController.getThetaController().enableContinuousInput(-Math.PI, Math.PI);
 
     Timer.delay(2); // Delay to give the gyro time for start-up calibration.
     resetGyro(); // Sets the gyro angle to 0 based on the current heading of the robot.
@@ -214,6 +214,7 @@ class Drivetrain {
     swervePathController.getXController().reset();
     swervePathController.getYController().reset();
     swervePathController.getThetaController().reset(getFusedAng(), 0.0);
+    System.out.println(getFusedAng());
     timer.restart();
   }
   

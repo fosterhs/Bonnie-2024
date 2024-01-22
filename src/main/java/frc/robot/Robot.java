@@ -31,7 +31,6 @@ public class Robot extends TimedRobot {
   Thrower thrower = new Thrower();
 
   public void robotInit() {
-
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
@@ -89,7 +88,7 @@ public class Robot extends TimedRobot {
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
-        initMoveToTarget(180.0);
+        swerve.resetTargetController(180.0);
         break;
       case auto2:
         // AutoInit 2 code goes here.
@@ -109,8 +108,8 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        moveToTarget(1.6, 4.4, 180.0);
-        if (atTarget) {
+        swerve.moveToTarget(2.0, 2.0, 180.0);
+        if (swerve.atTarget()) {
           thrower.commandThrow(120.0);
         }
         break;
@@ -247,74 +246,5 @@ public class Robot extends TimedRobot {
     } else {
       return false;
     }
-  }
-
-  // PID Controllers for each independent dimension of the robot's motion. maxVelocity represents the maximum acceleration of the robot under PID control, since the PID controllers control the velocity of the robot.
-  ProfiledPIDController xController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
-  ProfiledPIDController yController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
-  ProfiledPIDController angleController = new ProfiledPIDController(10.0, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
-  boolean atTarget = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol
-  double posTol = 0.03; // The allowable error in the x and y position of the robot in meters.
-  double angTol = 2.0; // The allowable error in the angle of the robot in degrees.
-  double maxVel = 2.0; // The maximum x and y velocity of the robot under PID control in meters per second.
-  double maxAngVel = 2.0; // The maximum angular velocity of the robot under PID control in radians per second.
-
-  // Should be called immediately prior to moveToTarget(). Resets the PID controllers.
-  public void initMoveToTarget(double targetAngle) {
-    xController.reset(swerve.getXPos(), 0.0);
-    yController.reset(swerve.getYPos(), 0.0);
-    angleController.reset(getAngleDistance(swerve.getFusedAng(), targetAngle)*Math.PI/180.0, 0.0);
-    atTarget = false;
-  }
-
-  // Should be called periodically to move the robot to a specified position and angle. atTarget will change to true when the robot is at the target, within the specified tolerance.
-  public void moveToTarget(double targetX, double targetY, double targetAngle) {
-    double xVel = xController.calculate(swerve.getXPos(), targetX);
-    double yVel = yController.calculate(swerve.getYPos(), targetY);
-    boolean atXTarget = Math.abs(swerve.getXPos() - targetX) < posTol;
-    boolean atYTarget = Math.abs(swerve.getYPos() - targetY) < posTol;
-    double angleDistance = getAngleDistance(swerve.getFusedAng(), targetAngle);
-    double angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
-    boolean atAngTarget = Math.abs(angleDistance) < angTol;
-
-    // Caps the velocities if the PID controllers return values above the specified maximums.
-    if (Math.abs(xVel) > maxVel) {
-      xVel = xVel > 0.0 ?  maxVel : -maxVel;
-    }
-    if (Math.abs(yVel) > maxVel) {
-      yVel = yVel > 0.0 ? maxVel : -maxVel;
-    }
-    if (Math.abs(angVel) > maxAngVel) {
-      angVel = angVel > 0.0 ? maxAngVel : -maxAngVel;
-    }
-    
-    // Sets velocities to 0 if the robot has reached the target.
-    if (atXTarget) {
-      xVel = 0.0;
-    }
-    if (atYTarget) {
-      yVel = 0.0;
-    }
-    if (atAngTarget) {
-      angVel = 0.0;
-    }
-
-    // Drives the robot at the calculate velocities.
-    swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0);
-
-    // Checks to see if all 3 targets have been achieved.
-    atTarget = atXTarget && atYTarget && atAngTarget;
-  }
-
-  // Calculates the shortest distance between two points on a 360 degree circle. CW is + and CCW is -
-  public double getAngleDistance(double currAngle, double targetAngle) {
-    double directDistance = Math.abs(currAngle - targetAngle);
-    double wraparoundDistance = 360.0 - directDistance;
-    double minimumDistance = Math.min(directDistance, wraparoundDistance);
-    boolean isCW = (currAngle > targetAngle && wraparoundDistance > directDistance) || (currAngle < targetAngle && wraparoundDistance < directDistance);
-    if (!isCW) {
-      minimumDistance = -minimumDistance;
-    }
-    return minimumDistance;
   }
 }
