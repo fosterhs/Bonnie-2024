@@ -39,11 +39,11 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto4, auto4);
     SmartDashboard.putData("Autos", autoChooser);
 
-    swerve.loadPath("Test"); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
+    swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetPathController();
     swerve.followPath(0);
-    swerve.atEndpoint(0, 0.01, 0.01, 0.5);
+    swerve.atPathEndpoint(0, 0.01, 0.01, 0.5);
     swerve.drive(0.1, 0.0, 0.0, false, 0.0, 0.0);
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
@@ -89,7 +89,7 @@ public class Robot extends TimedRobot {
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
-        initAim(180.0);
+        initMoveToTarget(180.0);
         break;
       case auto2:
         // AutoInit 2 code goes here.
@@ -109,14 +109,14 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        aim(1.6, 4.4, 180.0);
-        if (atEndpoint) {
+        moveToTarget(1.6, 4.4, 180.0);
+        if (atTarget) {
           thrower.commandThrow(120.0);
         }
         break;
       case auto2:
         // Auto 2 code goes here.
-        if (!swerve.atEndpoint(0, 0.03, 0.03, 2.0)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
+        if (!swerve.atPathEndpoint(0, 0.03, 0.03, 2.0)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
           swerve.followPath(0); // Follows the path that was previously loaded from Path Planner using loadPath().
         } else {
           swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops driving.
@@ -249,38 +249,35 @@ public class Robot extends TimedRobot {
     }
   }
 
+  // PID Controllers for each independent dimension of the robot's motion. maxVelocity represents the maximum acceleration of the robot under PID control, since the PID controllers control the velocity of the robot.
   ProfiledPIDController xController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
   ProfiledPIDController yController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
   ProfiledPIDController angleController = new ProfiledPIDController(10.0, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
-  boolean atEndpoint = false;
-  double posTol = 0.03;
-  double angTol = 2.0;
-  double maxVel = 2.0;
-  double maxAngVel = 2.0;
+  boolean atTarget = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol
+  double posTol = 0.03; // The allowable error in the x and y position of the robot in meters.
+  double angTol = 2.0; // The allowable error in the angle of the robot in degrees.
+  double maxVel = 2.0; // The maximum x and y velocity of the robot under PID control in meters per second.
+  double maxAngVel = 2.0; // The maximum angular velocity of the robot under PID control in radians per second.
 
-  public void initAim(double targetAng) {
+  // Should be called immediately prior to moveToTarget(). Resets the PID controllers.
+  public void initMoveToTarget(double targetAngle) {
     xController.reset(swerve.getXPos(), 0.0);
     yController.reset(swerve.getYPos(), 0.0);
-    angleController.reset(Math.min(Math.abs(swerve.getFusedAng() - targetAng), 360.0-Math.abs(swerve.getFusedAng() - targetAng))*Math.PI/180.0, 0.0); // Determines the shortest distance to the target angle and initializes the PID controller to this value. Built-in wraparounds don't work, so this PID controller drives the shortest distance to 0.
+    angleController.reset(getAngleDistance(swerve.getFusedAng(), targetAngle)*Math.PI/180.0, 0.0);
+    atTarget = false;
   }
 
-  public void aim(double targetX, double targetY, double targetAng) {
+  // Should be called periodically to move the robot to a specified position and angle. atTarget will change to true when the robot is at the target, within the specified tolerance.
+  public void moveToTarget(double targetX, double targetY, double targetAngle) {
     double xVel = xController.calculate(swerve.getXPos(), targetX);
     double yVel = yController.calculate(swerve.getYPos(), targetY);
     boolean atXTarget = Math.abs(swerve.getXPos() - targetX) < posTol;
     boolean atYTarget = Math.abs(swerve.getYPos() - targetY) < posTol;
+    double angleDistance = getAngleDistance(swerve.getFusedAng(), targetAngle);
+    double angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
+    boolean atAngTarget = Math.abs(angleDistance) < angTol;
 
-    double angDistanceA = Math.abs(swerve.getFusedAng() - targetAng);
-    double angDistanceB = 360.0 - Math.abs(swerve.getFusedAng() - targetAng);
-    double angDistanceMin = Math.min(angDistanceA, angDistanceB);
-    boolean atAngTarget = angDistanceMin < angTol;
-    boolean isCurrentAngleLarger = swerve.getFusedAng() > targetAng;
-    boolean CCW = (isCurrentAngleLarger && angDistanceB > angDistanceA) || (!isCurrentAngleLarger && angDistanceB < angDistanceA);
-    double angVel = angleController.calculate(angDistanceMin*Math.PI/180.0, 0.0);
-    if (!CCW) {
-      angVel = -angVel;
-    }
-
+    // Caps the velocities if the PID controllers return values above the specified maximums.
     if (Math.abs(xVel) > maxVel) {
       xVel = xVel > 0.0 ?  maxVel : -maxVel;
     }
@@ -291,6 +288,7 @@ public class Robot extends TimedRobot {
       angVel = angVel > 0.0 ? maxAngVel : -maxAngVel;
     }
     
+    // Sets velocities to 0 if the robot has reached the target.
     if (atXTarget) {
       xVel = 0.0;
     }
@@ -301,7 +299,22 @@ public class Robot extends TimedRobot {
       angVel = 0.0;
     }
 
+    // Drives the robot at the calculate velocities.
     swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0);
-    atEndpoint = atXTarget && atYTarget && atAngTarget;
+
+    // Checks to see if all 3 targets have been achieved.
+    atTarget = atXTarget && atYTarget && atAngTarget;
+  }
+
+  // Calculates the shortest distance between two points on a 360 degree circle. CW is + and CCW is -
+  public double getAngleDistance(double currAngle, double targetAngle) {
+    double directDistance = Math.abs(currAngle - targetAngle);
+    double wraparoundDistance = 360.0 - directDistance;
+    double minimumDistance = Math.min(directDistance, wraparoundDistance);
+    boolean isCW = (currAngle > targetAngle && wraparoundDistance > directDistance) || (currAngle < targetAngle && wraparoundDistance < directDistance);
+    if (!isCW) {
+      minimumDistance = -minimumDistance;
+    }
+    return minimumDistance;
   }
 }

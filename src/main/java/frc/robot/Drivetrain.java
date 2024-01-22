@@ -1,11 +1,9 @@
 package frc.robot;
 
 import java.util.ArrayList;
-
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
-
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.HolonomicDriveController;
 import edu.wpi.first.math.controller.PIDController;
@@ -60,11 +58,11 @@ class Drivetrain {
   private double lastVisionFrameTime = 0.0;
 
   // Path following
-  private ArrayList<PathPlannerPath> paths = new ArrayList<PathPlannerPath>();
+  private ArrayList<PathPlannerTrajectory> paths = new ArrayList<PathPlannerTrajectory>();
   private final SwerveDrivePoseEstimator odometry = new SwerveDrivePoseEstimator(kinematics, new Rotation2d(), getSMPs(), new Pose2d(), VecBuilder.fill(0.02, 0.02, Units.degreesToRadians(0.5)), VecBuilder.fill(0.1, 0.1, Units.degreesToRadians(5.0)));
   private final Timer timer = new Timer();
  
-  // Autonomous swerve controller parameters. Hard code these values.
+  // Path following parameters. Hard code these values.
   private final double kP_drive = 3.0; // Units: The number of meter/second of correction for every 1meter of error.
   private final double kI_drive = 0.0; // Units: The number of meter/second of correction for every 1meter*1second of error.
   private final double kD_drive = 0.0; // Units: The number of meter/second of correction for every 1meter/1second of error.
@@ -74,12 +72,22 @@ class Drivetrain {
   private final double kD_turn = 0.0; // Units: The number of radian/second of correction for every 1radian/1second of error.
   private final double I_turnMax = 1.0; // The maxiumum number of radian/second of correction based on the I term.
 
-  // Autonomous swerve controller
-  private final PIDController xController = new PIDController(kP_drive, kI_drive, kD_drive); // Controls corrections to the x-velocity during path following.
-  private final PIDController yController = new PIDController(kP_drive, kI_drive, kD_drive); // Controls corrections to the y-velocity during path following.
-  private final ProfiledPIDController turnController = 
+  // Path following PID controllers.
+  private final PIDController xPathController = new PIDController(kP_drive, kI_drive, kD_drive); // Controls corrections to the x-velocity during path following.
+  private final PIDController yPathController = new PIDController(kP_drive, kI_drive, kD_drive); // Controls corrections to the y-velocity during path following.
+  private final ProfiledPIDController turnPathController = 
     new ProfiledPIDController(kP_turn, kI_turn, kD_turn, new TrapezoidProfile.Constraints(Drivetrain.maxAngularVel, Drivetrain.maxAngularVel)); // Controls corrections to the angular velocity during path following.
-  private final HolonomicDriveController swerveController = new HolonomicDriveController(xController, yController, turnController); // An object that contains all 3 controllers in one.
+  private final HolonomicDriveController swervePathController = new HolonomicDriveController(xPathController, yPathController, turnPathController); // An object that contains all 3 controllers in one.
+
+  // PID Controllers for each independent dimension of the robot's motion. The TrapezoidProfile.Constraints represents the maximum allowable acceleration and jerk under PID control.
+  private ProfiledPIDController xTargetController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  private ProfiledPIDController yTargetController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  private ProfiledPIDController angleTargetController = new ProfiledPIDController(10.0, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  private boolean atTarget = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol
+  private double posTargetTol = 0.03; // The allowable error in the x and y position of the robot in meters.
+  private double angTargetTol = 2.0; // The allowable error in the angle of the robot in degrees.
+  private double maxTargetVel = 2.0; // The maximum x and y velocity of the robot under PID control in meters per second.
+  private double maxTargetAngVel = Math.PI/2; // The maximum angular velocity of the robot under PID control in radians per second.
   
   // These variables are updated each period so they can be passed to the dashboard. 
   private double xVel = 0.0; // Unit: meters per second
@@ -100,10 +108,10 @@ class Drivetrain {
 
   public Drivetrain() {
     // Sets autonomous swerve controller parameters
-    xController.setIntegratorRange(-I_driveMax, I_driveMax);
-    yController.setIntegratorRange(-I_driveMax, I_driveMax);
-    turnController.setIntegratorRange(-I_turnMax, I_turnMax);
-    turnController.enableContinuousInput(-Math.PI, Math.PI);
+    xPathController.setIntegratorRange(-I_driveMax, I_driveMax);
+    yPathController.setIntegratorRange(-I_driveMax, I_driveMax);
+    turnPathController.setIntegratorRange(-I_turnMax, I_turnMax);
+    turnPathController.enableContinuousInput(-Math.PI, Math.PI);
 
     Timer.delay(2); // Delay to give the gyro time for start-up calibration.
     resetGyro(); // Sets the gyro angle to 0 based on the current heading of the robot.
@@ -119,7 +127,7 @@ class Drivetrain {
     yVel = _yVel;
     angVel = _angVel*180.0/Math.PI;
     SwerveModuleState[] moduleStates = fieldRelative && !gyroFailure && !gyroDisabled
-      ? kinematics.toSwerveModuleStates(ChassisSpeeds.fromFieldRelativeSpeeds(_xVel, _yVel, _angVel, Rotation2d.fromDegrees(visionDisabled ? getGyroAng() : getFusedAng())), new Translation2d(centerOfRotationX, centerOfRotationY))
+      ? kinematics.toSwerveModuleStates(ChassisSpeeds.fromFieldRelativeSpeeds(_xVel, _yVel, _angVel, Rotation2d.fromDegrees(getFusedAng())), new Translation2d(centerOfRotationX, centerOfRotationY))
       : kinematics.toSwerveModuleStates(new ChassisSpeeds(_xVel, _yVel, _angVel), new Translation2d(centerOfRotationX, centerOfRotationY));
     SwerveDriveKinematics.desaturateWheelSpeeds(moduleStates, maxVel); // Makes sure the calculated velocities are attainable. If they are not, all modules velocities are scaled back.
     for (int moduleIndex = 0; moduleIndex < modules.length; moduleIndex++) {
@@ -127,32 +135,96 @@ class Drivetrain {
     }
   }
 
+  // Should be called immediately prior to moveToTarget() or followPath(). Resets the PID controllers.
+  public void resetTargetController(double targetAngle) {
+    xTargetController.reset(getXPos(), 0.0);
+    yTargetController.reset(getYPos(), 0.0);
+    angleTargetController.reset(getAngleDistance(getFusedAng(), targetAngle)*Math.PI/180.0, 0.0);
+    atTarget = false;
+  }
+
+  // Should be called periodically to move the robot to a specified position and angle. atTarget will change to true when the robot is at the target, within the specified tolerance.
+  public void moveToTarget(double targetX, double targetY, double targetAngle) {
+    double xVelSetpoint = xTargetController.calculate(getXPos(), targetX);
+    double yVelSetpoint = yTargetController.calculate(getYPos(), targetY);
+    boolean atXTarget = Math.abs(getXPos() - targetX) < posTargetTol;
+    boolean atYTarget = Math.abs(getYPos() - targetY) < posTargetTol;
+    double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
+    double angVelSetpoint = angleTargetController.calculate(angleDistance*Math.PI/180.0, 0.0);
+    boolean atAngTarget = Math.abs(angleDistance) < angTargetTol;
+
+    // Caps the velocities if the PID controllers return values above the specified maximums.
+    if (Math.abs(xVelSetpoint) > maxTargetVel) {
+      xVelSetpoint = xVelSetpoint > 0.0 ?  maxTargetVel : -maxTargetVel;
+    }
+    if (Math.abs(yVelSetpoint) > maxTargetVel) {
+      yVelSetpoint = yVelSetpoint > 0.0 ? maxTargetVel : -maxTargetVel;
+    }
+    if (Math.abs(angVelSetpoint) > maxTargetAngVel) {
+      angVelSetpoint = angVelSetpoint > 0.0 ? maxTargetAngVel : -maxTargetAngVel;
+    }
+    
+    // Sets velocities to 0 if the robot has reached the target.
+    if (atXTarget) {
+      xVelSetpoint = 0.0;
+    }
+    if (atYTarget) {
+      yVelSetpoint = 0.0;
+    }
+    if (atAngTarget) {
+      angVelSetpoint = 0.0;
+    }
+
+    // Drives the robot at the calculate velocities.
+    drive(xVelSetpoint, yVelSetpoint, angVelSetpoint, true, 0.0, 0.0);
+
+    // Checks to see if all 3 targets have been achieved.
+    atTarget = atXTarget && atYTarget && atAngTarget;
+  }
+
+  // Returns true if the robot is at the target position, within the specific tolerance.
+  public boolean atTarget() {
+    return atTarget;
+  }
+
+  // Calculates the shortest distance between two points on a 360 degree circle. CW is + and CCW is -
+  private double getAngleDistance(double currAngle, double targetAngle) {
+    double directDistance = Math.abs(currAngle - targetAngle);
+    double wraparoundDistance = 360.0 - directDistance;
+    double minimumDistance = Math.min(directDistance, wraparoundDistance);
+    boolean isCW = (currAngle > targetAngle && wraparoundDistance > directDistance) || (currAngle < targetAngle && wraparoundDistance < directDistance);
+    if (!isCW) {
+      minimumDistance = -minimumDistance;
+    }
+    return minimumDistance;
+  }
+
   // Loads the path. All paths should be loaded during robotInit() since this call is computationally expensive. Each path is stored and refered to by the provided index.
   // pathName: The name of the path in Path Planner
-  // maxPathVel: Maximum robot velocity while following this path. Units: meters per second
-  // maxPathAcc: Maximum robot acceleration while following this path. Units: meters per second^2
-  // pathReversal: Whether the path should be followed in forwards or reverse. 
-  public void loadPath(String pathName) {
-    PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
+  // initialVel: Robot velocity at the begining of the path. Usually 0. Units: meters per second
+  // initialAngVel: Robot angular velocity at the begining of the path. Usually 0. Units: degrees per second
+  // initialAngle: Robot's angle at the begining of the path. Units: degrees 
+  public void loadPath(String pathName, double initialXVel, double initialYVel, double initialAngleVel, double initialAngle) {
+    PathPlannerTrajectory path = PathPlannerPath.fromPathFile(pathName).getTrajectory(new ChassisSpeeds(initialXVel, initialYVel, initialAngleVel*Math.PI/180.0), Rotation2d.fromDegrees(initialAngle));
     paths.add(path);
   }
 
   // Should be called once exactly 1 period prior to the start of calls to followPath() each time a new path is followed. 
   public void resetPathController() {
-    swerveController.getXController().reset();
-    swerveController.getYController().reset();
-    swerveController.getThetaController().reset(visionDisabled ? getGyroAng() : getFusedAng(), 0.0);
+    swervePathController.getXController().reset();
+    swervePathController.getYController().reset();
+    swervePathController.getThetaController().reset(getFusedAng(), 0.0);
     timer.restart();
   }
   
   // Tracks the path. Should be called each period. The path controller should be reset if followPath() is not called for a period or more.
   public void followPath(int pathIndex) {
     if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled) {
-      PathPlannerTrajectory.State currentGoal = paths.get(pathIndex).getTrajectory(new ChassisSpeeds(), new Rotation2d()).sample(timer.get());
+      PathPlannerTrajectory.State currentGoal = paths.get(pathIndex).sample(timer.get());
       pathXPos = currentGoal.positionMeters.getX();
       pathYPos = isRedAlliance() ? fieldWidth - currentGoal.positionMeters.getY() : currentGoal.positionMeters.getY();
       pathAngPos = currentGoal.targetHolonomicRotation.getDegrees();
-      ChassisSpeeds adjustedSpeeds = swerveController.calculate(new Pose2d(getXPos(), getYPos(), Rotation2d.fromDegrees(visionDisabled ? getGyroAng() : getFusedAng())), new Pose2d(pathXPos, pathYPos, Rotation2d.fromDegrees(pathAngPos)), currentGoal.velocityMps, currentGoal.targetHolonomicRotation); // Calculates the required robot velocities to accurately track the trajectory.
+      ChassisSpeeds adjustedSpeeds = swervePathController.calculate(new Pose2d(getXPos(), getYPos(), Rotation2d.fromDegrees(getFusedAng())), new Pose2d(pathXPos, pathYPos, Rotation2d.fromDegrees(pathAngPos)), currentGoal.velocityMps, currentGoal.targetHolonomicRotation); // Calculates the required robot velocities to accurately track the trajectory.
       drive(adjustedSpeeds.vxMetersPerSecond, adjustedSpeeds.vyMetersPerSecond, adjustedSpeeds.omegaRadiansPerSecond, false, 0.0, 0.0); // Sets the robot to the correct velocities. 
     } else {
       drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
@@ -161,11 +233,11 @@ class Drivetrain {
   
   // Tells whether the robot has reached the endpoint of the path, within the specified tolerance.
   // pathIndex: Which path to check, pathXTol and pathYTol: the allowable difference in position in meters, pathAngTol: the allowable difference in angle in degrees
-  public boolean atEndpoint(int pathIndex, double pathXTol, double pathYTol, double pathAngTol) {
+  public boolean atPathEndpoint(int pathIndex, double pathXTol, double pathYTol, double pathAngTol) {
     if (!gyroDisabled && !gyroFailure && !moduleFailure && !moduleDisabled) {
-      PathPlannerTrajectory.State endState = paths.get(pathIndex).getTrajectory(new ChassisSpeeds(), new Rotation2d()).getEndState();
+      PathPlannerTrajectory.State endState = paths.get(pathIndex).getEndState();
       double endStateYPos = isRedAlliance() ? fieldWidth - endState.positionMeters.getY() : endState.positionMeters.getY();
-      return Math.abs((visionDisabled ? getGyroAng() : getFusedAng()) - endState.targetHolonomicRotation.getDegrees()) < pathAngTol 
+      return Math.abs(getFusedAng() - endState.targetHolonomicRotation.getDegrees()) < pathAngTol 
         && Math.abs(getXPos() - endState.positionMeters.getX()) < pathXTol 
         && Math.abs(getYPos() - endStateYPos) < pathYTol;
     } else {
@@ -314,7 +386,7 @@ class Drivetrain {
 
   // The angular distance to the current trajectory point. Units: degrees
   public double getPathAngleError() {
-    double angleError = (visionDisabled ? getGyroAng() : getFusedAng()) - pathAngPos;
+    double angleError = getFusedAng() - pathAngPos;
     if (angleError > 180.0) {
       angleError = angleError - 360.0;
     } else if (angleError < -180.0) {
@@ -326,7 +398,7 @@ class Drivetrain {
   // Resets the robot's odometry to the start point of the path loaded into loadPath()
   public void resetOdometryToPathStart(int pathIndex) {
     if (!gyroDisabled && !gyroFailure) {
-      odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), paths.get(pathIndex).getTrajectory(new ChassisSpeeds(), new Rotation2d()).getInitialState().getTargetHolonomicPose());
+      odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), paths.get(pathIndex).getInitialState().getTargetHolonomicPose());
     }
   }
 
@@ -448,6 +520,6 @@ class Drivetrain {
     SmartDashboard.putBoolean("moduleDisabled", moduleDisabled);
     SmartDashboard.putNumber("Path Position Error", getPathPosError());
     SmartDashboard.putNumber("Path Angle Error", getPathAngleError());
-    SmartDashboard.putBoolean("Path atEndpoint", atEndpoint(0, 0.01, 0.01, 0.05));
+    SmartDashboard.putBoolean("Path atEndpoint", atPathEndpoint(0, 0.01, 0.01, 0.05));
   }
 }
