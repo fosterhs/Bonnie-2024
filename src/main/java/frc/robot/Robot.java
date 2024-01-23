@@ -108,7 +108,7 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        swerve.moveToTarget(2.0, 2.0, 180.0);
+        swerve.moveToTarget(1.18, 1.79, 180.0);
         if (swerve.atTarget()) {
           thrower.commandThrow(120.0);
         }

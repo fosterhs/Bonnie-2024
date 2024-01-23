@@ -80,14 +80,14 @@ class Drivetrain {
   private final HolonomicDriveController swervePathController = new HolonomicDriveController(xPathController, yPathController, turnPathController); // An object that contains all 3 controllers in one.
 
   // PID Controllers for each independent dimension of the robot's motion. The TrapezoidProfile.Constraints represents the maximum allowable acceleration and jerk under PID control.
-  private ProfiledPIDController xTargetController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
-  private ProfiledPIDController yTargetController = new ProfiledPIDController(1.5, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
-  private ProfiledPIDController angleTargetController = new ProfiledPIDController(10.0, 0.0, 0.0, new TrapezoidProfile.Constraints(0.5,100.0));
+  private ProfiledPIDController xTargetController = new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(2.5,100.0));
+  private ProfiledPIDController yTargetController = new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(2.5,100.0));
+  private ProfiledPIDController angleTargetController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(4*Math.PI,100.0));
   private boolean atTarget = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol
   private double posTargetTol = 0.03; // The allowable error in the x and y position of the robot in meters.
   private double angTargetTol = 2.0; // The allowable error in the angle of the robot in degrees.
-  private double maxTargetVel = 2.0; // The maximum x and y velocity of the robot under PID control in meters per second.
-  private double maxTargetAngVel = Math.PI/2; // The maximum angular velocity of the robot under PID control in radians per second.
+  private double maxTargetVel = 2.5; // The maximum x and y velocity of the robot under PID control in meters per second.
+  private double maxTargetAngVel = 2.0*Math.PI; // The maximum angular velocity of the robot under PID control in radians per second.
   
   // These variables are updated each period so they can be passed to the dashboard. 
   private double xVel = 0.0; // Unit: meters per second
