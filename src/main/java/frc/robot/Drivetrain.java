@@ -22,7 +22,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
-  public static final double fieldWidth = 8.0; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
+  private static final double fieldWidth = 8.0; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
   public static final double maxVelTeleop = 4.0; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
   public static final double maxAngularVelTeleop = 2*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
   public static final double maxAccTeleop = 5.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.

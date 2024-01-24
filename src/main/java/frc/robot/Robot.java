@@ -131,7 +131,7 @@ public class Robot extends TimedRobot {
         break;
       case auto4: 
         // Auto 4 code goes here.
-        robotToAprilTag(1);
+        rotateToAprilTag(5.0);
         break;
     }
   }
@@ -201,10 +201,10 @@ public class Robot extends TimedRobot {
   }
 
   ProfiledPIDController angController = new ProfiledPIDController(0.14, 0.0, 0.004, new TrapezoidProfile.Constraints(1/4*Math.PI, 1/2*Math.PI));
-  public void rotateToAprilTag() {
+  public void rotateToAprilTag(double offset) {
     double tx = LimelightHelpers.getTX("");
     boolean tv = LimelightHelpers.getTV("");
-    double output = angController.calculate(tx);
+    double output = angController.calculate(tx-offset);
     if (!tv){
       swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
     } else {
