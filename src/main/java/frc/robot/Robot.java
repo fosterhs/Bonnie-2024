@@ -14,9 +14,9 @@ public class Robot extends TimedRobot {
   private final Drivetrain swerve = new Drivetrain(); // Initializes the drivetrain (swerve modules, gyro, and path follower)
 
   // Limits the acceleration of controller inputs. 
-  private final SlewRateLimiter xAccLimiter = new SlewRateLimiter(Drivetrain.maxAcc/Drivetrain.maxVel);
-  private final SlewRateLimiter yAccLimiter = new SlewRateLimiter(Drivetrain.maxAcc/Drivetrain.maxVel);
-  private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAcc/Drivetrain.maxAngularVel);
+  private final SlewRateLimiter xAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop/Drivetrain.maxVelTeleop);
+  private final SlewRateLimiter yAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop/Drivetrain.maxVelTeleop);
+  private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAccTeleop/Drivetrain.maxAngularVelTeleop);
   
   private final double minSpeedScaleFactor = 0.05; // The maximum speed of the robot when the throttle is at its minimum position, as a percentage of maxVel and maxAngularVel
 
@@ -40,9 +40,9 @@ public class Robot extends TimedRobot {
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
-    swerve.resetPathController();
+    swerve.resetPathController(0);
     swerve.followPath(0);
-    swerve.atPathEndpoint(0, 0.01, 0.01, 0.5);
+    swerve.atPathEndpoint(0);
     swerve.drive(0.1, 0.0, 0.0, false, 0.0, 0.0);
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
@@ -92,7 +92,7 @@ public class Robot extends TimedRobot {
         break;
       case auto2:
         // AutoInit 2 code goes here.
-        swerve.resetPathController(); // Must be called immediately prior to following a Path Planner path using followPath().
+        swerve.resetPathController(0); // Must be called immediately prior to following a Path Planner path using followPath().
         break;
       case auto3: 
         // AutoInit 3 code goes here.
@@ -108,14 +108,14 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        swerve.moveToTarget(1.18, 1.79, 180.0);
+        swerve.moveToTarget(1.35, 2.6, 180.0);
         if (swerve.atTarget()) {
           thrower.commandThrow(120.0);
         }
         break;
       case auto2:
         // Auto 2 code goes here.
-        if (!swerve.atPathEndpoint(0, 0.03, 0.03, 2.0)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
+        if (!swerve.atPathEndpoint(0)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
           swerve.followPath(0); // Follows the path that was previously loaded from Path Planner using loadPath().
         } else {
           swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops driving.
@@ -145,9 +145,9 @@ public class Robot extends TimedRobot {
     double speedScaleFactor = (-stick.getThrottle() + 1 + 2 * minSpeedScaleFactor) / (2 + 2 * minSpeedScaleFactor); // Creates a scale factor for the maximum speed of the robot based on the throttle position.
 
     // Applies a deadband to controller inputs. Also limits the acceleration of controller inputs.
-    double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-stick.getY(),0.1))*Drivetrain.maxVel*speedScaleFactor;
-    double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-stick.getX(),0.1))*Drivetrain.maxVel*speedScaleFactor;
-    double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(),0.1))*Drivetrain.maxAngularVel*speedScaleFactor;
+    double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-stick.getY(),0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
+    double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-stick.getX(),0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
+    double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(),0.1)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
     // Allows the driver to rotate the robot about each corner. Defaults to a center of rotation at the center of the robot.
     if (stick.getRawButton(7)) { // Front Left
