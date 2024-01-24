@@ -39,6 +39,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("Autos", autoChooser);
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
+    
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetPathController(0);
     swerve.followPath(0);
@@ -83,7 +84,7 @@ public class Robot extends TimedRobot {
   }
   
   public void autonomousInit() {
-    swerve.pushCalibrationEstimate();
+    swerve.pushCalibration();
     thrower.init();
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
@@ -137,7 +138,7 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopInit() {
-    swerve.pushCalibrationEstimate();
+    swerve.pushCalibration();
     thrower.init(); // Should be called in autoInit() and teleopInit(). Gets the thrower ready.
   }
 
@@ -145,9 +146,9 @@ public class Robot extends TimedRobot {
     double speedScaleFactor = (-stick.getThrottle() + 1 + 2 * minSpeedScaleFactor) / (2 + 2 * minSpeedScaleFactor); // Creates a scale factor for the maximum speed of the robot based on the throttle position.
 
     // Applies a deadband to controller inputs. Also limits the acceleration of controller inputs.
-    double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-stick.getY(),0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
-    double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-stick.getX(),0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
-    double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(),0.1)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
+    double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-stick.getY(), 0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
+    double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-stick.getX(), 0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
+    double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(), 0.1)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
     // Allows the driver to rotate the robot about each corner. Defaults to a center of rotation at the center of the robot.
     if (stick.getRawButton(7)) { // Front Left
@@ -169,18 +170,18 @@ public class Robot extends TimedRobot {
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary.
     if (stick.getRawButtonPressed(2)) {
-      swerve.resetCalibrationEstimator();
+      swerve.resetCalibration();
     }
     if (stick.getRawButton(2)) {
       swerve.addCalibrationEstimate();
     }
     if (stick.getRawButtonReleased(2)) {
-      swerve.pushCalibrationEstimate();
+      swerve.pushCalibration();
     }
   }
 
   public void disabledInit() {
-    swerve.resetCalibrationEstimator();
+    swerve.resetCalibration();
   }
   
   public void disabledPeriodic() {

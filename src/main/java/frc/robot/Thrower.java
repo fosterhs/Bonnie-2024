@@ -87,6 +87,11 @@ public class Thrower {
     }
   }
 
+  // Returns true if either the thrower motor or the index motor failed to configure on start up.
+  public boolean motorFailure() {
+    return throwMotorFailure || indexMotorFailure;
+  }
+
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in rotations per second.
   public void commandThrow(double _flywheelVel) {
     flywheelVel = _flywheelVel;
