@@ -48,16 +48,16 @@ class Drivetrain {
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.
 
-  // Gyroscope variables
+  // Gyroscope Variables
   private final AHRS gyro = new AHRS();
   private boolean gyroFailure = false; // Indicates whether the gyro has lost connection at any point after a yaw-reset.
   private boolean gyroDisabled = false; // Indicates whether the gyro was disabled on startup, or by the driver by calling toggleGyro()
 
-  // Vision variables
+  // Vision Variables
   private boolean visionDisconnected = false; // Indicates whether the Limelight is currently not connected by checking whether new frames are being uploaded to Network Tables
   private boolean visionDisabled = false; // Indicates whether the Limelight has been disabled by the driver by calling toggleVision()
   private long lastVisionFrame = 0; // The frame number of the last recieved frame from the Limelight.
-  private double lastVisionFrameTime = 0.0;
+  private double lastVisionFrameTime = 0.0; // The time when the last frame was recieved from the Limelight.
 
   // Path Following and Targeting Variables
   private ArrayList<PathPlannerTrajectory> paths = new ArrayList<PathPlannerTrajectory>();
@@ -80,11 +80,11 @@ class Drivetrain {
 
   // Calibration Variables
   private final int calibrationFrames = 100; // The number of Limelight frames that will be averaged to determine the position of the robot when it is disabled()
+  private final int minCalibrationPoints = 10; // The minimum amount of frames that must be processed to accept a calibration.
   private double[][] calibrationPosition = new double[3][calibrationFrames]; // An array that stores the Limelight botpose for the most recent frames, up to the number of frames specified by calibrationFrames
   private int calibrationIndex = 0; // The index of the most recent entry into the calibrationPosition array. The index begins at 0 and goes up to calibrationFrames-1, after which it returns to 0 and repeats.
   private int calibrationPoints = 0; // The current number of frames stored in the calibrationPosition array. 
   private long lastCalibrationFrame = 0; // The Limelight frame number of the last frame stored in the calibrationPosition array. Used to detect whether a new frame was recieved.
-  private int minCalibrationPoints = 5; // The minimum amount of frames that must be processed to accept a calibration.
   private boolean isCalibrated = false; // Whether the robots position was successfully calibrated.
 
   public Drivetrain() {
@@ -126,7 +126,7 @@ class Drivetrain {
 
   // Should be called periodically to move the robot to a specified position and angle. atTarget will change to true when the robot is at the target, within the specified tolerance.
   public void moveToTarget(double targetX, double targetY, double targetAngle) {
-    if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled) {
+    if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled && isCalibrated) {
       double xVelSetpoint = xController.calculate(getXPos(), targetX);
       double yVelSetpoint = yController.calculate(getYPos(), targetY);
       boolean atXTarget = Math.abs(getXPos() - targetX) < posTolerance;
@@ -161,6 +161,7 @@ class Drivetrain {
       drive(xVelSetpoint, yVelSetpoint, angVelSetpoint, true, 0.0, 0.0);
     } else {
       drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
+      atGoal = false;
     }
   }
 
@@ -211,7 +212,7 @@ class Drivetrain {
   
   // Tracks the path. Should be called each period. The path controller should be reset if followPath() is not called for a period or more.
   public void followPath(int pathIndex) {
-    if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled) {
+    if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled && isCalibrated) {
       // Samples the trajectory at the current time.
       PathPlannerTrajectory.State currentGoal = paths.get(pathIndex).sample(timer.get());
       pathXPos = currentGoal.positionMeters.getX();
@@ -227,7 +228,8 @@ class Drivetrain {
       double yVelSetpoint = pathYVel + yVelCorrection;
 
       // Checks to see if all 3 targets have been achieved. Sets velocities to 0 to prevent twitchy robot motions at near 0 velocities.
-      if (atPathEndpoint(pathIndex)) {
+      atGoal = atPathEndpoint(pathIndex);
+      if (atGoal) {
         xVelSetpoint = 0.0;
         yVelSetpoint = 0.0;
         angVelSetpoint = 0.0;
@@ -247,13 +249,14 @@ class Drivetrain {
       drive(xVelSetpoint, yVelSetpoint, angVelSetpoint, true, 0.0, 0.0);
     } else {
       drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
+      atGoal = false;
     }
   }
   
   // Tells whether the robot has reached the endpoint of the path, within the specified tolerance.
   // pathIndex: Which path to check, pathXTol and pathYTol: the allowable difference in position in meters, pathAngTol: the allowable difference in angle in degrees
   public boolean atPathEndpoint(int pathIndex) {
-    if (!gyroDisabled && !gyroFailure && !moduleFailure && !moduleDisabled) {
+    if (!gyroDisabled && !gyroFailure && !moduleFailure && !moduleDisabled && isCalibrated) {
       PathPlannerTrajectory.State endState = paths.get(pathIndex).getEndState();
       double endStateYPos = isRedAlliance() ? fieldWidth - endState.positionMeters.getY() : endState.positionMeters.getY();
       return Math.abs(getFusedAng() - endState.targetHolonomicRotation.getDegrees()) < angTolerance 
@@ -533,6 +536,7 @@ class Drivetrain {
     SmartDashboard.putNumberArray("Path Position", new double[] {pathXPos, pathYPos, pathAngPos});
     SmartDashboard.putBoolean("visionDisabled", visionDisabled);
     SmartDashboard.putBoolean("visionDisconnected", getVisionDisconnected());
+    SmartDashboard.putBoolean("isCalibrated", isCalibrated);
     SmartDashboard.putBoolean("gyroFailure", gyroFailure);
     SmartDashboard.putBoolean("gyroDisabled", gyroDisabled);
     SmartDashboard.putBoolean("moduleFailure", moduleFailure);
