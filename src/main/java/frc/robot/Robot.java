@@ -52,6 +52,7 @@ public class Robot extends TimedRobot {
   public void robotPeriodic() {
     updateVision();
     swerve.updateDash();
+    SmartDashboard.putBoolean("throwerFailure", thrower.motorFailure());
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     // Allows the driver to toggle whether each of the swerve modules is on. Useful in the case of an engine failure in match. 
     if (stick.getRawButtonPressed(5)) {
@@ -78,7 +79,7 @@ public class Robot extends TimedRobot {
     }
 
     // Toggles whether vision information is used to drive the robot.
-    if (stick.getRawButtonPressed(2)) {
+    if (stick.getPOV() == 0) {
       swerve.toggleVision();
     }
   }

@@ -306,6 +306,10 @@ class Drivetrain {
         }
       }
       lastCalibrationFrame = currentCalibrationFrame;
+      odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), new Pose2d(calibrationPosition[0][calibrationIndex], calibrationPosition[1][calibrationIndex], Rotation2d.fromDegrees(calibrationPosition[2][calibrationIndex])));
+      isCalibrated = calibrationPoints > minCalibrationPoints;
+    } else {
+      isCalibrated = false;
     }
   }
 
