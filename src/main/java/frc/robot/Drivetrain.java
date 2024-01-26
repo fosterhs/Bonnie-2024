@@ -1,6 +1,7 @@
 package frc.robot;
 
 import java.util.ArrayList;
+import java.util.Optional;
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
@@ -371,15 +372,24 @@ class Drivetrain {
 
   // Returns true if the robot is on the red alliance.
   public boolean isRedAlliance() {
-    return DriverStation.getAlliance().get().equals(Alliance.Red);
+    Optional<Alliance> alliance = DriverStation.getAlliance();
+    if (alliance.isPresent()) {
+      return alliance.get().equals(Alliance.Red);
+    } else {
+      return false;
+    }
   }
 
   // Returns true if the robot is on the blue alliance.
   public boolean isBlueAlliance() {
-    return DriverStation.getAlliance().get().equals(Alliance.Blue);
+    Optional<Alliance> alliance = DriverStation.getAlliance();
+    if (alliance.isPresent()) {
+      return alliance.get().equals(Alliance.Blue);
+    } else {
+      return false;
+    }
   }
-
-  
+ 
   // Returns the pitch of the robot in degrees. An elevated front is positive. An elevated rear is negative.
   public double getGyroPitch() {
     if (gyro.isConnected() && !gyroFailure && !gyroDisabled) {
