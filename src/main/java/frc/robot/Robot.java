@@ -27,6 +27,7 @@ public class Robot extends TimedRobot {
   private static final String auto3 = "Auto 3"; 
   private static final String auto4 = "Auto 4"; 
   private String autoSelected;
+  private int autoStage = 0;
 
   Thrower thrower = new Thrower();
 
@@ -87,6 +88,7 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     swerve.pushCalibration();
     thrower.init();
+    autoStage = 1;
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
@@ -110,9 +112,14 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
-        swerve.moveToTarget(1.35, 2.6, 180.0);
-        if (swerve.atTarget()) {
-          thrower.commandThrow(120.0);
+        if (autoStage == 1) {
+          swerve.moveToTarget(1.35, 2.6, 180.0); // Code to execute during this stage.
+          if (swerve.atTarget()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+            thrower.commandThrow(120.0);
+            autoStage = 2;
+          }
+        } else {
+          swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops the robot after auto is completed.
         }
         break;
       case auto2:
@@ -249,4 +256,50 @@ public class Robot extends TimedRobot {
       return false;
     }
   }
-}
+
+  public void getAim() {
+    double robotX = swerve.getXPos(); // Need to be translated to noteX once arm geometry is determined.
+    double robotY = swerve.getYPos(); // Need to be translated to noteY once arm geometry is determined.
+    double speakerZ = 2.045; // The center Z position of the slot in the speaker in meters.
+    double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The center y position of the slot in the speaker in meters.
+    double armL = 0.4; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
+    double armPivotZ = 0.1; // The height of the arm pivot above the floor in meters.
+    double g = -9.806; // The gravitational acceleration in meters per second squared.
+    double minAngle = 10.0; // The lowest angle the arm can expect to shoot at.
+    double maxAngle = 80.0; // The highest angle the arm can expect to shoot at.
+    int totalAngles = 70; // The total number of angles that should be checked.
+    double noteV = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
+    double[] errorZ = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot.
+    
+    for (int index = 0; index < totalAngles; index++) {
+      double currentAngle = minAngle + index*(maxAngle-minAngle)/totalAngles;
+      double robotR = Math.sqrt(Math.pow(robotX, 2) + Math.pow(robotY-speakerY, 2));
+      double noteRVel = noteV*Math.cos(currentAngle*Math.PI/180.0);
+      double armZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ;
+      double noteTime = robotR/noteRVel;
+      double noteFinalZ =  armZ + noteV*Math.sin(currentAngle*Math.PI/180.0)*noteTime + 0.5*g*Math.pow(noteTime, 2);
+      errorZ[index] = noteFinalZ - speakerZ;
+    }
+    
+    boolean shotAvailable = false;
+    double armAngle = -1;
+    for (int index = 0; index < totalAngles-1; index++) {
+        if (errorZ[index] < 0 && errorZ[index+1] > 0) {
+            armAngle = minAngle + (index+0.5)*(maxAngle-minAngle)/totalAngles;
+            shotAvailable = true;
+        }
+    }
+    SmartDashboard.putBoolean("shotAvailable", shotAvailable);
+    SmartDashboard.putNumber("arm angle", armAngle);
+    
+    double robotAngle;
+    if (robotY == speakerY) {
+        robotAngle = 180.0;
+    } else if (robotY < speakerY) {
+        robotAngle = Math.atan(robotX/(speakerY-robotY))*180.0/Math.PI + 90.0;
+    } else {
+        robotAngle = Math.atan(robotX/(speakerY-robotY))*180.0/Math.PI - 90.0;           
+    }
+    SmartDashboard.putNumber("robot angle", robotAngle);
+  }
+  }

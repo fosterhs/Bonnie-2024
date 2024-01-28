@@ -3,6 +3,7 @@ package frc.robot;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
+import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -11,7 +12,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Timer;
 
 public class Thrower {
-  private final double spinUpDelay = 0.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
+  private final double spinUpDelay = 0.75; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double loadDelay = 0.3; // The amount of the time in seconds that the thrower will continute to intake after detecting a note.
   private final double unloadDelay = 0.6; // The amount of time in seconds that the thrower will continue to throw after it has detected that the note is no longer present.
   private final double intakeVel = 2.0; // The number of rotations per second that the motors will spin in reverse when intaking a not
@@ -41,6 +42,14 @@ public class Thrower {
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed.
   private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 120 rps is roughly the max speed of a free spining Falcon.
 
+  // Keeps track of the state and state transitions of the thrower.
+  private int currState = 0; // 0 is intaking, 1 is spinning up, 2 is throwing
+  private int pastState = 0;
+
+  private double indexGoalPos; // The encoder position of the index motor when it first transitions into the spin-up state.
+  private final double indexOffset = 0.5; // How much the index motor should back off the note in falcon rotations.
+  private final double indexError = 0.1; // How much allowable error there is in the back off position in falcon rotations.
+
   public Thrower() {
     configIndexMotor();
     configThrowMotor();
@@ -56,6 +65,9 @@ public class Thrower {
     throwCommanded = false;
     pastSensor = getSensor();
     currSensor = pastSensor;
+    pastState = pastSensor ? 1 : 0;
+    currState = pastState;
+    indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
   }
 
   // This function should be called periodically during teleop and auto. It updates the internal state of the thrower.
@@ -78,11 +90,15 @@ public class Thrower {
     throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < unloadDelay); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
 
     // Determines the state (throw, intake, spin up) of the thrower.
+    pastState = currState;
     if (throwCommanded && isSpunUp) { // Throws a note if a throw is commanded and the thrower motor is spun up.
+      currState = 2;
       throwNote();
     } else if (!currSensor || noteLoadedTimer.get() < loadDelay) { // Intakes a note if one is not detected or if less than 0.3s has passed since a note was detected.
+      currState = 0;
       intakeNote();
     } else { // Spins up the thrower motor if neither of the previous conditions is met.
+      currState = 1;
       spinUp();
     }
   }
@@ -116,19 +132,27 @@ public class Thrower {
   // Throws the note.
   private void throwNote() {
     throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
-    indexMotor.setControl(new VelocityDutyCycle(flywheelVel));
+    indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
   }
 
   // Spins up the thrower flywheel while holding the note.
   private void spinUp() {
+    if (pastState != 1 && currState == 1) { // This conditional is only triggered once everytime the thrower enters the spinUp() state.
+      indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
+    }
+    double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
+    if (Math.abs(indexGoalPos - indexPos) < indexError) {
+      indexMotor. setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+    } else {
+      indexMotor.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+    }
     throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
-    indexMotor.setControl(new VelocityDutyCycle(0.0));
   }
 
   // Runs both motors backwards to load a note.
   private void intakeNote() {
     throwMotor.setControl(new VelocityDutyCycle(-intakeVel));
-    indexMotor.setControl(new VelocityDutyCycle(-intakeVel));
+    indexMotor.setControl(new VelocityDutyCycle(-intakeVel).withSlot(0));
   }
 
   // Sets velocity PIDV constants, brake mode, and enforces a 40 A current limit.
@@ -183,6 +207,12 @@ public class Thrower {
     indexMotorConfigs.Slot0.kI = 0.06;
     indexMotorConfigs.Slot0.kD = 0.0002;
     indexMotorConfigs.Slot0.kV = 0.009;
+
+    indexMotorConfigs.Slot1.kP = 0.8;
+    indexMotorConfigs.Slot1.kI = 2.0;
+    indexMotorConfigs.Slot1.kD = 0.006;
+    indexMotorConfigs.MotionMagic.MotionMagicAcceleration = 500.0;
+    indexMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 1000.0;
     
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int indexMotorErrors = 0;
