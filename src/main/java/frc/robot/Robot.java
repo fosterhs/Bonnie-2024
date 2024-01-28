@@ -264,42 +264,46 @@ public class Robot extends TimedRobot {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The center y position of the slot in the speaker in meters.
     double armL = 0.4; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
     double armPivotZ = 0.1; // The height of the arm pivot above the floor in meters.
-    double g = -9.806; // The gravitational acceleration in meters per second squared.
+    double armPivotX = 0.2; // The distance from the center of the robot to the arm pivot in meters. A pivot behind the center of rotation is positive.
+    double g = 9.806; // The gravitational acceleration in meters per second squared.
     double minAngle = 10.0; // The lowest angle the arm can expect to shoot at.
     double maxAngle = 80.0; // The highest angle the arm can expect to shoot at.
-    int totalAngles = 70; // The total number of angles that should be checked.
-    double noteV = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
-    double[] errorZ = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot.
+    int totalAngles = 140; // The total number of angles that should be checked.
+    double noteVel = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
+    double[] noteZErrors = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot.
+
+    double aimHeading; // The angle the robot should be facing to make the shot in degrees. This is an approximation based on the center of rotation of the robot and does not take into account the position of arm.
+    if (robotY == speakerY) {
+        aimHeading = 180.0;
+    } else if (robotY < speakerY) {
+        aimHeading = Math.atan(robotX/(speakerY-robotY))*180.0/Math.PI + 90.0;
+    } else {
+        aimHeading = Math.atan(robotX/(speakerY-robotY))*180.0/Math.PI - 90.0;           
+    }
     
     for (int index = 0; index < totalAngles; index++) {
       double currentAngle = minAngle + index*(maxAngle-minAngle)/totalAngles;
-      double robotR = Math.sqrt(Math.pow(robotX, 2) + Math.pow(robotY-speakerY, 2));
-      double noteRVel = noteV*Math.cos(currentAngle*Math.PI/180.0);
-      double armZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ;
-      double noteTime = robotR/noteRVel;
-      double noteFinalZ =  armZ + noteV*Math.sin(currentAngle*Math.PI/180.0)*noteTime + 0.5*g*Math.pow(noteTime, 2);
-      errorZ[index] = noteFinalZ - speakerZ;
+      double noteX = robotX - armPivotX + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0);
+      double noteY = robotY + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0);
+      double noteR = Math.sqrt(Math.pow(noteX, 2) + Math.pow(noteY-speakerY, 2));
+      double noteRVel = noteVel*Math.cos(currentAngle*Math.PI/180.0);
+      double noteZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ;
+      double noteTime = noteR/noteRVel;
+      double noteFinalZ =  noteZ + noteVel*Math.sin(currentAngle*Math.PI/180.0)*noteTime - g*Math.pow(noteTime, 2)/2.0;
+      noteZErrors[index] = noteFinalZ - speakerZ;
     }
     
-    boolean shotAvailable = false;
-    double armAngle = -1;
+    boolean aimShotAvailable = false;
+    double aimArmAngle = -1;
     for (int index = 0; index < totalAngles-1; index++) {
-        if (errorZ[index] < 0 && errorZ[index+1] > 0) {
-            armAngle = minAngle + (index+0.5)*(maxAngle-minAngle)/totalAngles;
-            shotAvailable = true;
+        if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) {
+            aimArmAngle = minAngle + (index+0.5)*(maxAngle-minAngle)/totalAngles;
+            aimShotAvailable = true;
         }
     }
-    SmartDashboard.putBoolean("shotAvailable", shotAvailable);
-    SmartDashboard.putNumber("arm angle", armAngle);
-    
-    double robotAngle;
-    if (robotY == speakerY) {
-        robotAngle = 180.0;
-    } else if (robotY < speakerY) {
-        robotAngle = Math.atan(robotX/(speakerY-robotY))*180.0/Math.PI + 90.0;
-    } else {
-        robotAngle = Math.atan(robotX/(speakerY-robotY))*180.0/Math.PI - 90.0;           
-    }
-    SmartDashboard.putNumber("robot angle", robotAngle);
+
+    SmartDashboard.putNumber("robot angle", aimHeading);
+    SmartDashboard.putBoolean("shotAvailable", aimShotAvailable);
+    SmartDashboard.putNumber("arm angle", aimArmAngle);
   }
   }
