@@ -142,11 +142,12 @@ public class Thrower {
     }
     double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
     if (Math.abs(indexGoalPos - indexPos) < indexError) {
-      indexMotor. setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+      indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+      throwMotor.setControl(new VelocityDutyCycle(0.0));
     } else {
       indexMotor.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+      throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
     }
-    throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
   }
 
   // Runs both motors backwards to load a note.

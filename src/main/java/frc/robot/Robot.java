@@ -257,6 +257,9 @@ public class Robot extends TimedRobot {
     }
   }
 
+  boolean lastAimShotAvailable = false;
+  double lastAimHeading = 0.0;
+  double lastAimArmAngle = 0.0;
   public void getAim() {
     double robotX = swerve.getXPos(); // Need to be translated to noteX once arm geometry is determined.
     double robotY = swerve.getYPos(); // Need to be translated to noteY once arm geometry is determined.
@@ -296,7 +299,7 @@ public class Robot extends TimedRobot {
     boolean aimShotAvailable = false;
     double aimArmAngle = -1;
     for (int index = 0; index < totalAngles-1; index++) {
-        if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) {
+        if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -.
             aimArmAngle = minAngle + (index+0.5)*(maxAngle-minAngle)/totalAngles;
             aimShotAvailable = true;
         }
