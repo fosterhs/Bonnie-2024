@@ -173,7 +173,7 @@ public class Robot extends TimedRobot {
 
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (stick.getRawButton(1)) {
-      thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
+      thrower.commandThrow(10.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
     }
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary.
@@ -186,6 +186,8 @@ public class Robot extends TimedRobot {
     if (stick.getRawButtonReleased(2)) {
       swerve.pushCalibration();
     }
+
+    getAim();
   }
 
   public void disabledInit() {
@@ -300,13 +302,15 @@ public class Robot extends TimedRobot {
     double aimArmAngle = -1;
     for (int index = 0; index < totalAngles-1; index++) {
         if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -.
-            aimArmAngle = minAngle + (index+0.5)*(maxAngle-minAngle)/totalAngles;
+            double negativeAngleZError = -noteZErrors[index];
+            double positiveAngleZError = noteZErrors[index+1];
+            aimArmAngle = minAngle + index*((maxAngle-minAngle)/totalAngles) + (negativeAngleZError/(positiveAngleZError + negativeAngleZError))*((maxAngle-minAngle)/totalAngles); 
             aimShotAvailable = true;
         }
     }
 
-    SmartDashboard.putNumber("robot angle", aimHeading);
-    SmartDashboard.putBoolean("shotAvailable", aimShotAvailable);
-    SmartDashboard.putNumber("arm angle", aimArmAngle);
+    SmartDashboard.putNumber("aim robot angle", aimHeading);
+    SmartDashboard.putBoolean("aim shotAvailable", aimShotAvailable);
+    SmartDashboard.putNumber("aim arm angle", aimArmAngle);
   }
-  }
+}

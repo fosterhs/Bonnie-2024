@@ -22,8 +22,9 @@ public class Thrower {
   private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 20; // The number of times a motor will attempt to reconfigure on start up.
 
-  private final TalonFX throwMotor = new TalonFX(10); // The motor running the outer flywheel (thrower).
-  private final TalonFX indexMotor = new TalonFX(9); // The motor running the inner flywheel (indexer).
+  private final TalonFX throwMotorRight = new TalonFX(11); // The motor running the outer flywheel (thrower).
+  private final TalonFX throwMotorLeft = new TalonFX(12); // The motor running the outer flywheel (thrower).
+  private final TalonFX indexMotor = new TalonFX(13); // The motor running the inner flywheel (indexer).
 
   // Initializes the proximity sensors. These return false if an object is detected and true if no object is detected.
   private final DigitalInput sensor0 = new DigitalInput(0);
@@ -40,7 +41,7 @@ public class Thrower {
   private boolean currSensor = true; // Stores the current sensor reading. 
   private boolean isSpunUp = false; // Returns true if the thrower flywheel is at speed, or at least 1 second has passed since the thrower flywheel attempted to get to speed (in case the flywheel cannot reach the demanded angular velocity).
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed.
-  private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 120 rps is roughly the max speed of a free spining Falcon.
+  private double flywheelVel = 10.0; // The last demanded flywheel velocity in rotations per second. 120 rps is roughly the max speed of a free spining Falcon.
 
   // Keeps track of the state and state transitions of the thrower.
   private int currState = 0; // 0 is intaking, 1 is spinning up, 2 is throwing
@@ -52,7 +53,8 @@ public class Thrower {
 
   public Thrower() {
     configIndexMotor();
-    configThrowMotor();
+    configThrowMotor(throwMotorLeft);
+    configThrowMotor(throwMotorRight);
     noteLoadedTimer.start();
     noteUnloadedTimer.start();
     spinUpTimer.start();
@@ -82,11 +84,11 @@ public class Thrower {
     pastSensor = currSensor;
     
     // Restarts the spinUpTimer if the thrower motor is not running at 100% power.
-    if (throwMotor.getDutyCycle().getValueAsDouble() != 1.0) {
+    if (throwMotorLeft.getDutyCycle().getValueAsDouble() != 1.0) {
       spinUpTimer.restart();
     }
 
-    isSpunUp = Math.abs(throwMotor.getVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
+    isSpunUp = Math.abs(throwMotorLeft.getVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
     throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < unloadDelay); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
 
     // Determines the state (throw, intake, spin up) of the thrower.
@@ -131,39 +133,43 @@ public class Thrower {
   
   // Throws the note.
   private void throwNote() {
-    throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
+    throwMotorLeft.setControl(new VelocityDutyCycle(flywheelVel));
+    throwMotorRight.setControl(new VelocityDutyCycle(flywheelVel));
     indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
   }
 
   // Spins up the thrower flywheel while holding the note.
   private void spinUp() {
     if (pastState != 1 && currState == 1) { // This conditional is only triggered once everytime the thrower enters the spinUp() state.
-      indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
+      indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() + indexOffset;
+      System.out.println(indexGoalPos);
     }
     double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
-    if (Math.abs(indexGoalPos - indexPos) < indexError) {
-      indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
-      throwMotor.setControl(new VelocityDutyCycle(0.0));
+    indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+    if (Math.abs(indexGoalPos - indexPos) > indexError) {
+      throwMotorLeft.setControl(new VelocityDutyCycle(0.0));
+      throwMotorRight.setControl(new VelocityDutyCycle(0.0));
     } else {
-      indexMotor.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-      throwMotor.setControl(new VelocityDutyCycle(flywheelVel));
+      throwMotorLeft.setControl(new VelocityDutyCycle(flywheelVel));
+      throwMotorRight.setControl(new VelocityDutyCycle(flywheelVel));
     }
   }
 
   // Runs both motors backwards to load a note.
   private void intakeNote() {
-    throwMotor.setControl(new VelocityDutyCycle(-intakeVel));
+    throwMotorRight.setControl(new VelocityDutyCycle(0.0));
+    throwMotorLeft.setControl(new VelocityDutyCycle(0.0));
     indexMotor.setControl(new VelocityDutyCycle(-intakeVel).withSlot(0));
   }
 
   // Sets velocity PIDV constants, brake mode, and enforces a 40 A current limit.
-  private void configThrowMotor() {
+  private void configThrowMotor(TalonFX throwMotor) {
     // Creates a configurator and config object to configure the motor.
     TalonFXConfigurator throwMotorConfigurator = throwMotor.getConfigurator();
     TalonFXConfiguration throwMotorConfigs = new TalonFXConfiguration();
 
     throwMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
-    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
+    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Inverts the direction of positive motor velocity.
 
     // Setting current limits
     throwMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
