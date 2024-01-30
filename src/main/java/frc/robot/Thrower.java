@@ -3,6 +3,7 @@ package frc.robot;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
+import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -31,7 +32,8 @@ public class Thrower {
   private final DigitalInput sensor1 = new DigitalInput(1);
 
   // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
-  private boolean throwMotorFailure = false; 
+  private boolean throwMotorRightFailure = false; 
+  private boolean throwMotorLeftFailure = false; 
   private boolean indexMotorFailure = false;
 
   private final Timer noteLoadedTimer = new Timer(); // Stores the number of seconds since the proximity sensors detected a note.
@@ -48,13 +50,15 @@ public class Thrower {
   private int pastState = 0;
 
   private double indexGoalPos; // The encoder position of the index motor when it first transitions into the spin-up state.
+  private double leftThrowerGoalPos; // Keeps track of the left thrower motors encoder position so that it can be held in place.
+  private double rightThrowerGoalPos; // Keeps track of the right thrower motors encoder position so that it can be held in place.
   private final double indexOffset = 0.5; // How much the index motor should back off the note in falcon rotations.
   private final double indexError = 0.1; // How much allowable error there is in the back off position in falcon rotations.
 
   public Thrower() {
-    configIndexMotor();
-    configThrowMotor(throwMotorLeft);
-    configThrowMotor(throwMotorRight);
+    indexMotorFailure = configIndexMotor(indexMotor, indexMotorFailure);
+    throwMotorLeftFailure = configThrowMotor(throwMotorLeft, throwMotorLeftFailure);
+    throwMotorRightFailure = configThrowMotor(throwMotorRight, throwMotorRightFailure);
     noteLoadedTimer.start();
     noteUnloadedTimer.start();
     spinUpTimer.start();
@@ -70,6 +74,8 @@ public class Thrower {
     pastState = pastSensor ? 1 : 0;
     currState = pastState;
     indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
+    leftThrowerGoalPos = throwMotorLeft.getRotorPosition().getValueAsDouble();
+    rightThrowerGoalPos = throwMotorLeft.getRotorPosition().getValueAsDouble();
   }
 
   // This function should be called periodically during teleop and auto. It updates the internal state of the thrower.
@@ -84,11 +90,11 @@ public class Thrower {
     pastSensor = currSensor;
     
     // Restarts the spinUpTimer if the thrower motor is not running at 100% power.
-    if (throwMotorLeft.getDutyCycle().getValueAsDouble() != 1.0) {
+    if (throwMotorLeft.getDutyCycle().getValueAsDouble() != 1.0 || throwMotorRight.getDutyCycle().getValueAsDouble() != 1.0) {
       spinUpTimer.restart();
     }
 
-    isSpunUp = Math.abs(throwMotorLeft.getVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
+    isSpunUp = (Math.abs(throwMotorLeft.getVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError && Math.abs(throwMotorRight.getVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError) || spinUpTimer.get() > spinUpDelay; // Checks to see whether the flywheel has reached the target angular velocity, or if it has held 100% power (duty cycle) for >0.5s.
     throwCommanded = throwCommanded && (currSensor || noteUnloadedTimer.get() < unloadDelay); // Reverts throwCommanded to false if a note is not detected and 0.6s has passed.
 
     // Determines the state (throw, intake, spin up) of the thrower.
@@ -107,7 +113,7 @@ public class Thrower {
 
   // Returns true if either the thrower motor or the index motor failed to configure on start up.
   public boolean motorFailure() {
-    return throwMotorFailure || indexMotorFailure;
+    return throwMotorLeftFailure || indexMotorFailure || throwMotorRightFailure;
   }
 
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in rotations per second.
@@ -131,41 +137,64 @@ public class Thrower {
     return !sensor0.get() || !sensor1.get();
   }
   
+  // Allows manual control of the left thrower motor if there is a failure. Output ranges from -1 to 1.
+  public void setLeftThrowerMotor(double output) {
+    throwMotorLeft.setControl(new DutyCycleOut(output));
+  }
+
+  // Allows manual control of the right thrower motor if there is a failure. Output ranges from -1 to 1.
+  public void setRightThrowerMotor(double output) {
+    throwMotorRight.setControl(new DutyCycleOut(output));
+  }
+
+  // Allows manual control of the index motor if there is a failure. Output ranges from -1 to 1.
+  public void setIndexMotor(double output) {
+    indexMotor.setControl(new DutyCycleOut(output));
+  }
+
   // Throws the note.
   private void throwNote() {
-    throwMotorLeft.setControl(new VelocityDutyCycle(flywheelVel));
-    throwMotorRight.setControl(new VelocityDutyCycle(flywheelVel));
+    throwMotorLeft.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
+    throwMotorRight.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
     indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
   }
 
   // Spins up the thrower flywheel while holding the note.
   private void spinUp() {
     if (pastState != 1 && currState == 1) { // This conditional is only triggered once everytime the thrower enters the spinUp() state.
-      indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() + indexOffset;
-      System.out.println(indexGoalPos);
+      indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
+      leftThrowerGoalPos = throwMotorLeft.getRotorPosition().getValueAsDouble();
+      rightThrowerGoalPos = throwMotorLeft.getRotorPosition().getValueAsDouble();
     }
-    double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
+
     indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+
+    double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
     if (Math.abs(indexGoalPos - indexPos) > indexError) {
-      throwMotorLeft.setControl(new VelocityDutyCycle(0.0));
-      throwMotorRight.setControl(new VelocityDutyCycle(0.0));
+      throwMotorLeft.setControl(new MotionMagicDutyCycle(leftThrowerGoalPos).withSlot(1));
+      throwMotorRight.setControl(new MotionMagicDutyCycle(rightThrowerGoalPos).withSlot(1));
     } else {
-      throwMotorLeft.setControl(new VelocityDutyCycle(flywheelVel));
-      throwMotorRight.setControl(new VelocityDutyCycle(flywheelVel));
+      throwMotorLeft.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
+      throwMotorRight.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
     }
   }
 
   // Runs both motors backwards to load a note.
   private void intakeNote() {
-    throwMotorRight.setControl(new VelocityDutyCycle(0.0));
-    throwMotorLeft.setControl(new VelocityDutyCycle(0.0));
-    indexMotor.setControl(new VelocityDutyCycle(-intakeVel).withSlot(0));
+    if (pastState != 0 && currState == 0) { // This conditional is only triggered once everytime the thrower enters the intakeNote() state.
+      leftThrowerGoalPos = throwMotorLeft.getRotorPosition().getValueAsDouble();
+      rightThrowerGoalPos = throwMotorLeft.getRotorPosition().getValueAsDouble();
+    }
+
+    throwMotorLeft.setControl(new MotionMagicDutyCycle(leftThrowerGoalPos).withSlot(1));
+    throwMotorRight.setControl(new MotionMagicDutyCycle(rightThrowerGoalPos).withSlot(1));
+    indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
   }
 
   // Sets velocity PIDV constants, brake mode, and enforces a 40 A current limit.
-  private void configThrowMotor(TalonFX throwMotor) {
+  private boolean configThrowMotor(TalonFX _throwMotor, boolean motorFailure) {
     // Creates a configurator and config object to configure the motor.
-    TalonFXConfigurator throwMotorConfigurator = throwMotor.getConfigurator();
+    TalonFXConfigurator throwMotorConfigurator = _throwMotor.getConfigurator();
     TalonFXConfiguration throwMotorConfigs = new TalonFXConfiguration();
 
     throwMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
@@ -182,26 +211,34 @@ public class Thrower {
     throwMotorConfigs.Slot0.kI = 0.06;
     throwMotorConfigs.Slot0.kD = 0.0002;
     throwMotorConfigs.Slot0.kV = 0.009;
+
+    // Motion Magic Parameters for moving set distances
+    throwMotorConfigs.Slot1.kP = 0.8;
+    throwMotorConfigs.Slot1.kI = 2.0;
+    throwMotorConfigs.Slot1.kD = 0.006;
+    throwMotorConfigs.MotionMagic.MotionMagicAcceleration = 500.0;
+    throwMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 1000.0;
     
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int throwMotorErrors = 0;
     while (throwMotorConfigurator.apply(throwMotorConfigs, 0.03) != StatusCode.OK) {
         throwMotorErrors++;
-      throwMotorFailure = throwMotorErrors > maxMotorFailures;
-      if (throwMotorFailure) {
-        break;
+      motorFailure = throwMotorErrors > maxMotorFailures;
+      if (motorFailure) {
+        return false;
       }
     }
+    return true;
   }
 
   // Sets velocity PIDV constants, brake mode, and enforces a 20 A current limit.
-  private void configIndexMotor() {
+  private boolean configIndexMotor(TalonFX _indexMotor, boolean motorFailure) {
     // Creates a configurator and config object to configure the motor.
-    TalonFXConfigurator indexMotorConfigurator = indexMotor.getConfigurator();
+    TalonFXConfigurator indexMotorConfigurator = _indexMotor.getConfigurator();
     TalonFXConfiguration indexMotorConfigs = new TalonFXConfiguration();
 
     indexMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
-    indexMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
+    indexMotorConfigs.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Inverts the direction of positive motor velocity.
 
     // Setting current limits
     indexMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
@@ -215,6 +252,7 @@ public class Thrower {
     indexMotorConfigs.Slot0.kD = 0.0002;
     indexMotorConfigs.Slot0.kV = 0.009;
 
+    // Motion Magic Parameters for moving set distances
     indexMotorConfigs.Slot1.kP = 0.8;
     indexMotorConfigs.Slot1.kI = 2.0;
     indexMotorConfigs.Slot1.kD = 0.006;
@@ -225,10 +263,11 @@ public class Thrower {
     int indexMotorErrors = 0;
     while (indexMotorConfigurator.apply(indexMotorConfigs, 0.03) != StatusCode.OK) {
       indexMotorErrors++;
-      indexMotorFailure = indexMotorErrors > maxMotorFailures;
-      if (indexMotorFailure) {
-        break;
+      motorFailure = indexMotorErrors > maxMotorFailures;
+      if (motorFailure) {
+        return false;
       }
     }
+    return true;
   }
 }
