@@ -178,7 +178,7 @@ class Drivetrain {
   }
 
   // Calculates the shortest distance between two points on a 360 degree circle. CW is + and CCW is -
-  private double getAngleDistance(double currAngle, double targetAngle) {
+  public double getAngleDistance(double currAngle, double targetAngle) {
     double directDistance = Math.abs(currAngle - targetAngle);
     double wraparoundDistance = 360.0 - directDistance;
     double minimumDistance = Math.min(directDistance, wraparoundDistance);

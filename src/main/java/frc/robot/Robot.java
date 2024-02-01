@@ -158,6 +158,18 @@ public class Robot extends TimedRobot {
     double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-stick.getX(), 0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(), 0.1)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
+    // Auto Rotate to Aim Heading
+    if (stick.getRawButtonPressed(1)) {
+      double angleDistance = swerve.getAngleDistance(swerve.getFusedAng(), lastAimHeading);
+      angleController.reset(angleDistance*Math.PI/180.0, 0.0);
+      angleController.setIntegratorRange(-Drivetrain.maxAngularVelAuto*0.8, Drivetrain.maxAngularVelAuto*0.8);
+    }
+    if (stick.getRawButton(1)) {
+      getAim();
+      double angleDistance = swerve.getAngleDistance(swerve.getFusedAng(), lastAimHeading);
+      angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
+    }
+
     // Allows the driver to rotate the robot about each corner. Defaults to a center of rotation at the center of the robot.
     if (stick.getRawButton(7)) { // Front Left
       swerve.drive(xVel, yVel, angVel, true, 0.29, 0.29);
@@ -187,7 +199,8 @@ public class Robot extends TimedRobot {
       swerve.pushCalibration();
     }
   }
-
+  private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(Drivetrain.maxAngularVelAuto, Drivetrain.maxAngularAccAuto)); // Controls the angle of the robot.
+  
   public void disabledInit() {
     swerve.resetCalibration();
   }
