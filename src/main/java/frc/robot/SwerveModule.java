@@ -261,7 +261,7 @@ class SwerveModule {
     turnMotorConfigs.Slot0.kI = 2.0;
     turnMotorConfigs.Slot0.kD = 0.006;
     turnMotorConfigs.MotionMagic.MotionMagicAcceleration = 500.0;
-    turnMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 1000.0;
+    turnMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0;
 
     int turnMotorErrors = 0;
     while (turnMotorConfigurator.apply(turnMotorConfigs, 0.03) != StatusCode.OK) {

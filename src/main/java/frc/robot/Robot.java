@@ -52,8 +52,8 @@ public class Robot extends TimedRobot {
 
   public void robotPeriodic() {
     updateVision();
+    getAim();
     swerve.updateDash();
-    SmartDashboard.putBoolean("throwerFailure", thrower.motorFailure());
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     // Allows the driver to toggle whether each of the swerve modules is on. Useful in the case of an engine failure in match. 
     if (stick.getRawButtonPressed(5)) {
@@ -115,7 +115,7 @@ public class Robot extends TimedRobot {
         if (autoStage == 1) {
           swerve.moveToTarget(1.35, 2.6, 180.0); // Code to execute during this stage.
           if (swerve.atTarget()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
-            thrower.commandThrow(120.0);
+            thrower.commandThrow(30.0);
             autoStage = 2;
           }
         } else {
@@ -173,7 +173,7 @@ public class Robot extends TimedRobot {
 
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (stick.getRawButton(1)) {
-      thrower.commandThrow(10.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
+      thrower.commandThrow(30.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
     }
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary.
@@ -186,8 +186,6 @@ public class Robot extends TimedRobot {
     if (stick.getRawButtonReleased(2)) {
       swerve.pushCalibration();
     }
-
-    getAim();
   }
 
   public void disabledInit() {
@@ -268,41 +266,37 @@ public class Robot extends TimedRobot {
     double robotY = swerve.getYPos();  // Center of rotation of the robot in field Y coordinates.
     double speakerZ = 2.045; // The center Z position of the slot in the speaker in meters.
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The center y position of the slot in the speaker in meters.
-    double armL = 0.4; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
+    double armL = 0.6; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
     double armPivotZ = 0.1; // The height of the arm pivot above the floor in meters.
     double armPivotX = 0.2; // The distance from the center of the robot to the arm pivot in meters. A pivot behind the center of rotation is positive.
     double g = 9.806; // The gravitational acceleration in meters per second squared.
     double minAngle = 10.0; // The lowest angle the arm can expect to shoot at.
     double maxAngle = 80.0; // The highest angle the arm can expect to shoot at.
-    int totalAngles = 140; // The total number of angles that should be checked.
+    int totalAngles = 70; // The total number of angles that should be checked.
     double noteVel = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
     double[] noteZErrors = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot.
 
     // Calculate the position of the note just as it leaves the thrower. This calculation relies on the previous loops solution to approximate the heading and arm angle. If no shot was available, it will default to using the field coordinates of the robot.
-    double noteX;
-    double noteY;
-    if (lastAimShotAvailable) {
-      noteX = robotX - armPivotX + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.cos(lastAimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
-      noteY = robotY + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.sin(lastAimHeading*Math.PI/180.0);
-    } else {
-      noteX = robotX;
-      noteY = robotY;
-    }
-
+    if (!lastAimShotAvailable) {
+      lastAimArmAngle = 50.0;
+      lastAimHeading = 180.0;
+    } 
+    double lastNoteX = robotX - armPivotX*Math.cos(lastAimHeading*Math.PI/180.0) + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.cos(lastAimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
+    double lastNoteY = robotY + armPivotX*Math.sin(lastAimHeading*Math.PI/180.0) + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.sin(lastAimHeading*Math.PI/180.0);
     double aimHeading; // The angle the robot should be facing to make the shot in degrees. This is an approximation based on the center of rotation of the robot and does not take into account the position of arm.
-    if (noteY == speakerY) { // The robot is aligned with the speaker in the y-dimension. This prevents calls to atan() which would result in undefined returns.
+    if (lastNoteY == speakerY) { // The robot is aligned with the speaker in the y-dimension. This prevents calls to atan() which would result in undefined returns.
         aimHeading = 180.0;
-    } else if (robotY < speakerY) {
-        aimHeading = Math.atan(noteX/(speakerY-noteY))*180.0/Math.PI + 90.0; // The robot has a positive heading.
+    } else if (lastNoteY < speakerY) {
+        aimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI + 90.0; // The robot has a positive heading.
     } else {
-        aimHeading = Math.atan(noteX/(speakerY-noteY))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
+        aimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
     }
     
     // Calculates the Z-error for several angles to see which angle is the best.
     for (int index = 0; index < totalAngles; index++) {
       double currentAngle = minAngle + index*(maxAngle-minAngle)/totalAngles; // Converts from the array index to degrees.
-      noteX = robotX - armPivotX + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // Calculates the note initial positon based on the arm angle and required robot heading.
-      noteY = robotY + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0);
+      double noteX = robotX - armPivotX*Math.cos(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
+      double noteY = robotY + armPivotX*Math.sin(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0);
       double noteZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ; 
       double noteR = Math.sqrt(Math.pow(noteX, 2) + Math.pow(noteY-speakerY, 2)); // The distance between the note's initial position and the speaker slot center.
       double noteRVel = noteVel*Math.cos(currentAngle*Math.PI/180.0); // The radial velocity of the note, as if the speaker slot center was the origin of a polar coordinate system.
@@ -314,12 +308,12 @@ public class Robot extends TimedRobot {
     boolean aimShotAvailable = false; // Stores whether it is physically possible to shoot the note into the speaker from the robot's current position.
     double aimArmAngle = -1; // Stores the optimal arm angle to make the shot, or -1 if it is impossible to make the shot.
     for (int index = 0; index < totalAngles-1; index++) {
-        if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -. If this condition is not met, a shot cannot be made from the robot's current position.
-            double negativeAngleZError = -noteZErrors[index];
-            double positiveAngleZError = noteZErrors[index+1];
-            aimArmAngle = minAngle + index*((maxAngle-minAngle)/totalAngles) + (negativeAngleZError/(positiveAngleZError + negativeAngleZError))*((maxAngle-minAngle)/totalAngles); // Linear interpolation to approximate the arm angle that results in 0 z-error. 
-            aimShotAvailable = true;
-        }
+      if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -. If this condition is not met, a shot cannot be made from the robot's current position.
+        double negativeAngleZError = -noteZErrors[index];
+        double positiveAngleZError = noteZErrors[index+1];
+        aimArmAngle = minAngle + (index + negativeAngleZError/(positiveAngleZError + negativeAngleZError))*(maxAngle-minAngle)/totalAngles; // Linear interpolation to approximate the arm angle that results in 0 z-error. 
+        aimShotAvailable = true;
+      }
     }
 
     // Stores solutions for the next iteration
