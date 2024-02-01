@@ -196,6 +196,7 @@ public class Robot extends TimedRobot {
     swerve.addCalibrationEstimate();
   }
 
+  // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
   public void updateVision() {
     boolean isSquare = isSquare();
     SmartDashboard.putBoolean("isSquare", isSquare);
@@ -257,33 +258,35 @@ public class Robot extends TimedRobot {
     }
   }
 
-  // Calculates the required robot heading and arm angle to make a shot into the speaker.
-  boolean lastAimShotAvailable = false;
-  double lastAimHeading = 0.0;
-  double lastAimArmAngle = 0.0;
+  // This function calculates the required robot heading and arm angle to make a shot into the speaker from the current robot position on the field.
+  boolean lastAimShotAvailable = false; // Whether it is possible to make it into the speaker from the current robot position.
+  double lastAimHeading = 0.0; // The robot heading that is required to make the shot.
+  double lastAimArmAngle = 0.0; // The arm angle that is required to make the shot.
   public void getAim() {
-    double robotX = swerve.getXPos(); // Center of rotation of the robot in field X coordinates.
-    double robotY = swerve.getYPos();  // Center of rotation of the robot in field Y coordinates.
-    double speakerZ = 2.045; // The center Z position of the slot in the speaker in meters.
-    double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The center y position of the slot in the speaker in meters.
+    double robotX = swerve.getXPos(); // x-coordinate of the center of rotation of the robot in meters.
+    double robotY = swerve.getYPos();  // y-coordinate of the center of rotation of the robot in meters.
+    double speakerZ = 2.045; // The height of the center of the speaker slot above the field carpet in meters. 
+    double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
     double armL = 0.6; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
-    double armPivotZ = 0.1; // The height of the arm pivot above the floor in meters.
-    double armPivotX = 0.2; // The distance from the center of the robot to the arm pivot in meters. A pivot behind the center of rotation is positive.
+    double armPivotZ = 0.1; // The height of the arm pivot above the field carpet in meters.
+    double armPivotX = 0.2; // The distance from the center of rotation of the robot to the arm pivot in meters. A pivot behind the center of rotation is positive.
     double g = 9.806; // The gravitational acceleration in meters per second squared.
-    double minAngle = 10.0; // The lowest angle the arm can expect to shoot at.
-    double maxAngle = 80.0; // The highest angle the arm can expect to shoot at.
-    int totalAngles = 70; // The total number of angles that should be checked.
     double noteVel = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
-    double[] noteZErrors = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot.
+    double minAngle = 10.0; // The lowest angle the arm can expect to shoot at in degrees. 0 degrees is paralell to the floor and 90 degrees is pointing straight up.
+    double maxAngle = 80.0; // The highest angle the arm can expect to shoot at in degrees. 0 degrees is paralell to the floor and 90 degrees is pointing straight up.
+    int totalAngles = 70; // The total number of angles that should be checked. A higher number takes more computational resources, but is more accurate.
+    double[] noteZErrors = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot in meters. This represents the overshoot or undershoot error of each angle tested.
 
-    // Calculate the position of the note just as it leaves the thrower. This calculation relies on the previous loops solution to approximate the heading and arm angle. If no shot was available, it will default to using the field coordinates of the robot.
+    // Calculates the position of the note just as it leaves the thrower. This calculation relies on the previous loops solution to approximate the heading and arm angle. If no shot was available, it will default to using middle of the range values for the heading and arm angle.
     if (!lastAimShotAvailable) {
       lastAimArmAngle = 50.0;
       lastAimHeading = 180.0;
     } 
     double lastNoteX = robotX - armPivotX*Math.cos(lastAimHeading*Math.PI/180.0) + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.cos(lastAimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
     double lastNoteY = robotY + armPivotX*Math.sin(lastAimHeading*Math.PI/180.0) + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.sin(lastAimHeading*Math.PI/180.0);
-    double aimHeading; // The angle the robot should be facing to make the shot in degrees. This is an approximation based on the center of rotation of the robot and does not take into account the position of arm.
+
+    // Calculates the angle the robot should be facing to make the shot in degrees. Based on the position of the note as it leaves the shooter.
+    double aimHeading = 180.0; // The angle the robot should be facing to make the shot in degrees.
     if (lastNoteY == speakerY) { // The robot is aligned with the speaker in the y-dimension. This prevents calls to atan() which would result in undefined returns.
         aimHeading = 180.0;
     } else if (lastNoteY < speakerY) {
@@ -295,18 +298,19 @@ public class Robot extends TimedRobot {
     // Calculates the Z-error for several angles to see which angle is the best.
     for (int index = 0; index < totalAngles; index++) {
       double currentAngle = minAngle + index*(maxAngle-minAngle)/totalAngles; // Converts from the array index to degrees.
-      double noteX = robotX - armPivotX*Math.cos(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
-      double noteY = robotY + armPivotX*Math.sin(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0);
-      double noteZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ; 
+      double noteX = robotX - armPivotX*Math.cos(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // The x-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
+      double noteY = robotY + armPivotX*Math.sin(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0); // The y-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
+      double noteZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ; // The height of the note above the carpet just as it loses contact with the thrower.
       double noteR = Math.sqrt(Math.pow(noteX, 2) + Math.pow(noteY-speakerY, 2)); // The distance between the note's initial position and the speaker slot center.
       double noteRVel = noteVel*Math.cos(currentAngle*Math.PI/180.0); // The radial velocity of the note, as if the speaker slot center was the origin of a polar coordinate system.
-      double noteTime = noteR/noteRVel; // The airtime of the note.
-      double noteFinalZ =  noteZ + noteVel*Math.sin(currentAngle*Math.PI/180.0)*noteTime - g*Math.pow(noteTime, 2)/2.0; // The kinematics calculated z-position of the note as it impacts the plane of x=0, accounting for intial z velocity and gravity.
+      double noteTime = noteR/noteRVel; // The airtime of the note before it impacts the speaker.
+      double noteFinalZ =  noteZ + noteVel*Math.sin(currentAngle*Math.PI/180.0)*noteTime - g*Math.pow(noteTime, 2)/2.0; // The kinematics calculated z-position of the note as it impacts the speaker, accounting for intial z velocity and gravity.
       noteZErrors[index] = noteFinalZ - speakerZ; // The error (either undershoot or overshoot) of this arm angle in the z-dimension.
     }
     
+    // Looks through the calcuated z-errors to find the correct arm angle to throw the note.
     boolean aimShotAvailable = false; // Stores whether it is physically possible to shoot the note into the speaker from the robot's current position.
-    double aimArmAngle = -1; // Stores the optimal arm angle to make the shot, or -1 if it is impossible to make the shot.
+    double aimArmAngle = 50.0; // Stores the optimal arm angle to make the shot, or -1 if it is impossible to make the shot.
     for (int index = 0; index < totalAngles-1; index++) {
       if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -. If this condition is not met, a shot cannot be made from the robot's current position.
         double negativeAngleZError = -noteZErrors[index];
@@ -316,11 +320,12 @@ public class Robot extends TimedRobot {
       }
     }
 
-    // Stores solutions for the next iteration
+    // Stores this periods solution for the next period to iterate on.
     lastAimShotAvailable = aimShotAvailable;
     lastAimHeading = aimHeading;
     lastAimArmAngle = aimArmAngle;
 
+    // Publishes solution to the dashboard.
     SmartDashboard.putNumber("aim robot angle", aimHeading);
     SmartDashboard.putBoolean("aim shotAvailable", aimShotAvailable);
     SmartDashboard.putNumber("aim arm angle", aimArmAngle);
