@@ -3,6 +3,7 @@ package frc.robot;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
+import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -15,7 +16,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Thrower {
   private final TalonFX throwMotor1 = new TalonFX(11); // One of the motors running the main flywheel.
   private final TalonFX throwMotor2 = new TalonFX(12); // The other motor running the main flywheel.
-  private final TalonFX intakeMotor = new TalonFX(13); // The motor running the intake.
+  private final TalonFX indexMotor = new TalonFX(13); // The motor running the intake.
 
   // Initializes the proximity sensors. These return false if an object is detected and true if no object is detected.
   private final DigitalInput sensor1 = new DigitalInput(0); // Sensor closest to the intake. Notes will trigger this sensor first when intaked normally.
@@ -27,8 +28,8 @@ public class Thrower {
   private final double intakeVel = 5.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
   private final double indexOffset = 0.85; // How much the index motor should back off the note after it is detected by the 2nd sensor in falcon rotations.
   private final double indexError = 0.05; // How much allowable error there is in the back off position in falcon rotations.
-  private final double allowableFlywheelAccError = 1.0; // The acceleration of the flywheel that is acceptable to be considered spun down in rotations per second squared.
-  private final double allowableFlywheelVelError = 1.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
+  private final double allowableFlywheelAccError = 10.0; // The acceleration of the flywheel that is acceptable to be considered spun down in rotations per second squared.
+  private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
   private final double spinUpDelay = 1.0; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
   private final Timer throwTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the THROW state.
@@ -62,20 +63,29 @@ public class Thrower {
 
   // These variables store the desired motor velocities which are used and updated when the thrower is in the MANUAL state.
   private boolean manualControl = false;
-  private double flywheelVelManual = 10.0;
-  private double indexVelManual = 10.0;
+  private double flywheelPowerManual = 0.3;
+  private double indexPowerManual = 0.1;
 
   public Thrower() {
-    indexMotorFailure = configIndexMotor(intakeMotor, indexMotorFailure);
-    throwMotor2Failure = configThrowMotor(throwMotor2, throwMotor2Failure);
-    throwMotor1Failure = configThrowMotor(throwMotor1, throwMotor1Failure);
+    indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
+    throwMotor2Failure = !configThrowMotor(throwMotor2, throwMotor2Failure);
+    throwMotor1Failure = !configThrowMotor(throwMotor1, throwMotor1Failure);
+    manualControl = getMotorFailure();
   }
 
+  // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
   public void init() {
     lastState = State.DISABLED;
-    nextState = getSensor1() || getSensor2() ? State.SPIN_UP : State.INTAKE;
+    if (manualControl) {
+      nextState = State.MANUAL;
+    } else if (getSensor1() || getSensor2()) {
+      nextState = State.SPIN_UP;
+    } else {
+      nextState = State.INTAKE;
+    }
   }
 
+  // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
   public void periodic() {
     updateDashboard();
     switch (nextState) {
@@ -84,14 +94,14 @@ public class Thrower {
 
         throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
         throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-        intakeMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
+        indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
 
         throwCommanded = false;
 
-        if (manualControl || getMotorFailure()) {
+        if (manualControl) {
           nextState = State.MANUAL;
-        } else if (getSensor1() || getSensor2()) {
-          nextState = State.SPIN_UP;
+        } else if (getSensor2()) {
+          nextState = State.BACK_UP;
         } else if (isThrowerStopped()) {
           nextState = State.INTAKE;
         } else {
@@ -104,13 +114,13 @@ public class Thrower {
 
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
         throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
-        intakeMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
+        indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
 
         if (getSensor1() || getSensor2()) {
           throwTimer.restart();
         }
 
-        if (manualControl || getMotorFailure()) {
+        if (manualControl) {
           nextState = State.MANUAL;
         } else if (throwTimer.get() > throwDelay) {
           nextState = State.SPIN_DOWN;
@@ -121,16 +131,16 @@ public class Thrower {
 
       case SPIN_UP:
         if (lastState != State.SPIN_UP) {
-          indexGoalPos = intakeMotor.getRotorPosition().getValueAsDouble();
+          indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble();
           spinUpTimer.reset();
         }
         lastState = State.SPIN_UP;
 
-        intakeMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
         throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
 
-        if (manualControl || getMotorFailure()) {
+        if (manualControl) {
           nextState = State.MANUAL;
         } else if (!getSensor1() && !getSensor2()) {
           nextState = State.SPIN_DOWN;
@@ -143,18 +153,18 @@ public class Thrower {
 
       case BACK_UP:
         if (lastState != State.BACK_UP) {
-          indexGoalPos = intakeMotor.getRotorPosition().getValueAsDouble() - indexOffset;
+          indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
           leftThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
           rightThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
         }
         lastState = State.BACK_UP;
 
-        intakeMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
+        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
         throwMotor2.setControl(new MotionMagicDutyCycle(leftThrowerGoalPos).withSlot(1));
         throwMotor1.setControl(new MotionMagicDutyCycle(rightThrowerGoalPos).withSlot(1));
 
-        double indexPos = intakeMotor.getRotorPosition().getValueAsDouble();
-        if (manualControl || getMotorFailure()) {
+        double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
+        if (manualControl) {
           nextState = State.MANUAL;
         } else if (!getSensor1() && !getSensor2()) {
           nextState = State.INTAKE;
@@ -172,13 +182,13 @@ public class Thrower {
         }
         lastState = State.INTAKE;
 
-        intakeMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
+        indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
         throwMotor2.setControl(new MotionMagicDutyCycle(leftThrowerGoalPos).withSlot(1));
         throwMotor1.setControl(new MotionMagicDutyCycle(rightThrowerGoalPos).withSlot(1));
 
         throwCommanded = false;
 
-        if (manualControl || getMotorFailure()) {
+        if (manualControl) {
           nextState = State.MANUAL;
         } else if (getSensor2()) {
           nextState = State.BACK_UP;
@@ -190,13 +200,13 @@ public class Thrower {
       case MANUAL:
         lastState = State.MANUAL;
 
-        throwMotor2.setControl(new VelocityDutyCycle(flywheelVelManual).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(flywheelVelManual).withSlot(0));
-        intakeMotor.setControl(new VelocityDutyCycle(indexVelManual).withSlot(0));
+        throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual));
+        throwMotor2.setControl(new DutyCycleOut(flywheelPowerManual));
+        indexMotor.setControl(new DutyCycleOut(indexPowerManual));
 
-        if (!manualControl && (getSensor1() || getSensor2())) {
-          nextState = State.SPIN_UP;
-        } else if (!manualControl && (!getSensor1() || !getSensor2())) {
+        if (!manualControl && getSensor2()) {
+          nextState = State.BACK_UP;
+        } else if (!manualControl && !getSensor2()) {
           nextState = State.SPIN_DOWN;
         } else {
           nextState = State.MANUAL;
@@ -238,7 +248,7 @@ public class Thrower {
 
   // Returns true if either the thrower motors or the index motor failed to configure on start up.
   public boolean getMotorFailure() {
-    return !throwMotor2Failure || !indexMotorFailure || !throwMotor1Failure;
+    return throwMotor2Failure || indexMotorFailure || throwMotor1Failure;
   }
 
   // Sets the control mode of the thrower. If true, the thrower will be controlled via manual input with no automation.
@@ -247,22 +257,30 @@ public class Thrower {
   }
 
   // Sets the speeds of the thrower when manualControl is true(enabled).
-  public void setManualSpeeds(double _flywheelVelManual, double _indexVelManual) {
-    flywheelVelManual = _flywheelVelManual;
-    indexVelManual = _indexVelManual;
+  public void setManualSpeeds(double _flywheelPowerManual, double _indexPowerManual) {
+    flywheelPowerManual = _flywheelPowerManual;
+    indexPowerManual = _indexPowerManual;
   }
 
   // Attempts to reboot the thrower by reconfiguring the motors. Use if trying to troubleshoot a thrower failure during a match.
   public void reboot() {
-    indexMotorFailure = configIndexMotor(intakeMotor, indexMotorFailure);
-    throwMotor2Failure = configThrowMotor(throwMotor2, throwMotor2Failure);
-    throwMotor1Failure = configThrowMotor(throwMotor1, throwMotor1Failure);
+    indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
+    throwMotor2Failure = !configThrowMotor(throwMotor2, throwMotor2Failure);
+    throwMotor1Failure = !configThrowMotor(throwMotor1, throwMotor1Failure);
+    manualControl = getMotorFailure();
     lastState = State.DISABLED;
-    nextState = getSensor1() || getSensor2() ? State.SPIN_UP : State.INTAKE;
+    if (manualControl) {
+      nextState = State.MANUAL;
+    } else if (getSensor1() || getSensor2()) {
+      nextState = State.SPIN_UP;
+    } else {
+      nextState = State.INTAKE;
+    }
   }
 
   // Sends information about the thrower to the dashboard each period. This is handled automatically by the thrower class.
   private void updateDashboard() {
+    SmartDashboard.putBoolean("manualThrowerControl", manualControl);
     SmartDashboard.putBoolean("throwerFailure", getMotorFailure());
     SmartDashboard.putBoolean("throwCommanded", throwCommanded);
     SmartDashboard.putNumber("flywheelVel", flywheelVel);
@@ -282,7 +300,7 @@ public class Thrower {
       (Math.abs(throwMotor2.getRotorVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError);
   }
 
-  // Sets PID constants, brake mode, and enforces a 40 A current limit.
+  // Sets PID constants, brake mode, and enforces a 40 A current limit. Returns true if the motor successfully configued.
   private boolean configThrowMotor(TalonFX _throwMotor, boolean motorFailure) {
     // Creates a configurator and config object to configure the motor.
     TalonFXConfigurator throwMotorConfigurator = _throwMotor.getConfigurator();
@@ -310,6 +328,7 @@ public class Thrower {
     throwMotorConfigs.MotionMagic.MotionMagicAcceleration = 75.0;
     throwMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 50.0;
     throwMotorConfigs.MotionMagic.MotionMagicJerk = 400.0;
+
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int throwMotorErrors = 0;
     while (throwMotorConfigurator.apply(throwMotorConfigs, 0.03) != StatusCode.OK) {
@@ -322,7 +341,7 @@ public class Thrower {
     return true;
   }
 
-  // Sets PID constants, brake mode, and enforces a 20 A current limit.
+  // Sets PID constants, brake mode, and enforces a 20 A current limit. Returns true if the motor successfully configued.
   private boolean configIndexMotor(TalonFX _indexMotor, boolean motorFailure) {
     // Creates a configurator and config object to configure the motor.
     TalonFXConfigurator indexMotorConfigurator = _indexMotor.getConfigurator();

@@ -225,10 +225,12 @@ class SwerveModule {
 
     driveMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     driveMotorConfigs.MotorOutput.Inverted = invertDrive ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
+    
     driveMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
     driveMotorConfigs.CurrentLimits.SupplyCurrentLimit = driveMotorCurrentLimit;
     driveMotorConfigs.CurrentLimits.SupplyCurrentThreshold = driveMotorCurrentLimit;
     driveMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+
     driveMotorConfigs.Slot0.kP = 0.008;
     driveMotorConfigs.Slot0.kI = 0.06;
     driveMotorConfigs.Slot0.kD = 0.0002;
@@ -253,10 +255,12 @@ class SwerveModule {
 
     turnMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     turnMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+
     turnMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
     turnMotorConfigs.CurrentLimits.SupplyCurrentLimit = turnMotorCurrentLimit;
     turnMotorConfigs.CurrentLimits.SupplyCurrentThreshold = turnMotorCurrentLimit;
     turnMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+
     turnMotorConfigs.Slot0.kP = 0.8;
     turnMotorConfigs.Slot0.kI = 2.0;
     turnMotorConfigs.Slot0.kD = 0.006;

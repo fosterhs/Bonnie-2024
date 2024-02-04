@@ -159,15 +159,19 @@ public class Robot extends TimedRobot {
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(), 0.1)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
     // Auto Rotate to Aim Heading
+    double angleDistance = swerve.getAngleDistance(swerve.getFusedAng(), lastAimHeading);
     if (stick.getRawButtonPressed(1)) {
-      double angleDistance = swerve.getAngleDistance(swerve.getFusedAng(), lastAimHeading);
       angleController.reset(angleDistance*Math.PI/180.0, 0.0);
       angleController.setIntegratorRange(-Drivetrain.maxAngularVelAuto*0.8, Drivetrain.maxAngularVelAuto*0.8);
     }
     if (stick.getRawButton(1)) {
-      getAim();
-      double angleDistance = swerve.getAngleDistance(swerve.getFusedAng(), lastAimHeading);
       angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
+      if (Math.abs(angleDistance) < headingTol) {
+        angVel = 0.0;
+      }
+      if (Math.abs(angVel) > Drivetrain.maxAngularVelAuto) {
+        angVel = angVel > 0.0 ? Drivetrain.maxAngularVelAuto : -Drivetrain.maxAngularVelAuto;
+      }
     }
 
     // Allows the driver to rotate the robot about each corner. Defaults to a center of rotation at the center of the robot.
@@ -199,7 +203,6 @@ public class Robot extends TimedRobot {
       swerve.pushCalibration();
     }
   }
-  private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(Drivetrain.maxAngularVelAuto, Drivetrain.maxAngularAccAuto)); // Controls the angle of the robot.
   
   public void disabledInit() {
     swerve.resetCalibration();
@@ -272,6 +275,8 @@ public class Robot extends TimedRobot {
   }
 
   // This function calculates the required robot heading and arm angle to make a shot into the speaker from the current robot position on the field.
+  private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(Drivetrain.maxAngularVelAuto, Drivetrain.maxAngularAccAuto)); // Controls the angle of the robot.
+  double headingTol = 0.5; // The acceptable error in the heading of the robot when tracking headings calculated by the getAim() function.
   boolean lastAimShotAvailable = false; // Whether it is possible to make it into the speaker from the current robot position.
   double lastAimHeading = 0.0; // The robot heading that is required to make the shot.
   double lastAimArmAngle = 0.0; // The arm angle that is required to make the shot.
@@ -283,7 +288,7 @@ public class Robot extends TimedRobot {
     double armL = 0.6; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
     double armPivotZ = 0.1; // The height of the arm pivot above the field carpet in meters.
     double armPivotX = 0.2; // The distance from the center of rotation of the robot to the arm pivot in meters. A pivot behind the center of rotation is positive.
-    double g = 9.806; // The gravitational acceleration in meters per second squared.
+    double g = 9.81; // The gravitational acceleration in meters per second squared.
     double noteVel = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
     double minAngle = 10.0; // The lowest angle the arm can expect to shoot at in degrees. 0 degrees is paralell to the floor and 90 degrees is pointing straight up.
     double maxAngle = 80.0; // The highest angle the arm can expect to shoot at in degrees. 0 degrees is paralell to the floor and 90 degrees is pointing straight up.
