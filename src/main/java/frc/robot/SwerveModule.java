@@ -31,7 +31,7 @@ class SwerveModule {
   private double wheelInitialPos;
 
   // Motor error code tracking variables.
-  private final int maxMotorErrors = 20; // The most times a configuration command can be unsuccesfully sent to a motor before a failure is declared and the motor is disabled. 
+  private final int maxMotorErrors = 3; // The most times a configuration command can be unsuccesfully sent to a motor before a failure is declared and the motor is disabled. 
   private boolean driveMotorFailure = false; // Whether the drive motor has failed to configure correctly.
   private boolean turnMotorFailure = false; // Whether the turn motor has failed to configure correctly.
   private boolean moduleFailure = false; // Whether either the drive motor or the turn motor has failed to configure correctly.

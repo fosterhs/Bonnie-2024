@@ -24,7 +24,7 @@ public class Thrower {
 
   private final double throwMotorCurrentLimit = 40.0; // Throw motor current limit in amps. Should be based on the breaker used in the PDP.
   private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
-  private final int maxMotorFailures = 20; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
+  private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
   private final double intakeVel = 5.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
   private final double indexOffset = 0.85; // How much the index motor should back off the note after it is detected by the 2nd sensor in falcon rotations.
   private final double indexError = 0.05; // How much allowable error there is in the back off position in falcon rotations.
@@ -203,10 +203,15 @@ public class Thrower {
           flywheelPowerManual = 0.0;
         }
         lastState = State.MANUAL;
-
-        throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual));
-        throwMotor2.setControl(new DutyCycleOut(flywheelPowerManual));
-        indexMotor.setControl(new DutyCycleOut(indexPowerManual));
+        if (!throwMotor1Failure) {
+          throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual));
+        }
+        if (!throwMotor2Failure) {
+          throwMotor2.setControl(new DutyCycleOut(flywheelPowerManual));
+        }
+        if (!indexMotorFailure) {
+          indexMotor.setControl(new DutyCycleOut(indexPowerManual));
+        }
 
         if (!manualControl && getSensor2()) {
           nextState = State.BACK_UP;
@@ -255,9 +260,9 @@ public class Thrower {
     return throwMotor2Failure || indexMotorFailure || throwMotor1Failure;
   }
 
-  // Sets the control mode of the thrower. If true, the thrower will be controlled via manual input with no automation.
-  public void setManualControl(boolean _manualControl) {
-    manualControl = _manualControl;
+  // Toggles whether the thrower is under manual control.
+  public void toggleManualControl() {
+    manualControl = !manualControl;
   }
 
   // Returns true if the thrower is under manual control, and false if it automated.

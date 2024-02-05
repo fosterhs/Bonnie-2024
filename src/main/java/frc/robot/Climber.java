@@ -8,11 +8,13 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
 public class Climber {
   private final TalonFX leftClimbMotor = new TalonFX(9); // The motor that controls the left climber.
   private final TalonFX rightClimbMotor = new TalonFX(10); // The other that controls the right climber.
   private final double motorCurrentLimit = 40.0; // Motor current limit in amps. Should be based on the breaker used in the PDP.
-  private final int maxMotorFailures = 20; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
+  private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
 
   // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
   private boolean leftClimbMotorFailure = false; 
@@ -23,10 +25,19 @@ public class Climber {
     rightClimbMotorFailure = !configMotor(rightClimbMotor, rightClimbMotorFailure);
   }
 
+  // Updates any important values on the dashboard.
+  public void periodic() {
+    SmartDashboard.putBoolean("Climber Failure", getMotorFailure());
+  }
+
   // Sets the output of each climb motor. the ClimbPower inputs can range from -1 to 1. -1 corresponds to full power down and +1 is full power up.
   public void set(double leftClimbPower, double rightClimbPower) {
-    leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower));
-    rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower));
+    if (!leftClimbMotorFailure) {
+      leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower));
+    }
+    if (!rightClimbMotorFailure) {
+      rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower));
+    }
   }
   
   // Attempts to reboot the climber by reconfiguring the motors. Use if trying to troubleshoot a climber failure during a match.

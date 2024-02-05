@@ -16,7 +16,7 @@ public class Arm {
   private final TalonFX armMotor1 = new TalonFX(14); // One of the motors that controls the arm.
   private final TalonFX armMotor2 = new TalonFX(15); // The other motor that controls the arm.
   private final double motorCurrentLimit = 40.0; // Motor current limit in amps. Should be based on the breaker used in the PDP.
-  private final int maxMotorFailures = 20; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
+  private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
 
   // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
   private boolean armMotor1Failure = false; 
@@ -42,7 +42,12 @@ public class Arm {
   public void periodic() {
     updateDashboard();
     if (manualControl) {
-      armMotor1.setControl(new DutyCycleOut(manualPower));
+      if (!armMotor1Failure) {
+        armMotor1.setControl(new DutyCycleOut(manualPower));
+      }
+      if (!armMotor2Failure) {
+        armMotor2.setControl(new DutyCycleOut(manualPower));
+      }
     } else {
       manualPower = 0.0;
       double currentMotorPos = armMotor1.getRotorPosition().getValueAsDouble();
@@ -70,9 +75,9 @@ public class Arm {
     manualPower = _manualPower;
   }
 
-  // Sets the control mode of the thrower. If true, the thrower will be controlled via manual input with no automation.
-  public void setManualControl(boolean _manualControl) {
-    manualControl = _manualControl;
+  // Toggles whether the arm is under manual control. Useful in the case of motor issues.
+  public void toggleManualControl() {
+    manualControl = !manualControl;
   }
 
   // Returns true if the arm is under manual control, and false if it is automated.

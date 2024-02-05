@@ -43,7 +43,8 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("Autos", autoChooser);
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
-    
+    createToggles();
+
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetPathController(0);
     swerve.followPath(0);
@@ -54,38 +55,15 @@ public class Robot extends TimedRobot {
   }
 
   public void robotPeriodic() {
-    updateVision(); // Checks to see if there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    updateVision(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     getAim(); // Calculates the required robot heading and arm angle to make a shot from the current robot position.
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-
-    // Allows the driver to toggle whether each of the swerve modules is on. Useful in the case of an engine failure in match. 
-    if (stick.getRawButtonPressed(5)) {
-      swerve.toggleFL();
-    }
-    if (stick.getRawButtonPressed(6)) {
-      swerve.toggleFR();
-    }
-    if (stick.getRawButtonPressed(3)) {
-      swerve.toggleBL();
-    }
-    if (stick.getRawButtonPressed(4)) {
-      swerve.toggleBR();
-    }
+    updateToggles();
 
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
     if (stick.getRawButtonPressed(11)) {
       swerve.resetGyro();
-    }
-
-    // Toggles the gyro on/off. Useful in the case of a gyro failure. A disabled gyro leads to loss of auto and field-oriented control. 
-    if (stick.getRawButtonPressed(12)) {
-      swerve.toggleGyro();
-    }
-
-    // Toggles whether vision information is used to drive the robot.
-    if (stick.getPOV() == 0) {
-      swerve.toggleVision();
     }
   }
   
@@ -117,6 +95,7 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
     thrower.periodic();
     arm.periodic();
+    climber.periodic();
     switch (autoSelected) {
       case auto1:
         switch (autoStage) {
@@ -220,6 +199,7 @@ public class Robot extends TimedRobot {
       arm.updateSetpoint(lastAimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
     }
 
+    climber.periodic();
     climber.set(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
   }
   
@@ -329,5 +309,112 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("aim robot angle", aimHeading);
     SmartDashboard.putBoolean("aim shotAvailable", aimShotAvailable);
     SmartDashboard.putNumber("aim arm angle", aimArmAngle);
+  }
+
+  // Initializes toggle booleans to the dashboard.
+  boolean moduleToggleFR = false;
+  boolean moduleToggleFL = false;
+  boolean moduleToggleBL = false;
+  boolean moduleToggleBR = false;
+  boolean gyroToggle = false;
+  boolean visionToggle = false;
+  boolean throwerManual = false;
+  boolean throwerReboot = false;
+  boolean armManual = false;
+  boolean armReboot = false;
+  boolean climberReboot = false;
+  public void createToggles() {
+    moduleToggleFR = false;
+    moduleToggleFL = false;
+    moduleToggleBL = false;
+    moduleToggleBR = false;
+    gyroToggle = false;
+    visionToggle = false;
+    throwerManual = false;
+    throwerReboot = false;
+    armManual = false;
+    armReboot = false;
+    climberReboot = false;
+
+    SmartDashboard.putBoolean("FR Module Toggle", moduleToggleFR);
+    SmartDashboard.putBoolean("FL Module Toggle", moduleToggleFL);
+    SmartDashboard.putBoolean("BL Module Toggle", moduleToggleBL);
+    SmartDashboard.putBoolean("BR Module Toggle", moduleToggleBR);
+    SmartDashboard.putBoolean("Gyro Toggle", gyroToggle);
+    SmartDashboard.putBoolean("Vision Toggle", visionToggle);
+    SmartDashboard.putBoolean("Thrower Manual Toggle", throwerManual);
+    SmartDashboard.putBoolean("Thrower Reboot", throwerReboot);
+    SmartDashboard.putBoolean("Arm Manual Toggle", armManual);
+    SmartDashboard.putBoolean("Arm Reboot", armReboot);
+    SmartDashboard.putBoolean("Climber Reboot", climberReboot);
+  }
+
+  // Reads toggles from dashboard and executes the corresponding code.
+  public void updateToggles() {
+    boolean currModuleToggleFR = SmartDashboard.getBoolean("FR Module Toggle", false);
+    if (currModuleToggleFR ^ moduleToggleFR) {
+      swerve.toggleFR();
+    }
+    moduleToggleFR = currModuleToggleFR;
+
+    boolean currModuleToggleFL = SmartDashboard.getBoolean("FL Module Toggle", false);
+    if (currModuleToggleFL ^ moduleToggleFL) {
+      swerve.toggleFL();
+    }
+    moduleToggleFL = currModuleToggleFL;
+
+    boolean currModuleToggleBL = SmartDashboard.getBoolean("BL Module Toggle", false);
+    if (currModuleToggleBL ^ moduleToggleBL) {
+      swerve.toggleBL();
+    }
+    moduleToggleBL = currModuleToggleBL;
+
+    boolean currModuleToggleBR = SmartDashboard.getBoolean("BR Module Toggle", false);
+    if (currModuleToggleBR ^ moduleToggleBR) {
+      swerve.toggleBR();
+    }
+    moduleToggleBR = currModuleToggleBR;
+
+    boolean currGyroToggle = SmartDashboard.getBoolean("Gyro Toggle", false);
+    if (currGyroToggle ^ gyroToggle) {
+      swerve.toggleGyro();
+    }
+    gyroToggle = currGyroToggle;
+
+    boolean currVisionToggle = SmartDashboard.getBoolean("Vision Toggle", false);
+    if (currVisionToggle ^ visionToggle) {
+      swerve.toggleVision();
+    }
+    visionToggle = currVisionToggle;
+
+    boolean currThrowerManual = SmartDashboard.getBoolean("Thrower Manual Toggle", false);
+    if (currThrowerManual ^ throwerManual) {
+      thrower.toggleManualControl();
+    }
+    throwerManual = currThrowerManual;
+
+    boolean currThrowerReboot = SmartDashboard.getBoolean("Thrower Reboot", false);
+    if (currThrowerReboot ^ throwerReboot) {
+      thrower.reboot();
+    }
+    throwerReboot = currThrowerReboot;
+
+    boolean currArmManual = SmartDashboard.getBoolean("Arm Manual Toggle", false);
+    if (currArmManual ^ armManual) {
+      arm.toggleManualControl();
+    }
+    armManual = currArmManual;
+
+    boolean currArmReboot = SmartDashboard.getBoolean("Arm Reboot", false);
+    if (currArmReboot ^ armReboot) {
+      arm.reboot();
+    }
+    armReboot = currArmReboot;
+
+    boolean currClimberReboot = SmartDashboard.getBoolean("Climber Reboot", false);
+    if (currClimberReboot ^ climberReboot) {
+      climber.reboot();
+    }
+    climberReboot = currClimberReboot;
   }
 }
