@@ -32,7 +32,7 @@ public class Robot extends TimedRobot {
   private static final String auto3 = "Auto 3"; 
   private static final String auto4 = "Auto 4"; 
   private String autoSelected;
-  private int autoStage = 0;
+  private int autoStage = 1;
 
   public void robotInit() {
     // Allows the user to choose which auto to do
@@ -96,15 +96,18 @@ public class Robot extends TimedRobot {
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
+        // AutoInit 1 code goes here.
         swerve.resetTargetController(180.0);
         break;
+
       case auto2:
         // AutoInit 2 code goes here.
-        swerve.resetPathController(0); // Must be called immediately prior to following a Path Planner path using followPath().
         break;
+
       case auto3: 
         // AutoInit 3 code goes here.
         break;
+
       case auto4:
         // AutoInit 4 code goes here.
         break;
@@ -116,36 +119,34 @@ public class Robot extends TimedRobot {
     arm.periodic();
     switch (autoSelected) {
       case auto1:
-        // Auto 1 code goes here. 
-        if (autoStage == 1) {
-          swerve.moveToTarget(1.35, 2.6, 180.0); // Code to execute during this stage.
-          if (swerve.atTarget()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+        switch (autoStage) {
+          case 1: 
+            // Auto 1 code goes here.
+            swerve.moveToTarget(1.35, 2.6, 180.0);
+
+            // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+            if (swerve.atTarget()) {
             thrower.commandThrow(30.0);
             autoStage = 2;
-          }
-        } else {
-          swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops the robot after auto is completed.
+            }
+            break;
+
+          default: 
+            swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops the robot after auto is completed.
+            break;
         }
         break;
+
       case auto2:
         // Auto 2 code goes here.
-        if (!swerve.atPathEndpoint(0)) { // Checks to see if the endpoint of the path has been reached within the specified tolerance.
-          swerve.followPath(0); // Follows the path that was previously loaded from Path Planner using loadPath().
-        } else {
-          swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops driving.
-        }
         break;
+
       case auto3: 
         // Auto 3 code goes here.
-        if (isSquare()) {
-          strafeToAprilTag();
-        } else {
-          swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0);   
-        }
         break;
+
       case auto4: 
         // Auto 4 code goes here.
-        rotateToAprilTag(5.0);
         break;
     }
   }
@@ -228,44 +229,6 @@ public class Robot extends TimedRobot {
   
   public void disabledPeriodic() {
     swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-  }
-
-  ProfiledPIDController angController = new ProfiledPIDController(0.14, 0.0, 0.004, new TrapezoidProfile.Constraints(1/4*Math.PI, 1/2*Math.PI));
-  public void rotateToAprilTag(double offset) {
-    double tx = LimelightHelpers.getTX("");
-    boolean tv = LimelightHelpers.getTV("");
-    double output = angController.calculate(tx-offset);
-    if (!tv){
-      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
-    } else {
-      swerve.drive(0.0, 0.0, output, true, 0.0, 0.0);
-    }
-  }
-
-  ProfiledPIDController strafeController = new ProfiledPIDController(0.08, 0.0, 0.0, new TrapezoidProfile.Constraints(0.8, 0.4));
-  public void strafeToAprilTag() {
-    double tx = LimelightHelpers.getTX("");
-    boolean tv = LimelightHelpers.getTV("");
-    double output = strafeController.calculate(-tx);
-
-    if (tv) {
-      swerve.drive(0.0, output, 0.0, true, 0.0, 0.0);
-    } else {
-      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
-    }
-  }
-
-  ProfiledPIDController distanceController = new ProfiledPIDController(0.08, 0.0, 0.0, new TrapezoidProfile.Constraints(0.8, 0.4));
-  public void robotToAprilTag(double targetDistance) {
-    double[] presentDistanceArray = LimelightHelpers.getLimelightNTTableEntry("limelight", "botpose_targetspace").getDoubleArray(new double[6]);
-    double presentDistance = -presentDistanceArray[2];
-    boolean tv = LimelightHelpers.getTV("");
-    double output = distanceController.calculate(presentDistance);
-    if (tv) {
-      swerve.drive(output, 0.0, 0.0, true, 0.0, 0.0);
-    } else {
-      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
-    }
   }
 
   // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
