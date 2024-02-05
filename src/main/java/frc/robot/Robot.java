@@ -11,7 +11,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends TimedRobot {
   private final Joystick stick = new Joystick(0); // Initializes the joystick.
-  private final Drivetrain swerve = new Drivetrain(); // Initializes the drivetrain (swerve modules, gyro, and path follower)
 
   // Limits the acceleration of controller inputs. 
   private final SlewRateLimiter xAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop/Drivetrain.maxVelTeleop);
@@ -19,6 +18,12 @@ public class Robot extends TimedRobot {
   private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAccTeleop/Drivetrain.maxAngularVelTeleop);
   
   private final double minSpeedScaleFactor = 0.05; // The maximum speed of the robot when the throttle is at its minimum position, as a percentage of maxVel and maxAngularVel
+
+  // Initializes the different subsystems of the robot.
+  private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
+  private final Thrower thrower = new Thrower();
+  private final Arm arm = new Arm();
+  private final Climber climber = new Climber();
 
   // Auto Chooser Variables
   private final SendableChooser<String> autoChooser = new SendableChooser<>();
@@ -28,8 +33,6 @@ public class Robot extends TimedRobot {
   private static final String auto4 = "Auto 4"; 
   private String autoSelected;
   private int autoStage = 0;
-
-  Thrower thrower = new Thrower();
 
   public void robotInit() {
     // Allows the user to choose which auto to do
@@ -51,10 +54,11 @@ public class Robot extends TimedRobot {
   }
 
   public void robotPeriodic() {
-    updateVision();
-    getAim();
-    swerve.updateDash();
+    updateVision(); // Checks to see if there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    getAim(); // Calculates the required robot heading and arm angle to make a shot from the current robot position.
+    swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
+
     // Allows the driver to toggle whether each of the swerve modules is on. Useful in the case of an engine failure in match. 
     if (stick.getRawButtonPressed(5)) {
       swerve.toggleFL();
@@ -86,8 +90,8 @@ public class Robot extends TimedRobot {
   }
   
   public void autonomousInit() {
-    swerve.pushCalibration();
-    thrower.init();
+    swerve.pushCalibration(); // Updates the robot's position on the field.
+    thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     autoStage = 1;
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
@@ -109,6 +113,7 @@ public class Robot extends TimedRobot {
 
   public void autonomousPeriodic() {
     thrower.periodic();
+    arm.periodic();
     switch (autoSelected) {
       case auto1:
         // Auto 1 code goes here. 
@@ -146,8 +151,8 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopInit() {
-    swerve.pushCalibration();
-    thrower.init(); // Should be called in autoInit() and teleopInit(). Gets the thrower ready.
+    swerve.pushCalibration(); // Updates the robot's position on the field.
+    thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
   }
 
   public void teleopPeriodic() {
@@ -187,43 +192,42 @@ public class Robot extends TimedRobot {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
 
-    thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
-    if (stick.getRawButton(1)) {
-      thrower.commandThrow(30.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
-    }
-
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary.
     if (stick.getRawButtonPressed(2)) {
-      swerve.resetCalibration();
+      swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
     }
     if (stick.getRawButton(2)) {
-      swerve.addCalibrationEstimate();
+      swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
     }
     if (stick.getRawButtonReleased(2)) {
-      swerve.pushCalibration();
+      swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
     }
+
+    thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
+    if (thrower.getManualControl()) {
+      thrower.setManualSpeeds(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+    } else {
+      if (stick.getRawButton(1)) {
+        thrower.commandThrow(30.0); // Commands the thrower to throw a note with a flywheel velocity of 30 rotations per second.
+      }
+    }
+
+    arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
+    if (arm.getManualControl()) {
+      arm.setManualPower(0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+    } else {
+      arm.updateSetpoint(lastAimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
+    }
+
+    climber.set(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
   }
   
   public void disabledInit() {
-    swerve.resetCalibration();
+    swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
   }
   
   public void disabledPeriodic() {
-    swerve.addCalibrationEstimate();
-  }
-
-  // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
-  public void updateVision() {
-    boolean isSquare = isSquare();
-    SmartDashboard.putBoolean("isSquare", isSquare);
-    double[] presentDistanceArray = LimelightHelpers.getLimelightNTTableEntry("limelight", "botpose_targetspace").getDoubleArray(new double[6]);
-    double presentDistance = -presentDistanceArray[2];
-    SmartDashboard.putNumber("Distance to Tag", presentDistance);
-    double ta = LimelightHelpers.getTA("");
-    double tid = LimelightHelpers.getFiducialID("");
-    if (!isSquare && ta > 1.5 && ((tid == 8 && swerve.isBlueAlliance()) || (tid == 4 && swerve.isRedAlliance()))) {
-      swerve.addVisionEstimate(0.04, 0.04);
-    }
+    swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 
   ProfiledPIDController angController = new ProfiledPIDController(0.14, 0.0, 0.004, new TrapezoidProfile.Constraints(1/4*Math.PI, 1/2*Math.PI));
@@ -263,7 +267,22 @@ public class Robot extends TimedRobot {
       swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
     }
   }
+
+  // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
+  public void updateVision() {
+    boolean isSquare = isSquare();
+    SmartDashboard.putBoolean("isSquare", isSquare);
+    double[] presentDistanceArray = LimelightHelpers.getLimelightNTTableEntry("limelight", "botpose_targetspace").getDoubleArray(new double[6]);
+    double presentDistance = -presentDistanceArray[2];
+    SmartDashboard.putNumber("Distance to Tag", presentDistance);
+    double ta = LimelightHelpers.getTA("");
+    double tid = LimelightHelpers.getFiducialID("");
+    if (!isSquare && ta > 1.5 && ((tid == 8 && swerve.isBlueAlliance()) || (tid == 4 && swerve.isRedAlliance()))) {
+      swerve.addVisionEstimate(0.04, 0.04);
+    }
+  }
   
+  // Determines whether a Limelight target is square. Useful for identifying whether multiple April Tages are detected.
   public boolean isSquare() {
     double thor = LimelightHelpers.getLimelightNTTableEntry("limelight", "thor").getDouble(0);
     double tvert = LimelightHelpers.getLimelightNTTableEntry("limelight", "tvert").getDouble(0);

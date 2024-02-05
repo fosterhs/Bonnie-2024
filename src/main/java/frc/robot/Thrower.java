@@ -63,8 +63,8 @@ public class Thrower {
 
   // These variables store the desired motor velocities which are used and updated when the thrower is in the MANUAL state.
   private boolean manualControl = false;
-  private double flywheelPowerManual = 0.3;
-  private double indexPowerManual = 0.1;
+  private double flywheelPowerManual = 0.0;
+  private double indexPowerManual = 0.0;
 
   public Thrower() {
     indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
@@ -198,6 +198,10 @@ public class Thrower {
         break;
 
       case MANUAL:
+        if (lastState != State.INTAKE) {
+          indexPowerManual = 0.0;
+          flywheelPowerManual = 0.0;
+        }
         lastState = State.MANUAL;
 
         throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual));
@@ -254,6 +258,11 @@ public class Thrower {
   // Sets the control mode of the thrower. If true, the thrower will be controlled via manual input with no automation.
   public void setManualControl(boolean _manualControl) {
     manualControl = _manualControl;
+  }
+
+  // Returns true if the thrower is under manual control, and false if it automated.
+  public boolean getManualControl() {
+    return manualControl;
   }
 
   // Sets the speeds of the thrower when manualControl is true(enabled).

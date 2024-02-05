@@ -44,6 +44,7 @@ public class Arm {
     if (manualControl) {
       armMotor1.setControl(new DutyCycleOut(manualPower));
     } else {
+      manualPower = 0.0;
       double currentMotorPos = armMotor1.getRotorPosition().getValueAsDouble();
       double motorSetpoint = currentMotorPos + (armSetpoint - getArmEncoder())*gearRatio;
       armMotor1.setControl(new MotionMagicDutyCycle(motorSetpoint));
@@ -72,6 +73,11 @@ public class Arm {
   // Sets the control mode of the thrower. If true, the thrower will be controlled via manual input with no automation.
   public void setManualControl(boolean _manualControl) {
     manualControl = _manualControl;
+  }
+
+  // Returns true if the arm is under manual control, and false if it is automated.
+  public boolean getManualControl() {
+    return manualControl;
   }
   
   // Attempts to reboot by reconfiguring the motors. Use if trying to troubleshoot during a match.
