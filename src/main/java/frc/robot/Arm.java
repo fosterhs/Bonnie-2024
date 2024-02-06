@@ -68,7 +68,7 @@ public class Arm {
 
   // Returns the position of the arm in degrees.
   public double getArmEncoder() {
-    return armEncoder.getAbsolutePosition()*360.0 - armEncoderZero; // TODO: this expression needs to reflect the relationship between the arm encoder and the arm angle.
+    return armEncoder.getAbsolutePosition()*360.0 - armEncoderZero; 
   }
 
   public void setManualPower(double _manualPower) {
@@ -142,9 +142,21 @@ public class Arm {
         motorErrors++;
       motorFailure = motorErrors > maxMotorFailures;
       if (motorFailure) {
+        disableMotor(_motor);
         return false;
       }
     }
     return true;
   }   
+
+  // Attempts to sets the motor to coast mode with 0 output. Used in the case of a motor failure.
+  private void disableMotor(TalonFX motor) {
+    TalonFXConfigurator motorConfigurator = motor.getConfigurator();
+    TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
+    motorConfigurator.refresh(motorConfigs);
+    motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Coast;
+    motorConfigurator.apply(motorConfigs);
+
+    motor.setControl(new DutyCycleOut(0));
+  }
 }

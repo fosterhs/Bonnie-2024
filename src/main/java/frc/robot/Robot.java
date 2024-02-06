@@ -1,23 +1,22 @@
 package frc.robot;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends TimedRobot {
-  private final Joystick stick = new Joystick(0); // Initializes the joystick.
+  private final XboxController driver = new XboxController(0); // Initializes the driver controller.
+  private final XboxController operator = new XboxController(1); // Initializes the operator controller.
 
   // Limits the acceleration of controller inputs. 
   private final SlewRateLimiter xAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop/Drivetrain.maxVelTeleop);
   private final SlewRateLimiter yAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop/Drivetrain.maxVelTeleop);
   private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAccTeleop/Drivetrain.maxAngularVelTeleop);
   
-  private final double minSpeedScaleFactor = 0.05; // The maximum speed of the robot when the throttle is at its minimum position, as a percentage of maxVel and maxAngularVel
+  private double speedScaleFactor = 1.0; // Scales the speed of the robot that results from controller inputs. 1.0 corresponds to full speed. 0.0 is fully stopped. 
 
   // Initializes the different subsystems of the robot.
   private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
@@ -62,7 +61,7 @@ public class Robot extends TimedRobot {
     updateToggles();
 
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
-    if (stick.getRawButtonPressed(11)) {
+    if (driver.getRawButtonPressed(8)) {
       swerve.resetGyro();
     }
   }
@@ -75,7 +74,7 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // AutoInit 1 code goes here.
-        swerve.resetTargetController(180.0);
+        swerve.resetAimDriveController(lastAimHeading);
         break;
 
       case auto2:
@@ -101,12 +100,15 @@ public class Robot extends TimedRobot {
         switch (autoStage) {
           case 1: 
             // Auto 1 code goes here.
-            swerve.moveToTarget(1.35, 2.6, 180.0);
+            swerve.aimDrive(0.0, 0.0, lastAimHeading, true);
+            arm.updateSetpoint(lastAimArmAngle);
 
-            // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
-            if (swerve.atTarget()) {
-            thrower.commandThrow(30.0);
-            autoStage = 2;
+            if (swerve.atAimTarget() && arm.atSetpoint()) {
+              thrower.commandThrow(30.0);
+            }
+
+            if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+              autoStage = 2;
             }
             break;
 
@@ -136,50 +138,39 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopPeriodic() {
-    double speedScaleFactor = (-stick.getThrottle() + 1 + 2 * minSpeedScaleFactor) / (2 + 2 * minSpeedScaleFactor); // Creates a scale factor for the maximum speed of the robot based on the throttle position.
+    if (driver.getRawButtonPressed(4)) { // Y Button
+      speedScaleFactor = 0.15;
+    }
+    if (driver.getRawButtonPressed(2)) { // B button
+      speedScaleFactor = 0.6;
+    }
+    if (driver.getRawButtonPressed(1)) { // A button
+      speedScaleFactor = 1.0;
+    }
 
     // Applies a deadband to controller inputs. Also limits the acceleration of controller inputs.
-    double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-stick.getY(), 0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
-    double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-stick.getX(), 0.1)*speedScaleFactor)*Drivetrain.maxVelTeleop;
-    double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-stick.getZ(), 0.1)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
+    double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftY(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
+    double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftX(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
+    double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
     // Auto Rotate to Aim Heading
-    double angleDistance = swerve.getAngleDistance(swerve.getFusedAng(), lastAimHeading);
-    if (stick.getRawButtonPressed(1)) {
-      angleController.reset(angleDistance*Math.PI/180.0, 0.0);
-      angleController.setIntegratorRange(-Drivetrain.maxAngularVelAuto*0.8, Drivetrain.maxAngularVelAuto*0.8);
+    if (driver.getRawButtonPressed(6)) { // Right Bumper
+      swerve.resetAimDriveController(lastAimHeading);
     }
-    if (stick.getRawButton(1)) {
-      angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
-      if (Math.abs(angleDistance) < headingTol) {
-        angVel = 0.0;
-      }
-      if (Math.abs(angVel) > Drivetrain.maxAngularVelAuto) {
-        angVel = angVel > 0.0 ? Drivetrain.maxAngularVelAuto : -Drivetrain.maxAngularVelAuto;
-      }
-    }
-
-    // Allows the driver to rotate the robot about each corner. Defaults to a center of rotation at the center of the robot.
-    if (stick.getRawButton(7)) { // Front Left
-      swerve.drive(xVel, yVel, angVel, true, 0.29, 0.29);
-    } else if (stick.getRawButton(8)) { // Front Right
-      swerve.drive(xVel, yVel, angVel, true, 0.29, -0.29);
-    } else if (stick.getRawButton(9)) { // Back Left
-      swerve.drive(xVel, yVel, angVel, true, -0.29, 0.29);
-    } else if (stick.getRawButton(10)) { // Back Right
-      swerve.drive(xVel, yVel, angVel, true, -0.29, -0.29);
+    if (driver.getRawButton(6)) { // Right Bumper
+      swerve.aimDrive(xVel, yVel, lastAimHeading, true);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary.
-    if (stick.getRawButtonPressed(2)) {
+    if (driver.getRawButtonPressed(7)) {
       swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
     }
-    if (stick.getRawButton(2)) {
+    if (driver.getRawButton(7)) {
       swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
     }
-    if (stick.getRawButtonReleased(2)) {
+    if (driver.getRawButtonReleased(7)) {
       swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
     }
 
@@ -187,7 +178,7 @@ public class Robot extends TimedRobot {
     if (thrower.getManualControl()) {
       thrower.setManualSpeeds(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
     } else {
-      if (stick.getRawButton(1)) {
+      if (operator.getRawButton(1)) { // A Button
         thrower.commandThrow(30.0); // Commands the thrower to throw a note with a flywheel velocity of 30 rotations per second.
       }
     }
@@ -200,7 +191,7 @@ public class Robot extends TimedRobot {
     }
 
     climber.periodic();
-    climber.set(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+    climber.set(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
   }
   
   public void disabledInit() {
@@ -237,7 +228,6 @@ public class Robot extends TimedRobot {
   }
 
   // This function calculates the required robot heading and arm angle to make a shot into the speaker from the current robot position on the field.
-  private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(Drivetrain.maxAngularVelAuto, Drivetrain.maxAngularAccAuto)); // Controls the angle of the robot.
   double headingTol = 0.5; // The acceptable error in the heading of the robot when tracking headings calculated by the getAim() function.
   boolean lastAimShotAvailable = false; // Whether it is possible to make it into the speaker from the current robot position.
   double lastAimHeading = 0.0; // The robot heading that is required to make the shot.
@@ -324,18 +314,6 @@ public class Robot extends TimedRobot {
   boolean armReboot = false;
   boolean climberReboot = false;
   public void createToggles() {
-    moduleToggleFR = false;
-    moduleToggleFL = false;
-    moduleToggleBL = false;
-    moduleToggleBR = false;
-    gyroToggle = false;
-    visionToggle = false;
-    throwerManual = false;
-    throwerReboot = false;
-    armManual = false;
-    armReboot = false;
-    climberReboot = false;
-
     SmartDashboard.putBoolean("FR Module Toggle", moduleToggleFR);
     SmartDashboard.putBoolean("FL Module Toggle", moduleToggleFL);
     SmartDashboard.putBoolean("BL Module Toggle", moduleToggleBL);

@@ -349,6 +349,7 @@ public class Thrower {
         throwMotorErrors++;
       motorFailure = throwMotorErrors > maxMotorFailures;
       if (motorFailure) {
+        disableMotor(_throwMotor);
         return false;
       }
     }
@@ -390,9 +391,21 @@ public class Thrower {
       indexMotorErrors++;
       motorFailure = indexMotorErrors > maxMotorFailures;
       if (motorFailure) {
+        disableMotor(_indexMotor);
         return false;
       }
     }
     return true;
+  }
+
+  // Attempts to sets the motor to coast mode with 0 output. Used in the case of a motor failure.
+  private void disableMotor(TalonFX motor) {
+    TalonFXConfigurator motorConfigurator = motor.getConfigurator();
+    TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
+    motorConfigurator.refresh(motorConfigs);
+    motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Coast;
+    motorConfigurator.apply(motorConfigs);
+
+    motor.setControl(new DutyCycleOut(0));
   }
 }

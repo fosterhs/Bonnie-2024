@@ -25,13 +25,13 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 class Drivetrain {
   public static final double fieldWidth = 8.0; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
   public static final double maxVelTeleop = 4.0; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
-  public static final double maxAngularVelTeleop = 2*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
+  public static final double maxAngularVelTeleop = 4*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
   public static final double maxAccTeleop = 5.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
   public static final double maxAngularAccTeleop = 5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
   public static final double maxVelAuto = 3.0; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
   public static final double maxAngularVelAuto = 3*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
   public static final double maxAccAuto = 3.5; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
-  public static final double maxAngularAccAuto = 3*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
+  public static final double maxAngularAccAuto = 3.5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 
   // Positions of the swerve modules relative to the center of the roboot. +x points towards the robot's front. +y points to the robot's left. Units: meters.
   private static final Translation2d frontLeftModulePos = new Translation2d(0.225, 0.225);
@@ -78,7 +78,7 @@ class Drivetrain {
   private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxAngularVelAuto, maxAngularAccAuto)); // Controls the angle of the robot.
   private boolean atGoal = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol
   private double posTolerance = 0.03; // The allowable error in the x and y position of the robot in meters.
-  private double angTolerance = 2.0; // The allowable error in the angle of the robot in degrees.
+  private double angTolerance = 1.0; // The allowable error in the angle of the robot in degrees.
   
   // These variables are updated each period so they can be passed to the dashboard. 
   private double xVel = 0.0; // Unit: meters per second
@@ -112,6 +112,32 @@ class Drivetrain {
     for (int moduleIndex = 0; moduleIndex < modules.length; moduleIndex++) {
       modules[moduleIndex].setSMS(moduleStates[moduleIndex]); // Sets the module angles and velocities.
     }
+  }
+
+  // Should be called immediately prior to aimDrive(). Resets the PID controller. Target angle specifies the first angle that will be demanded in aimDrive()
+  public void resetAimDriveController(double targetAngle) {
+    angleController.reset(getAngleDistance(getFusedAng(), targetAngle)*Math.PI/180.0, 0.0);
+    angleController.setPID(4.0, 0.0, 0.0);
+    atGoal = false;
+  }
+
+  // Drives the robot at a specified speed in meter per second. Keeps the robot angle at the demanded value in degrees.
+  public void aimDrive(double _xVel, double _yVel, double targetAngle, boolean fieldRelative) {
+    double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
+    atGoal = Math.abs(angleDistance) < angTolerance;
+    double _angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
+    if (atGoal) {
+      _angVel = 0.0;
+    }
+    if (Math.abs(_angVel) > Drivetrain.maxAngularVelAuto) {
+      _angVel = _angVel > 0.0 ? Drivetrain.maxAngularVelAuto : -Drivetrain.maxAngularVelAuto;
+    }
+    drive(_xVel, _yVel, _angVel, fieldRelative, 0.0, 0.0);
+  }
+
+  // Whether the robot has reached the angle specified in the last call to aimDrive. Should be called after aimDrive() is called within a period.
+  public boolean atAimTarget() {
+    return atGoal;
   }
 
   // Should be called immediately prior to moveToTarget() or followPath(). Resets the PID controllers. Target angle specifies the first angle that will be demanded in moveToTarget()
