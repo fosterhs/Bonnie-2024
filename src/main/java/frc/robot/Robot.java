@@ -74,7 +74,7 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // AutoInit 1 code goes here.
-        swerve.resetAimDriveController(lastAimHeading);
+        swerve.resetAimDriveController(aimHeading);
         break;
 
       case auto2:
@@ -100,8 +100,8 @@ public class Robot extends TimedRobot {
         switch (autoStage) {
           case 1: 
             // Auto 1 code goes here.
-            swerve.aimDrive(0.0, 0.0, lastAimHeading, true);
-            arm.updateSetpoint(lastAimArmAngle);
+            swerve.aimDrive(0.0, 0.0, aimHeading, true);
+            arm.updateSetpoint(aimArmAngle);
 
             if (swerve.atAimTarget() && arm.atSetpoint()) {
               thrower.commandThrow(30.0);
@@ -155,10 +155,10 @@ public class Robot extends TimedRobot {
 
     // Auto Rotate to Aim Heading
     if (driver.getRawButtonPressed(6)) { // Right Bumper
-      swerve.resetAimDriveController(lastAimHeading);
+      swerve.resetAimDriveController(aimHeading);
     }
     if (driver.getRawButton(6)) { // Right Bumper
-      swerve.aimDrive(xVel, yVel, lastAimHeading, true);
+      swerve.aimDrive(xVel, yVel, aimHeading, true);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
@@ -187,7 +187,7 @@ public class Robot extends TimedRobot {
     if (arm.getManualControl()) {
       arm.setManualPower(0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
     } else {
-      arm.updateSetpoint(lastAimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
+      arm.updateSetpoint(aimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
     }
 
     climber.periodic();
@@ -229,9 +229,9 @@ public class Robot extends TimedRobot {
 
   // This function calculates the required robot heading and arm angle to make a shot into the speaker from the current robot position on the field.
   double headingTol = 0.5; // The acceptable error in the heading of the robot when tracking headings calculated by the getAim() function.
-  boolean lastAimShotAvailable = false; // Whether it is possible to make it into the speaker from the current robot position.
-  double lastAimHeading = 0.0; // The robot heading that is required to make the shot.
-  double lastAimArmAngle = 0.0; // The arm angle that is required to make the shot.
+  boolean aimShotAvailable = false; // Whether it is possible to make it into the speaker from the current robot position.
+  double aimHeading = 0.0; // The robot heading that is required to make the shot.
+  double aimArmAngle = 0.0; // The arm angle that is required to make the shot.
   public void getAim() {
     double robotX = swerve.getXPos(); // x-coordinate of the center of rotation of the robot in meters.
     double robotY = swerve.getYPos();  // y-coordinate of the center of rotation of the robot in meters.
@@ -248,28 +248,28 @@ public class Robot extends TimedRobot {
     double[] noteZErrors = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot in meters. This represents the overshoot or undershoot error of each angle tested.
 
     // Calculates the position of the note just as it leaves the thrower. This calculation relies on the previous loops solution to approximate the heading and arm angle. If no shot was available, it will default to using middle of the range values for the heading and arm angle.
-    if (!lastAimShotAvailable) {
-      lastAimArmAngle = 50.0;
-      lastAimHeading = 180.0;
+    if (!aimShotAvailable) {
+      aimArmAngle = 50.0;
+      aimHeading = 180.0;
     } 
-    double lastNoteX = robotX - armPivotX*Math.cos(lastAimHeading*Math.PI/180.0) + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.cos(lastAimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
-    double lastNoteY = robotY + armPivotX*Math.sin(lastAimHeading*Math.PI/180.0) + armL*Math.cos(lastAimArmAngle*Math.PI/180.0)*Math.sin(lastAimHeading*Math.PI/180.0);
+    double lastNoteX = robotX - armPivotX*Math.cos(aimHeading*Math.PI/180.0) + armL*Math.cos(aimArmAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
+    double lastNoteY = robotY + armPivotX*Math.sin(aimHeading*Math.PI/180.0) + armL*Math.cos(aimArmAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0);
 
     // Calculates the angle the robot should be facing to make the shot in degrees. Based on the position of the note as it leaves the shooter.
-    double aimHeading = 180.0; // The angle the robot should be facing to make the shot in degrees.
+    double nextAimHeading = 180.0; // The angle the robot should be facing to make the shot in degrees.
     if (lastNoteY == speakerY) { // The robot is aligned with the speaker in the y-dimension. This prevents calls to atan() which would result in undefined returns.
-        aimHeading = 180.0;
+        nextAimHeading = 180.0;
     } else if (lastNoteY < speakerY) {
-        aimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI + 90.0; // The robot has a positive heading.
+        nextAimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI + 90.0; // The robot has a positive heading.
     } else {
-        aimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
+        nextAimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
     }
     
     // Calculates the Z-error for several angles to see which angle is the best.
     for (int index = 0; index < totalAngles; index++) {
       double currentAngle = minAngle + index*(maxAngle-minAngle)/totalAngles; // Converts from the array index to degrees.
-      double noteX = robotX - armPivotX*Math.cos(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // The x-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
-      double noteY = robotY + armPivotX*Math.sin(aimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0); // The y-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
+      double noteX = robotX - armPivotX*Math.cos(nextAimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(nextAimHeading*Math.PI/180.0); // The x-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
+      double noteY = robotY + armPivotX*Math.sin(nextAimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(nextAimHeading*Math.PI/180.0); // The y-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
       double noteZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ; // The height of the note above the carpet just as it loses contact with the thrower.
       double noteR = Math.sqrt(Math.pow(noteX, 2) + Math.pow(noteY-speakerY, 2)); // The distance between the note's initial position and the speaker slot center.
       double noteRVel = noteVel*Math.cos(currentAngle*Math.PI/180.0); // The radial velocity of the note, as if the speaker slot center was the origin of a polar coordinate system.
@@ -279,26 +279,26 @@ public class Robot extends TimedRobot {
     }
     
     // Looks through the calcuated z-errors to find the correct arm angle to throw the note.
-    boolean aimShotAvailable = false; // Stores whether it is physically possible to shoot the note into the speaker from the robot's current position.
-    double aimArmAngle = 50.0; // Stores the optimal arm angle to make the shot, or -1 if it is impossible to make the shot.
+    boolean nextAimShotAvailable = false; // Stores whether it is physically possible to shoot the note into the speaker from the robot's current position.
+    double nextAimArmAngle = 50.0; // Stores the optimal arm angle to make the shot, or -1 if it is impossible to make the shot.
     for (int index = 0; index < totalAngles-1; index++) {
       if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -. If this condition is not met, a shot cannot be made from the robot's current position.
         double negativeAngleZError = -noteZErrors[index];
         double positiveAngleZError = noteZErrors[index+1];
-        aimArmAngle = minAngle + (index + negativeAngleZError/(positiveAngleZError + negativeAngleZError))*(maxAngle-minAngle)/totalAngles; // Linear interpolation to approximate the arm angle that results in 0 z-error. 
-        aimShotAvailable = true;
+        nextAimArmAngle = minAngle + (index + negativeAngleZError/(positiveAngleZError + negativeAngleZError))*(maxAngle-minAngle)/totalAngles; // Linear interpolation to approximate the arm angle that results in 0 z-error. 
+        nextAimShotAvailable = true;
       }
     }
 
     // Stores this periods solution for the next period to iterate on.
-    lastAimShotAvailable = aimShotAvailable;
-    lastAimHeading = aimHeading;
-    lastAimArmAngle = aimArmAngle;
+    aimShotAvailable = nextAimShotAvailable;
+    aimHeading = nextAimHeading;
+    aimArmAngle = nextAimArmAngle;
 
     // Publishes solution to the dashboard.
-    SmartDashboard.putNumber("aim robot angle", aimHeading);
-    SmartDashboard.putBoolean("aim shotAvailable", aimShotAvailable);
-    SmartDashboard.putNumber("aim arm angle", aimArmAngle);
+    SmartDashboard.putNumber("aim robot angle", nextAimHeading);
+    SmartDashboard.putBoolean("aim shotAvailable", nextAimShotAvailable);
+    SmartDashboard.putNumber("aim arm angle", nextAimArmAngle);
   }
 
   // Initializes toggle booleans to the dashboard.
