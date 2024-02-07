@@ -29,6 +29,7 @@ class SwerveModule {
   private double turnMotorInitialPos;
   private double driveMotorInitialPos;
   private double wheelInitialPos;
+  private double lastAngleSetpoint = 0.0;
 
   // Motor error code tracking variables.
   private final int maxMotorErrors = 3; // The most times a configuration command can be unsuccesfully sent to a motor before a failure is declared and the motor is disabled. 
@@ -53,7 +54,7 @@ class SwerveModule {
   public void setSMS(SwerveModuleState desiredState) {
     double goalAngleFor = desiredState.angle.getDegrees();
     double goalAngleRev = goalAngleFor > 0.0 ? goalAngleFor - 180.0 : goalAngleFor + 180.0; // Instead of rotating to the input angle, the swerve module can rotate to a position 180 degrees off and reverse the input velocity to achieve the same result.
-    double currAngle = getAngle();
+    double currAngle = lastAngleSetpoint;
     double currAngleMod360 = currAngle - Math.round(currAngle/360.0)*360.0; // Limits currAngle between -180 and 180 degrees. 
     double[] AngleDists = {Math.abs(currAngleMod360 - goalAngleFor), 360.0 - Math.abs(currAngleMod360 - goalAngleFor), 
       Math.abs(currAngleMod360 - goalAngleRev), 360.0 - Math.abs(currAngleMod360 - goalAngleRev)}; // Calculates the 4 possible angluar distances to the forwards and reverse goals from the current angle.
@@ -86,6 +87,7 @@ class SwerveModule {
 
     setAngle(outputAngle);
     setVel(goalVel);
+    lastAngleSetpoint = outputAngle;
   }
   
   // Returns the velocity and angle of the module.
