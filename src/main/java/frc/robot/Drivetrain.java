@@ -76,9 +76,9 @@ class Drivetrain {
   private final ProfiledPIDController xController = new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxVelAuto, maxAccAuto)); // Controls the x-position of the robot.
   private final ProfiledPIDController yController = new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxVelAuto, maxAccAuto)); // Controls the y-position of the robot.
   private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxAngularVelAuto, maxAngularAccAuto)); // Controls the angle of the robot.
-  private boolean atGoal = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol
-  private double posTolerance = 0.03; // The allowable error in the x and y position of the robot in meters.
-  private double angTolerance = 1.0; // The allowable error in the angle of the robot in degrees.
+  private boolean atDriveGoal = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol when controlled by aimDrive() or moveToTarget()
+  private double posTol = 0.03; // The allowable error in the x and y position of the robot in meters.
+  private double angTol = 1.0; // The allowable error in the angle of the robot in degrees.
   
   // These variables are updated each period so they can be passed to the dashboard. 
   private double xVel = 0.0; // Unit: meters per second
@@ -114,19 +114,23 @@ class Drivetrain {
     }
   }
 
-  // Should be called immediately prior to aimDrive(). Resets the PID controller. Target angle specifies the first angle that will be demanded in aimDrive()
-  public void resetAimDriveController(double targetAngle) {
+  // Should be called immediately prior to aimDrive() or driveTo(). Resets the PID controllers. Target angle specifies the first angle that will be demanded.
+  public void resetDriveController(double targetAngle) {
+    xController.reset(getXPos(), 0.0);
+    yController.reset(getYPos(), 0.0);
     angleController.reset(getAngleDistance(getFusedAng(), targetAngle)*Math.PI/180.0, 0.0);
+    xController.setPID(3.0, 0.0, 0.0);
+    yController.setPID(3.0, 0.0, 0.0);
     angleController.setPID(4.0, 0.0, 0.0);
-    atGoal = false;
+    atDriveGoal = false;
   }
 
-  // Drives the robot at a specified speed in meter per second. Keeps the robot angle at the demanded value in degrees.
+  // Should be called periodically to rotate the robot to the demanded angle in degrees while translating the robot st the specified speed in meter per second.
   public void aimDrive(double _xVel, double _yVel, double targetAngle, boolean fieldRelative) {
     double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
-    atGoal = Math.abs(angleDistance) < angTolerance;
+    atDriveGoal = Math.abs(angleDistance) < angTol;
     double _angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
-    if (atGoal) {
+    if (atDriveGoal) {
       _angVel = 0.0;
     }
     if (Math.abs(_angVel) > Drivetrain.maxAngularVelAuto) {
@@ -135,35 +139,19 @@ class Drivetrain {
     drive(_xVel, _yVel, _angVel, fieldRelative, 0.0, 0.0);
   }
 
-  // Whether the robot has reached the angle specified in the last call to aimDrive. Should be called after aimDrive() is called within a period.
-  public boolean atAimTarget() {
-    return atGoal;
-  }
-
-  // Should be called immediately prior to moveToTarget() or followPath(). Resets the PID controllers. Target angle specifies the first angle that will be demanded in moveToTarget()
-  public void resetTargetController(double targetAngle) {
-    xController.reset(getXPos(), 0.0);
-    yController.reset(getYPos(), 0.0);
-    angleController.reset(getAngleDistance(getFusedAng(), targetAngle)*Math.PI/180.0, 0.0);
-    xController.setPID(3.0, 0.0, 0.0);
-    yController.setPID(3.0, 0.0, 0.0);
-    angleController.setPID(4.0, 0.0, 0.0);
-    atGoal = false;
-  }
-
-  // Should be called periodically to move the robot to a specified position and angle. atTarget will change to true when the robot is at the target, within the specified tolerance. Units are meters and degrees.
-  public void moveToTarget(double targetX, double targetY, double targetAngle) {
+  // Should be called periodically to move the robot to a specified position and angle. Units are meters and degrees.
+  public void driveTo(double targetX, double targetY, double targetAngle) {
     if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled && isCalibrated) {
       double xVelSetpoint = xController.calculate(getXPos(), targetX);
       double yVelSetpoint = yController.calculate(getYPos(), targetY);
-      boolean atXTarget = Math.abs(getXPos() - targetX) < posTolerance;
-      boolean atYTarget = Math.abs(getYPos() - targetY) < posTolerance;
+      boolean atXTarget = Math.abs(getXPos() - targetX) < posTol;
+      boolean atYTarget = Math.abs(getYPos() - targetY) < posTol;
       double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
       double angVelSetpoint = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
-      boolean atAngTarget = Math.abs(angleDistance) < angTolerance;
+      boolean atAngTarget = Math.abs(angleDistance) < angTol;
 
       // Checks to see if all 3 targets have been achieved. Sets velocities to 0 to prevent twitchy robot motions at near 0 velocities.
-      atGoal = atXTarget && atYTarget && atAngTarget;
+      atDriveGoal = atXTarget && atYTarget && atAngTarget;
       if (atXTarget) {
         xVelSetpoint = 0.0;
       } 
@@ -188,19 +176,19 @@ class Drivetrain {
       drive(xVelSetpoint, yVelSetpoint, angVelSetpoint, true, 0.0, 0.0);
     } else {
       drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
-      atGoal = false;
+      atDriveGoal = false;
     }
   }
 
-  // Returns true if the robot is at the target position or at the path endpoint, within the specific tolerance. 
-  public boolean atTarget() {
-    return atGoal;
+  // Whether the robot has reached the angle specified in the last call to aimDrive() or driveTo(). Should be called after aimDrive() or driveTo() is called within a period.
+  public boolean atDriveGoal() {
+    return atDriveGoal;
   }
   
-  // Sets the allowable tolerance for the moveToTarget() and followPath() functions. Units are degrees and meters.
-  public void setTolerance(double _posTargetTol, double _angTargetTol) {
-    posTolerance = _posTargetTol;
-    angTolerance = _angTargetTol;
+  // Sets the allowable tolerance for the driveTo(), aimDrive(), and followPath() functions. Units are degrees and meters.
+  public void setTol(double _posTargetTol, double _angTargetTol) {
+    posTol = _posTargetTol;
+    angTol = _angTargetTol;
   }
 
   // Calculates the shortest distance between two points on a 360 degree circle. CW is + and CCW is -
@@ -255,8 +243,8 @@ class Drivetrain {
       double yVelSetpoint = pathYVel + yVelCorrection;
 
       // Checks to see if all 3 targets have been achieved. Sets velocities to 0 to prevent twitchy robot motions at near 0 velocities.
-      atGoal = atPathEndpoint(pathIndex);
-      if (atGoal) {
+      atDriveGoal = atPathEndpoint(pathIndex);
+      if (atDriveGoal) {
         xVelSetpoint = 0.0;
         yVelSetpoint = 0.0;
         angVelSetpoint = 0.0;
@@ -276,7 +264,7 @@ class Drivetrain {
       drive(xVelSetpoint, yVelSetpoint, angVelSetpoint, true, 0.0, 0.0);
     } else {
       drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
-      atGoal = false;
+      atDriveGoal = false;
     }
   }
   
@@ -286,9 +274,9 @@ class Drivetrain {
     if (!gyroDisabled && !gyroFailure && !moduleFailure && !moduleDisabled && isCalibrated) {
       PathPlannerTrajectory.State endState = paths.get(pathIndex).getEndState();
       double endStateYPos = isRedAlliance() ? fieldWidth - endState.positionMeters.getY() : endState.positionMeters.getY();
-      return Math.abs(getFusedAng() - endState.targetHolonomicRotation.getDegrees()) < angTolerance 
-        && Math.abs(getXPos() - endState.positionMeters.getX()) < posTolerance 
-        && Math.abs(getYPos() - endStateYPos) < posTolerance;
+      return Math.abs(getFusedAng() - endState.targetHolonomicRotation.getDegrees()) < angTol 
+        && Math.abs(getXPos() - endState.positionMeters.getX()) < posTol 
+        && Math.abs(getYPos() - endStateYPos) < posTol;
     } else {
       return false;
     }

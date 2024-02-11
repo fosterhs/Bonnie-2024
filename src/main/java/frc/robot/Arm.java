@@ -51,7 +51,7 @@ public class Arm {
     } else {
       manualPower = 0.0;
       double currentMotorPos = armMotor1.getRotorPosition().getValueAsDouble();
-      double motorSetpoint = currentMotorPos + (armSetpoint - getArmEncoder())*gearRatio;
+      double motorSetpoint = currentMotorPos + (armSetpoint - getArmEncoder())*gearRatio/360.0;
       armMotor1.setControl(new MotionMagicDutyCycle(motorSetpoint));
     }
   }

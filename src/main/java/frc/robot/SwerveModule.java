@@ -17,19 +17,19 @@ import edu.wpi.first.wpilibj.AnalogEncoder;
 class SwerveModule {
   private static final double correctionFactor = 0.95; // Factor that corrects for real-world deviations from the odometry calculated position of the robot. These can be caused by things like tread wear. Set this value to 1, then make the robot follow a 1 meter path in auto. Set this value to the distance the robot actually traveled.
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
-  private static final double turnGearRatio = 150.0/7.0;
-  private static final double driveGearRatio = 57.0/7.0;
-  private static final double driveMotorCurrentLimit = 40.0; // Single motor current limit in amps.
-  private static final double turnMotorCurrentLimit = 20.0; // Single motor current limit in amps.
+  private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
+  private static final double driveGearRatio = 57.0/7.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
+  private static final double driveMotorCurrentLimit = 40.0; // Drive motor current limit in amps.
+  private static final double turnMotorCurrentLimit = 20.0; // Turn motor current limit in amps.
   private final AnalogEncoder wheelEncoder;
   private final double wheelEncoderZero;
   private final TalonFX driveMotor;
   private final TalonFX turnMotor;
   private final boolean invertDrive;
-  private double turnMotorInitialPos;
-  private double driveMotorInitialPos;
-  private double wheelInitialPos;
-  private double lastAngleSetpoint = 0.0;
+  private double turnMotorInitialPos = 0.0; // The turn motor position on start up in falcon rotations.
+  private double driveMotorInitialPos = 0.0; // The drive motor position on start up in falcon rotations.
+  private double wheelInitialPos = 0.0; // The wheel encoder position on start up in degrees.
+  private double angleSetpoint = 0.0; // The last calculated turn setpoint of the swerve wheel in degrees. Not bounded within 180/-180.
 
   // Motor error code tracking variables.
   private final int maxMotorErrors = 3; // The most times a configuration command can be unsuccesfully sent to a motor before a failure is declared and the motor is disabled. 
@@ -54,40 +54,39 @@ class SwerveModule {
   public void setSMS(SwerveModuleState desiredState) {
     double goalAngleFor = desiredState.angle.getDegrees();
     double goalAngleRev = goalAngleFor > 0.0 ? goalAngleFor - 180.0 : goalAngleFor + 180.0; // Instead of rotating to the input angle, the swerve module can rotate to a position 180 degrees off and reverse the input velocity to achieve the same result.
-    double currAngle = lastAngleSetpoint;
-    double currAngleMod360 = currAngle - Math.round(currAngle/360.0)*360.0; // Limits currAngle between -180 and 180 degrees. 
-    double[] AngleDists = {Math.abs(currAngleMod360 - goalAngleFor), 360.0 - Math.abs(currAngleMod360 - goalAngleFor), 
-      Math.abs(currAngleMod360 - goalAngleRev), 360.0 - Math.abs(currAngleMod360 - goalAngleRev)}; // Calculates the 4 possible angluar distances to the forwards and reverse goals from the current angle.
+    double angleSetpointMod360 = angleSetpoint - Math.round(angleSetpoint/360.0)*360.0; // Transforms the angle setpoint to a value that is between -180 and 180 degrees. 
+    double[] angleDists = {Math.abs(angleSetpointMod360 - goalAngleFor), 360.0 - Math.abs(angleSetpointMod360 - goalAngleFor), 
+      Math.abs(angleSetpointMod360 - goalAngleRev), 360.0 - Math.abs(angleSetpointMod360 - goalAngleRev)}; // Calculates the 4 possible angluar distances to the forwards and reverse goals from the current angle.
 
     // Finds the minimum angular distance of the 4 options available. 
     int minIndex = 0;
-    double minDist = AngleDists[0];
-    for (int currIndex = 1; currIndex < AngleDists.length; currIndex++) {
-      if (AngleDists[currIndex] < minDist) {
-        minDist = AngleDists[currIndex];
+    double minDist = angleDists[0];
+    for (int currIndex = 1; currIndex < angleDists.length; currIndex++) {
+      if (angleDists[currIndex] < minDist) {
+        minDist = angleDists[currIndex];
         minIndex = currIndex;
       }
     }
 
     // Sets the output angle based on the minimum angular distance. Also reverses the velocity of the swerve module if the minimum distance is based on a reversed angle. 
-    double outputAngle = currAngle;
+    double outputAngle = angleSetpoint;
     boolean reverseVel = false;
     if (minIndex == 0) { // Forward angle, does not cross 180/-180.
-      outputAngle = goalAngleFor > currAngleMod360 ? currAngle + minDist : currAngle - minDist;
+      outputAngle = goalAngleFor > angleSetpointMod360 ? angleSetpoint + minDist : angleSetpoint - minDist;
     } else if (minIndex == 1) { // Forward angle, crosses 180/-180.
-      outputAngle = goalAngleFor > currAngleMod360 ? currAngle - minDist : currAngle + minDist;
+      outputAngle = goalAngleFor > angleSetpointMod360 ? angleSetpoint - minDist : angleSetpoint + minDist;
     } else if (minIndex == 2) { // Reverse angle, does not cross 180/-180
-      outputAngle = goalAngleRev > currAngleMod360 ? currAngle + minDist : currAngle - minDist;
+      outputAngle = goalAngleRev > angleSetpointMod360 ? angleSetpoint + minDist : angleSetpoint - minDist;
       reverseVel = true;
     } else { // Reverse angle, crosses 180/-180
-      outputAngle = goalAngleRev > currAngleMod360 ? currAngle - minDist : currAngle + minDist;
+      outputAngle = goalAngleRev > angleSetpointMod360 ? angleSetpoint - minDist : angleSetpoint + minDist;
       reverseVel = true;
     }
     double goalVel = reverseVel ? -desiredState.speedMetersPerSecond : desiredState.speedMetersPerSecond;
 
     setAngle(outputAngle);
     setVel(goalVel);
-    lastAngleSetpoint = outputAngle;
+    angleSetpoint = outputAngle;
   }
   
   // Returns the velocity and angle of the module.
@@ -118,7 +117,7 @@ class SwerveModule {
     }
   }
   
-  // Returns the angle of the wheel in degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y). 
+  // Returns the angle of the wheel in degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y). Can return values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
   public double getAngle() {
     if (!turnMotorFailure && !moduleDisabled) {
       return (turnMotor.getRotorPosition().getValueAsDouble()-turnMotorInitialPos)*360.0/turnGearRatio+wheelInitialPos;
@@ -127,7 +126,7 @@ class SwerveModule {
     }
   }
   
-  // Returns the raw value of the wheel encoder. Range: 0-360 degrees.
+  // Returns the raw value of the wheel encoder. Range: -180 to 180 degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y).
   public double getWheelEncoder() {
     double wheelAngle = wheelEncoder.getAbsolutePosition()*360.0 - wheelEncoderZero;
     if (wheelAngle > 180.0) {
@@ -147,7 +146,7 @@ class SwerveModule {
     }
   }
   
-  // Sets the angle of the module. Units: degrees
+  // Sets the angle of the module. Units: degrees Can accept values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
   private void setAngle(double angle) {
     if (!turnMotorFailure && !moduleDisabled) {
       turnMotor.setControl(new MotionMagicDutyCycle(((angle-wheelInitialPos)*turnGearRatio)/360.0+turnMotorInitialPos));
@@ -221,6 +220,7 @@ class SwerveModule {
     configDriveMotor();
   }
 
+  // Attempts to configure the drive motor. Sets inverts, neutral mode, PID constants, and defines the intiial position.
   private void configDriveMotor() {
     TalonFXConfigurator driveMotorConfigurator = driveMotor.getConfigurator();
     TalonFXConfiguration driveMotorConfigs = new TalonFXConfiguration();
@@ -251,6 +251,7 @@ class SwerveModule {
     driveMotorInitialPos = driveMotorFailure ? 0.0 : driveMotor.getRotorPosition().getValueAsDouble();
   }
 
+  // Attempts to configure the turn motor. Sets inverts, neutral mode, PID constants, and defines the intiial positions.
   private void configTurnMotor() {
     TalonFXConfigurator turnMotorConfigurator = turnMotor.getConfigurator();
     TalonFXConfiguration turnMotorConfigs = new TalonFXConfiguration();
@@ -281,5 +282,6 @@ class SwerveModule {
     
     wheelInitialPos = getWheelEncoder();
     turnMotorInitialPos = turnMotorFailure ? 0.0 : turnMotor.getRotorPosition().getValueAsDouble();
+    angleSetpoint = getAngle();
   }
 }

@@ -45,12 +45,26 @@ public class Robot extends TimedRobot {
     createToggles();
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
+    swerve.resetDriveController(0.0);
+    swerve.aimDrive(0.1, 0.0, 0.0, true);
+    swerve.driveTo(0.0, 0.0, 0.0);
+    swerve.addCalibrationEstimate();
+    swerve.pushCalibration();
+    swerve.resetCalibration();
     swerve.resetPathController(0);
     swerve.followPath(0);
     swerve.atPathEndpoint(0);
     swerve.drive(0.1, 0.0, 0.0, false, 0.0, 0.0);
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
+    climber.set(0.0, 0.0);
+    climber.periodic();
+    arm.atSetpoint();
+    arm.periodic();
+    arm.updateSetpoint(50.0);
+    arm.setManualPower(0.0);
+    thrower.init();
+    thrower.periodic();
   }
 
   public void robotPeriodic() {
@@ -74,11 +88,12 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // AutoInit 1 code goes here.
-        swerve.resetAimDriveController(aimHeading);
+        swerve.resetDriveController(aimHeading);
         break;
 
       case auto2:
         // AutoInit 2 code goes here.
+        swerve.resetDriveController(180.0);
         break;
 
       case auto3: 
@@ -103,7 +118,7 @@ public class Robot extends TimedRobot {
             swerve.aimDrive(0.0, 0.0, aimHeading, true);
             arm.updateSetpoint(aimArmAngle);
 
-            if (swerve.atAimTarget() && arm.atSetpoint()) {
+            if (swerve.atDriveGoal() && arm.atSetpoint()) {
               thrower.commandThrow(30.0);
             }
 
@@ -120,6 +135,77 @@ public class Robot extends TimedRobot {
 
       case auto2:
         // Auto 2 code goes here.
+        switch (autoStage) {
+          case 1:
+            if (!aimShotAvailable) { // Default escape code
+              return; 
+            }
+    
+            arm.updateSetpoint(aimArmAngle);
+            swerve.aimDrive(0.0, 0.0, aimHeading, true);
+    
+            if (arm.atSetpoint() && swerve.atDriveGoal()) {
+              thrower.commandThrow(30.0);
+    
+              if (!thrower.isThrowing()) {
+                swerve.resetDriveController(0.0);
+                autoStage = 2;
+              }
+    
+            }
+            break;
+  
+          case 2:
+            swerve.driveTo(1.0, swerve.getYPos(), 0.0); // Move slightly before game object quickly
+    
+            if (swerve.atDriveGoal()) {
+              autoStage = 3;
+            }
+            break;
+  
+          case 3: // Move slowly into game object to intake, Add a delay t between firing game object and moving back
+            if (swerve.getXPos() < 2.0) {
+              swerve.drive(0.25, 0.0, 0, true, 0, 0);
+            } else {
+              swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
+            }
+    
+            if (thrower.getSensor1()) { // Automatically skips driving into note because of always true getSensor1 function
+              swerve.resetDriveController(180.0);
+              autoStage = 4;
+            } 
+            break;
+  
+          case 4:
+            swerve.driveTo(0.5, swerve.getYPos(), 180.0);
+    
+            if (swerve.atDriveGoal()) {
+              swerve.resetDriveController(180.0);
+              autoStage = 5;
+            }
+            break;
+          
+          case 5:
+            if (!aimShotAvailable) {
+              return;
+            }
+    
+            arm.updateSetpoint(aimArmAngle);
+            swerve.aimDrive(0.5, 0.0, aimHeading, true);
+    
+            if (swerve.atDriveGoal() && arm.atSetpoint() && aimShotAvailable) {
+              thrower.commandThrow(150.0);
+    
+              if (!thrower.isThrowing()) {
+                swerve.resetDriveController(0.0);
+                autoStage = 6;
+              }
+            }
+  
+          default: 
+            swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
+            break;
+        }
         break;
 
       case auto3: 
@@ -128,6 +214,10 @@ public class Robot extends TimedRobot {
 
       case auto4: 
         // Auto 4 code goes here.
+        break;
+
+      default:
+        swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
         break;
     }
   }
@@ -155,7 +245,7 @@ public class Robot extends TimedRobot {
 
     // Auto Rotate to Aim Heading
     if (driver.getRawButtonPressed(6)) { // Right Bumper
-      swerve.resetAimDriveController(aimHeading);
+      swerve.resetDriveController(aimHeading);
     }
     if (driver.getRawButton(6)) { // Right Bumper
       swerve.aimDrive(xVel, yVel, aimHeading, true);
