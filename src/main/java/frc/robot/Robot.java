@@ -120,10 +120,9 @@ public class Robot extends TimedRobot {
 
             if (swerve.atDriveGoal() && arm.atSetpoint()) {
               thrower.commandThrow(30.0);
-            }
-
-            if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
-              autoStage = 2;
+              if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+                autoStage = 2;
+              }
             }
             break;
 

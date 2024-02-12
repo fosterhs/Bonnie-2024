@@ -71,6 +71,8 @@ public class Thrower {
     throwMotor2Failure = !configThrowMotor(throwMotor2, throwMotor2Failure);
     throwMotor1Failure = !configThrowMotor(throwMotor1, throwMotor1Failure);
     manualControl = getMotorFailure();
+    lastState = State.DISABLED;
+    nextState = State.DISABLED;
   }
 
   // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
@@ -155,7 +157,7 @@ public class Thrower {
         if (lastState != State.BACK_UP) {
           indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
           leftThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
-          rightThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
+          rightThrowerGoalPos = throwMotor1.getRotorPosition().getValueAsDouble();
         }
         lastState = State.BACK_UP;
 
@@ -178,7 +180,7 @@ public class Thrower {
       case INTAKE:
         if (lastState != State.INTAKE) {
           leftThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
-          rightThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
+          rightThrowerGoalPos = throwMotor1.getRotorPosition().getValueAsDouble();
         }
         lastState = State.INTAKE;
 
@@ -203,6 +205,7 @@ public class Thrower {
           flywheelPowerManual = 0.0;
         }
         lastState = State.MANUAL;
+
         if (!throwMotor1Failure) {
           throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual));
         }
@@ -212,6 +215,8 @@ public class Thrower {
         if (!indexMotorFailure) {
           indexMotor.setControl(new DutyCycleOut(indexPowerManual));
         }
+
+        throwCommanded = false;
 
         if (!manualControl && getSensor2()) {
           nextState = State.BACK_UP;
@@ -225,6 +230,7 @@ public class Thrower {
       case DISABLED:
         lastState = State.DISABLED;
         nextState = State.DISABLED;
+        throwCommanded = false;
         break;
     }
   }
@@ -232,8 +238,8 @@ public class Thrower {
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in falcon rotations per second.
   public void commandThrow(double _flywheelVel) {
     flywheelVel = _flywheelVel;
-    throwCommanded = true;
-  }
+    throwCommanded = nextState == State.BACK_UP || nextState == State.SPIN_UP || nextState == State.THROW;
+  } 
 
   // Call to set the flywheel velocity to a different value without throwing a note. flywheelVel is in falcon rotations per second.
   public void setFlywheelVel(double _flywheelVel) {
