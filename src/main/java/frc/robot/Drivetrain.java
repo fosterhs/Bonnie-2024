@@ -2,6 +2,7 @@ package frc.robot;
 
 import java.util.ArrayList;
 import java.util.Optional;
+import com.ctre.phoenix6.hardware.Pigeon2;
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
@@ -34,17 +35,17 @@ class Drivetrain {
   public static final double maxAngularAccAuto = 3.5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 
   // Positions of the swerve modules relative to the center of the roboot. +x points towards the robot's front. +y points to the robot's left. Units: meters.
-  private static final Translation2d frontLeftModulePos = new Translation2d(0.225, 0.225);
-  private static final Translation2d frontRightModulePos = new Translation2d(0.225, -0.225); 
-  private static final Translation2d backRightModulePos = new Translation2d(-0.225, -0.225);
-  private static final Translation2d backLeftModulePos = new Translation2d(-0.225, 0.225);
+  private static final Translation2d frontLeftModulePos = new Translation2d(0.352425, 0.238125);
+  private static final Translation2d frontRightModulePos = new Translation2d(0.352425, -0.238125); 
+  private static final Translation2d backRightModulePos = new Translation2d(-0.352425, -0.238125);
+  private static final Translation2d backLeftModulePos = new Translation2d(-0.352425, 0.238125);
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module object.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, 148.7); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 98.2);
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, -83.1);
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, 93.1);
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -19.1); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 179.3);
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 105.8);
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -23.2);
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.
@@ -87,6 +88,8 @@ class Drivetrain {
   private double pathXPos = 0.0; // Unit: meters
   private double pathYPos = 0.0; // Unit: meters
   private double pathAngPos = 0.0; // Unit degrees
+
+  private Pigeon2 pigeon = new Pigeon2(0); // Pigeon 2.0 CAN Gyroscope
 
   public Drivetrain() {
     xController.setIntegratorRange(-maxVelAuto*0.8, maxVelAuto*0.8);
@@ -573,5 +576,6 @@ class Drivetrain {
     SmartDashboard.putNumber("Path Position Error", getPathPosError());
     SmartDashboard.putNumber("Path Angle Error", getPathAngleError());
     SmartDashboard.putBoolean("Path atEndpoint", atPathEndpoint(0));
+    SmartDashboard.putNumber("Pigeon Yaw", pigeon.getYaw().getValueAsDouble());
   }
 }

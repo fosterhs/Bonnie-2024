@@ -274,7 +274,7 @@ public class Robot extends TimedRobot {
 
     arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
     if (arm.getManualControl()) {
-      arm.setManualPower(0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+      arm.setManualPower(-operator.getLeftY()); // TODO: Change the inputs to this function to their appropriate keybinds.
     } else {
       arm.updateSetpoint(aimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
     }
