@@ -65,11 +65,11 @@ public class Arm {
 
   // Returns the position of the arm in degrees.
   public double getArmEncoder() {
-    double encoderValue = armEncoder.getAbsolutePosition();
-    if (encoderValue < 0) {
-      encoderValue = encoderValue + 1;
+    double encoderValue = armEncoderZero-armEncoder.getAbsolutePosition();
+    if (encoderValue > 0.5) { // Moves the discontinuity into the floor. The range now runs from -0.5 to 0.5
+      encoderValue = encoderValue - 1;
     }
-    return (armEncoderZero-armEncoder.getAbsolutePosition())*360.0; 
+    return encoderValue*360.0; 
   }
 
   public void setManualPower(double _manualPower) {
@@ -108,7 +108,7 @@ public class Arm {
     SmartDashboard.putBoolean("atArmSetpoint", atSetpoint());
     SmartDashboard.putNumber("armSetpoint", armSetpoint);
     SmartDashboard.putNumber("armAngle", getArmEncoder());
-    SmartDashboard.putNumber("Arm Encoder", armEncoder.get());
+    SmartDashboard.putNumber("Arm Encoder", armEncoder.getAbsolutePosition());
   }
 
   // Sets PID constants, brake mode, inverts, and enforces a 40 A current limit. Returns true if the motor successfully configured.
@@ -138,7 +138,7 @@ public class Arm {
     motorConfigs.Slot1.kD = 0.006;
     motorConfigs.MotionMagic.MotionMagicAcceleration = 75.0;
     motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 50.0;
-    motorConfigs.MotionMagic.MotionMagicJerk = 400.0;
+    motorConfigs.MotionMagic.MotionMagicJerk = 1000.0;
     
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int motorErrors = 0;

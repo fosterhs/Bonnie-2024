@@ -17,11 +17,9 @@ public class Thrower {
   private final TalonFX throwMotor1 = new TalonFX(11); // One of the motors running the main flywheel.
   private final TalonFX throwMotor2 = new TalonFX(12); // The other motor running the main flywheel.
   private final TalonFX indexMotor = new TalonFX(13); // The motor running the intake.
-
   // Initializes the proximity sensors. These return false if an object is detected and true if no object is detected.
   private final DigitalInput sensor1 = new DigitalInput(0); // Sensor closest to the intake. Notes will trigger this sensor first when intaked normally.
   private final DigitalInput sensor2 = new DigitalInput(1); // Sensor closest to the shooter. Notes will trigger this sensor second when intaked normally.
-
   private final double throwMotorCurrentLimit = 40.0; // Throw motor current limit in amps. Should be based on the breaker used in the PDP.
   private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
@@ -34,6 +32,7 @@ public class Thrower {
   private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
   private final Timer throwTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the THROW state.
   private final Timer spinUpTimer = new Timer(); // Keeps track of how long the thrower has been in the SPIN_UP state.
+  private int notesThrown = 0; // Tracks how many notes have been thrown based on the number of times the thrower has entered the throw state.
 
   // Keeps track of the different states of the thrower.
   private enum State {
@@ -73,6 +72,7 @@ public class Thrower {
     manualControl = getMotorFailure();
     lastState = State.DISABLED;
     nextState = State.DISABLED;
+    notesThrown = 0;
   }
 
   // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
@@ -85,6 +85,7 @@ public class Thrower {
     } else {
       nextState = State.INTAKE;
     }
+    notesThrown = 0;
   }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
@@ -112,6 +113,9 @@ public class Thrower {
         break;
 
       case THROW:
+        if (lastState != State.THROW) {
+          notesThrown++;
+        }
         lastState = State.THROW;
 
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
@@ -249,6 +253,11 @@ public class Thrower {
   // Returns true if the thrower is in the process of spinning up and throwing a note.
   public boolean isThrowing() {
     return throwCommanded;
+  }
+
+  // Returns the total number of notes thrown by counting the times the thrower has been in the throw state.
+  public int getNotesThrown() {
+    return notesThrown;
   }
 
   // Returns true if sensor 2 on the thrower is triggered.
