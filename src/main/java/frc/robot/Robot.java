@@ -83,6 +83,7 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     swerve.pushCalibration(); // Updates the robot's position on the field.
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
+    arm.init();
     autoStage = 1;
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
@@ -224,6 +225,7 @@ public class Robot extends TimedRobot {
   public void teleopInit() {
     swerve.pushCalibration(); // Updates the robot's position on the field.
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
+    arm.init();
   }
 
   public void teleopPeriodic() {

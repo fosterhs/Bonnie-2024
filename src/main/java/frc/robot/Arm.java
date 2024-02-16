@@ -20,7 +20,7 @@ public class Arm {
   private boolean armMotor1Failure = false; 
 
   private final DutyCycleEncoder armEncoder = new DutyCycleEncoder(2); // Keeps track of the angle of the arm.
-  private double armEncoderZero = 0.3365; // The initial arm position reading of the encoder in rotations.
+  private double armEncoderZero = 0.6922; // The initial arm position reading of the encoder in rotations.
   private double armSetpoint = 50.0; // The last requested setpoint of the arm in degrees. 0 degrees is horizontal and 90 degrees is vertical. 
   private final double armTol = 0.5; // The acceptable error in the angle of the arm in degrees.
   private final double gearRatio = 288.0; // 72:12 chain. 3:1, 4:1, and 4:1 stacked planetaries.
@@ -33,6 +33,14 @@ public class Arm {
 
   public Arm() {
     reboot();
+  }
+  
+  public void init() {
+    if (!armMotor1Failure) {
+      armMotor1InitialPos = armMotor1.getRotorPosition().getValueAsDouble();
+    }
+    armEncoderInitialPos = getArmEncoder();
+    manualControl = getMotorFailure();  
   }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
@@ -60,15 +68,18 @@ public class Arm {
 
   // Changes the angle that the arm will move to. Units: degrees
   public void updateSetpoint(double _armSetpoint) {
-    armSetpoint = _armSetpoint;
+    if (_armSetpoint > 180.0) {
+      armSetpoint = 180.0;
+    } else if (_armSetpoint < 0.0) {
+      armSetpoint = 0.0;
+    } else {
+      armSetpoint = _armSetpoint;
+    }
   }
 
   // Returns the position of the arm in degrees.
   public double getArmEncoder() {
     double encoderValue = armEncoderZero-armEncoder.getAbsolutePosition();
-    if (encoderValue > 0.5) { // Moves the discontinuity into the floor. The range now runs from -0.5 to 0.5
-      encoderValue = encoderValue - 1;
-    }
     return encoderValue*360.0; 
   }
 
@@ -93,12 +104,8 @@ public class Arm {
 
   // Attempts to reboot by reconfiguring the motors. Use if trying to troubleshoot during a match.
   public void reboot() {
-    armMotor1Failure = !configMotor(armMotor1, armMotor1Failure, true);
-    if (!armMotor1Failure) {
-      armMotor1InitialPos = armMotor1.getRotorPosition().getValueAsDouble();
-    }
-    armEncoderInitialPos = getArmEncoder();
-    manualControl = getMotorFailure();
+    armMotor1Failure = !configMotor(armMotor1, armMotor1Failure, false);
+    init();
   }
 
   // Sends information to the dashboard each period. This is handled automatically by the class.
