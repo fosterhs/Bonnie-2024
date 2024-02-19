@@ -279,12 +279,20 @@ public class Thrower {
 
   // Call to set the flywheel velocity to a different value without throwing a note. flywheelVel is in falcon rotations per second.
   public void setFlywheelVel(double _flywheelVel) {
+    if (Math.abs(flywheelVel-_flywheelVel) > allowableFlywheelVelError) {
+      spinUpTimer.restart();
+    }
     flywheelVel = _flywheelVel;
   }
 
   // Returns true if the thrower is in the process of spinning up and throwing a note.
   public boolean isThrowing() {
     return throwCommanded;
+  }
+
+  // Returns true if the thrower is in the process of scoring a note in the amp.
+  public boolean isAmpScoring() {
+    return ampScoreCommanded;
   }
 
   // Returns true if sensor 2 on the thrower is triggered.
