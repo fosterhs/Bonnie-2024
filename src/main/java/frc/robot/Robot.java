@@ -275,7 +275,7 @@ public class Robot extends TimedRobot {
 
     arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
     if (arm.getManualControl()) {
-      arm.setManualPower(0.0);
+      arm.setManualPower(operator.getRightTriggerAxis() - operator.getLeftTriggerAxis());
     } else {
       if (operator.getRawButtonPressed(1)) { // A Bytton
         currArmState = ArmState.DRIVE;
@@ -317,7 +317,18 @@ public class Robot extends TimedRobot {
 
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (thrower.getManualControl()) {
-      thrower.setManualSpeeds(0.0, 0.0);
+      double flywheelPower = 0.0;
+      if (operator.getRawButton(5)) { // Left Bumper
+        flywheelPower = 1.0;
+      }
+      double indexPower = 0.0;
+      if (operator.getPOV() == 0) { // D-pad up
+        indexPower = 0.3;
+      }
+      if (operator.getPOV() == 180) { // D-pad down
+        indexPower = -0.3;
+      }
+      thrower.setManualSpeeds(flywheelPower, indexPower);
     } else {
       if (operator.getRawButton(6)) { // Right Bumper
         if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
