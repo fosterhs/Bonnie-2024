@@ -60,7 +60,7 @@ public class Thrower {
 
   private boolean ampScoreCommanded = false; // Returns true if an amp score command was recieved, but not yet executed.
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed. Reverts to false if a note is not detected.
-  private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
+  private double flywheelVel = 30.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
 
   // These variables store the desired motor velocities which are used and updated when the thrower is in the MANUAL state.
   private boolean manualControl = false;
@@ -140,7 +140,7 @@ public class Thrower {
         }
         lastState = State.AMP_SCORE;
 
-        indexMotor.setControl(new VelocityDutyCycle(ampVel).withSlot(0));
+        indexMotor.setControl(new VelocityDutyCycle(-ampVel).withSlot(0));
         throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
         throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
 
@@ -340,6 +340,7 @@ public class Thrower {
     SmartDashboard.putBoolean("manualThrowerControl", manualControl);
     SmartDashboard.putBoolean("throwerFailure", getMotorFailure());
     SmartDashboard.putBoolean("throwCommanded", throwCommanded);
+    SmartDashboard.putBoolean("ampScoreCommanded", ampScoreCommanded);
     SmartDashboard.putNumber("flywheelVel", flywheelVel);
   }
 

@@ -2,8 +2,10 @@ package frc.robot;
 
 import java.util.ArrayList;
 import java.util.Optional;
+
+import com.ctre.phoenix6.StatusCode;
+import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.Pigeon2;
-import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
 import edu.wpi.first.math.VecBuilder;
@@ -42,16 +44,16 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module object.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -19.1); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 179.3);
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 105.8);
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -23.2);
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -20.05); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 176.45);
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 110.4);
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -23.4);
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.
 
   // Gyroscope Variables
-  private final AHRS gyro = new AHRS();
+  private final Pigeon2 pigeon = new Pigeon2(0); // Pigeon 2.0 CAN Gyroscope
   private boolean gyroFailure = false; // Indicates whether the gyro has lost connection at any point after a yaw-reset.
   private boolean gyroDisabled = false; // Indicates whether the gyro was disabled on startup, or by the driver by calling toggleGyro()
 
@@ -89,13 +91,10 @@ class Drivetrain {
   private double pathYPos = 0.0; // Unit: meters
   private double pathAngPos = 0.0; // Unit degrees
 
-  private Pigeon2 pigeon = new Pigeon2(0); // Pigeon 2.0 CAN Gyroscope
-
   public Drivetrain() {
     xController.setIntegratorRange(-maxVelAuto*0.8, maxVelAuto*0.8);
     yController.setIntegratorRange(-maxVelAuto*0.8, maxVelAuto*0.8);
     angleController.setIntegratorRange(-maxAngularVelAuto*0.8, maxAngularVelAuto*0.8);
-    Timer.delay(2); // Delay to give the gyro time for start-up calibration.
     resetGyro(); // Sets the gyro angle to 0 based on the current heading of the robot.
     gyroDisabled = gyroFailure;
     updateModuleStatus(); // Checks whether any modules are offline or did not start up properly.
@@ -380,8 +379,9 @@ class Drivetrain {
   
   // Returns the angular position of the robot in degrees. The angular position is referenced to the starting angle of the robot. CCW is positive. Will return 0 in the case of a gyro failure.
   public double getGyroAng() {
-    if (gyro.isConnected() && !gyroFailure && !gyroDisabled) {
-      return -gyro.getYaw();
+    StatusSignal<Double> pigeonStatus = pigeon.getYaw();
+    if (pigeonStatus.getStatus() == StatusCode.OK) {
+      return pigeonStatus.getValueAsDouble();
     } else {
       gyroFailure = true;
       return 0;
@@ -410,8 +410,9 @@ class Drivetrain {
  
   // Returns the pitch of the robot in degrees. An elevated front is positive. An elevated rear is negative.
   public double getGyroPitch() {
-    if (gyro.isConnected() && !gyroFailure && !gyroDisabled) {
-      return gyro.getPitch();
+    StatusSignal<Double> pigeonStatus = pigeon.getPitch();
+    if (pigeonStatus.getStatus() == StatusCode.OK) {
+      return pigeonStatus.getValueAsDouble();
     } else {
       gyroFailure = true;
       return 0;
@@ -465,9 +466,10 @@ class Drivetrain {
   
   // Resets the gyro to 0. The current angle of the robot is now defined as 0 degrees. Also clears gyroFailures if a connection is re-established
   public void resetGyro() {
-    gyroFailure = !gyro.isConnected();
-    if (!gyroFailure) {
-      gyro.zeroYaw();
+    if (pigeon.setYaw(0.0) != StatusCode.OK) {
+      gyroFailure = true;
+    } else {
+      gyroFailure = false;
       odometry.resetPosition(new Rotation2d(), getSMPs(), new Pose2d(getXPos(), getYPos(), new Rotation2d()));
     }
   }

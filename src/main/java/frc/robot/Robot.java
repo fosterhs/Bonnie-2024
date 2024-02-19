@@ -153,7 +153,7 @@ public class Robot extends TimedRobot {
             swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
     
             if (arm.atSetpoint() && swerve.atDriveGoal()) {
-              thrower.commandThrow(30.0);
+              thrower.commandThrow(120.0);
     
               if (!thrower.isThrowing()) {
                 swerve.resetDriveController(0.0);
@@ -275,18 +275,18 @@ public class Robot extends TimedRobot {
 
     arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
     if (arm.getManualControl()) {
-      arm.setManualPower(0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+      arm.setManualPower(0.0);
     } else {
-      if (operator.getRawButtonPressed(2)) { // B Button
-        currArmState = ArmState.INTAKE;
-      }
       if (operator.getRawButtonPressed(1)) { // A Bytton
         currArmState = ArmState.DRIVE;
       }
-      if (operator.getRawButtonPressed(4)) { // X Button
+      if (operator.getRawButtonPressed(2)) { // B Button
+        currArmState = ArmState.INTAKE;
+      }
+      if (operator.getRawButtonPressed(3)) { // X Button
         currArmState = ArmState.SHOOT;
       }
-      if (operator.getRawButtonPressed(3)) { // Y Button
+      if (operator.getRawButtonPressed(4)) { // Y Button
         currArmState = ArmState.AMP;
       }
       switch (currArmState) {
@@ -317,11 +317,11 @@ public class Robot extends TimedRobot {
 
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (thrower.getManualControl()) {
-      thrower.setManualSpeeds(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+      thrower.setManualSpeeds(0.0, 0.0);
     } else {
-      if (operator.getRawButtonPressed(6)) { // Right Bumper
+      if (operator.getRawButton(6)) { // Right Bumper
         if (currArmState == ArmState.SHOOT) {
-          thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
+          thrower.commandThrow(120.0); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
         } else if (currArmState == ArmState.AMP) {
           thrower.commandAmpScore();
         }
@@ -379,7 +379,7 @@ public class Robot extends TimedRobot {
 
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
   double[] distCalArray = {1.0, 2.0, 3.0, 4.0, 5.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
-  double[] armCalArray = {40.0, 30.0, 20.0, 10.0, 0.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
+  double[] armCalArray = {5.0, 10.0, 15.0, 20.0, 25.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
   public double getAimArmAngle() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
     double distToSpeaker = Math.sqrt(Math.pow(speakerY-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
@@ -388,13 +388,13 @@ public class Robot extends TimedRobot {
     } else if (distToSpeaker <= distCalArray[0]) { // If the distance to the speaker is smaller than the smallest calibration distance.
       return armCalArray[0]; // Return the arm angle that corresponds to the smallest calibration distance in the array.
     } else { // The distance to the speaker is within the calibration distances tested.
-      int lowerIndex = 0; // The index that corresponds to the entry in the calibration array that is immediately smaller than the current robot distance to the speaker.
-      for (int i = 0; i < distCalArray.length - 2; i++) { // Iterate through the calibration array, except the last entry.
-        if (distCalArray[i+1] > distToSpeaker) { // Find the first array element that is larger than the current distance to the speaker.
+      int lowerIndex = -1; // The index that corresponds to the entry in the calibration array that is immediately smaller than the current robot distance to the speaker.
+      for (int i = 0; i < distCalArray.length - 1; i++) { // Iterate through the calibration array, except the last entry.
+        if (distCalArray[i+1] > distToSpeaker && lowerIndex == -1) { // Find the first array element that is larger than the current distance to the speaker.
           lowerIndex = i;
         }
       }
-      return armCalArray[lowerIndex] + ((armCalArray[lowerIndex+1]-armCalArray[lowerIndex])/(distCalArray[lowerIndex+1]+distCalArray[lowerIndex]))*(distToSpeaker-distCalArray[lowerIndex]); // Linear interpolation
+      return armCalArray[lowerIndex] + ((armCalArray[lowerIndex+1]-armCalArray[lowerIndex])/(distCalArray[lowerIndex+1]-distCalArray[lowerIndex]))*(distToSpeaker-distCalArray[lowerIndex]); // Linear interpolation
     }
   }
 

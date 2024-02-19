@@ -76,9 +76,9 @@ public class Climber {
     motorConfigs.Slot1.kP = 0.8;
     motorConfigs.Slot1.kI = 2.0;
     motorConfigs.Slot1.kD = 0.006;
-    motorConfigs.MotionMagic.MotionMagicAcceleration = 75.0;
+    motorConfigs.MotionMagic.MotionMagicAcceleration = 200.0;
     motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 50.0;
-    motorConfigs.MotionMagic.MotionMagicJerk = 400.0;
+    motorConfigs.MotionMagic.MotionMagicJerk = 500.0;
     
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int motorErrors = 0;
