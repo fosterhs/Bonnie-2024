@@ -33,6 +33,15 @@ public class Robot extends TimedRobot {
   private String autoSelected;
   private int autoStage = 1;
 
+  // Arm States (Teleop)
+  private enum ArmState {
+    DRIVE,
+    SHOOT,
+    AMP,
+    INTAKE;
+  } 
+  ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
+
   public void robotInit() {
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
@@ -69,7 +78,6 @@ public class Robot extends TimedRobot {
 
   public void robotPeriodic() {
     updateVision(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
-    getAim(); // Calculates the required robot heading and arm angle to make a shot from the current robot position.
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     updateToggles();
@@ -89,7 +97,7 @@ public class Robot extends TimedRobot {
     switch (autoSelected) {
       case auto1:
         // AutoInit 1 code goes here.
-        swerve.resetDriveController(aimHeading);
+        swerve.resetDriveController(getAimHeading());
         break;
 
       case auto2:
@@ -116,12 +124,12 @@ public class Robot extends TimedRobot {
         switch (autoStage) {
           case 1: 
             // Auto 1 code goes here.
-            swerve.aimDrive(0.0, 0.0, aimHeading, true);
-            arm.updateSetpoint(aimArmAngle);
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
+            arm.updateSetpoint(getAimArmAngle());
 
             if (swerve.atDriveGoal() && arm.atSetpoint()) {
-              thrower.commandThrow(30.0);
-              if (!thrower.isThrowing() && thrower.getNotesThrown() == 1) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+              thrower.commandThrow(120.0);
+              if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
                 autoStage = 2;
               }
             }
@@ -137,12 +145,12 @@ public class Robot extends TimedRobot {
         // Auto 2 code goes here.
         switch (autoStage) {
           case 1:
-            if (!aimShotAvailable) { // Default escape code
+            if (!aimShotAvailable()) { // Default escape code
               return; 
             }
     
-            arm.updateSetpoint(aimArmAngle);
-            swerve.aimDrive(0.0, 0.0, aimHeading, true);
+            arm.updateSetpoint(getAimArmAngle());
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
     
             if (arm.atSetpoint() && swerve.atDriveGoal()) {
               thrower.commandThrow(30.0);
@@ -186,14 +194,14 @@ public class Robot extends TimedRobot {
             break;
           
           case 5:
-            if (!aimShotAvailable) {
+            if (!aimShotAvailable()) {
               return;
             }
     
-            arm.updateSetpoint(aimArmAngle);
-            swerve.aimDrive(0.5, 0.0, aimHeading, true);
+            arm.updateSetpoint(getAimArmAngle());
+            swerve.aimDrive(0.5, 0.0, getAimHeading(), true);
     
-            if (swerve.atDriveGoal() && arm.atSetpoint() && aimShotAvailable) {
+            if (swerve.atDriveGoal() && arm.atSetpoint() && aimShotAvailable()) {
               thrower.commandThrow(150.0);
     
               if (!thrower.isThrowing()) {
@@ -246,10 +254,10 @@ public class Robot extends TimedRobot {
 
     // Auto Rotate to Aim Heading
     if (driver.getRawButtonPressed(6)) { // Right Bumper
-      swerve.resetDriveController(aimHeading);
+      swerve.resetDriveController(getAimHeading());
     }
     if (driver.getRawButton(6)) { // Right Bumper
-      swerve.aimDrive(xVel, yVel, aimHeading, true);
+      swerve.aimDrive(xVel, yVel, getAimHeading(), true);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
@@ -265,27 +273,58 @@ public class Robot extends TimedRobot {
       swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
     }
 
+    arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
+    if (arm.getManualControl()) {
+      arm.setManualPower(0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
+    } else {
+      if (operator.getRawButtonPressed(2)) { // B Button
+        currArmState = ArmState.INTAKE;
+      }
+      if (operator.getRawButtonPressed(1)) { // A Bytton
+        currArmState = ArmState.DRIVE;
+      }
+      if (operator.getRawButtonPressed(4)) { // X Button
+        currArmState = ArmState.SHOOT;
+      }
+      if (operator.getRawButtonPressed(3)) { // Y Button
+        currArmState = ArmState.AMP;
+      }
+      switch (currArmState) {
+        case INTAKE:
+          arm.updateSetpoint(-4.0);
+          thrower.setFlywheelVel(0.0);
+          break;
+
+        case DRIVE:
+          arm.updateSetpoint(90.0);
+          thrower.setFlywheelVel(0.0);
+          break;
+
+        case SHOOT:
+          arm.updateSetpoint(getAimArmAngle());
+          thrower.setFlywheelVel(120.0);
+          break;
+
+        case AMP:
+          arm.updateSetpoint(40.0);
+          thrower.setFlywheelVel(0.0);
+          break;
+
+        default:
+          break;
+      }
+    }
+
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (thrower.getManualControl()) {
       thrower.setManualSpeeds(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
     } else {
-      if (operator.getRawButtonPressed(1)) { // A Button
-        thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 30 rotations per second.
-      }
-    }
-
-    arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
-    if (arm.getManualControl()) {
-      arm.setManualPower(-operator.getLeftY()); // TODO: Change the inputs to this function to their appropriate keybinds.
-    } else {
-      if (operator.getRawButtonPressed(2)) { // B Button
-        arm.updateSetpoint(-4.0); // Intake
-      }
-      if (operator.getRawButtonPressed(3)) { // X Bytton
-        arm.updateSetpoint(90.0); // Drive
-      }
-      if (operator.getRawButtonPressed(4)) { // Y Button
-        arm.updateSetpoint(aimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
+      if (operator.getRawButtonPressed(6)) { // Right Bumper
+        if (currArmState == ArmState.SHOOT) {
+          thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 120 rotations per second.
+        } else if (currArmState == ArmState.AMP) {
+          thrower.commandAmpScore();
+        }
       }
     }
 
@@ -326,78 +365,45 @@ public class Robot extends TimedRobot {
     }
   }
 
-  // This function calculates the required robot heading and arm angle to make a shot into the speaker from the current robot position on the field.
-  double headingTol = 0.5; // The acceptable error in the heading of the robot when tracking headings calculated by the getAim() function.
-  boolean aimShotAvailable = false; // Whether it is possible to make it into the speaker from the current robot position.
-  double aimHeading = 0.0; // The robot heading that is required to make the shot.
-  double aimArmAngle = 0.0; // The arm angle that is required to make the shot.
-  public void getAim() {
-    double robotX = swerve.getXPos(); // x-coordinate of the center of rotation of the robot in meters.
-    double robotY = swerve.getYPos();  // y-coordinate of the center of rotation of the robot in meters.
-    double speakerZ = 2.045; // The height of the center of the speaker slot above the field carpet in meters. 
+  // Calculates the angle the robot should be facing to make the shot in degrees.
+  public double getAimHeading() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
-    double armL = 0.6; // The length of the arm between the pivot and the point where the note loses contact with the flywheel in meters.
-    double armPivotZ = 0.1; // The height of the arm pivot above the field carpet in meters.
-    double armPivotX = 0.2; // The distance from the center of rotation of the robot to the arm pivot in meters. A pivot behind the center of rotation is positive.
-    double g = 9.81; // The gravitational acceleration in meters per second squared.
-    double noteVel = 8.0; // The velocity of the note as it leaves the thrower in meters per second.
-    double minAngle = 10.0; // The lowest angle the arm can expect to shoot at in degrees. 0 degrees is paralell to the floor and 90 degrees is pointing straight up.
-    double maxAngle = 80.0; // The highest angle the arm can expect to shoot at in degrees. 0 degrees is paralell to the floor and 90 degrees is pointing straight up.
-    int totalAngles = 70; // The total number of angles that should be checked. A higher number takes more computational resources, but is more accurate.
-    double[] noteZErrors = new double[totalAngles]; // An array that stores the z-level that the note will impact the speaker at relative to the center of the speaker slot in meters. This represents the overshoot or undershoot error of each angle tested.
-
-    // Calculates the position of the note just as it leaves the thrower. This calculation relies on the previous loops solution to approximate the heading and arm angle. If no shot was available, it will default to using middle of the range values for the heading and arm angle.
-    if (!aimShotAvailable) {
-      aimArmAngle = 50.0;
-      aimHeading = 180.0;
-    } 
-    double lastNoteX = robotX - armPivotX*Math.cos(aimHeading*Math.PI/180.0) + armL*Math.cos(aimArmAngle*Math.PI/180.0)*Math.cos(aimHeading*Math.PI/180.0); // The trig accounts for the effect of the arm angle and robot heading on the note's position.
-    double lastNoteY = robotY + armPivotX*Math.sin(aimHeading*Math.PI/180.0) + armL*Math.cos(aimArmAngle*Math.PI/180.0)*Math.sin(aimHeading*Math.PI/180.0);
-
-    // Calculates the angle the robot should be facing to make the shot in degrees. Based on the position of the note as it leaves the shooter.
-    double nextAimHeading = 180.0; // The angle the robot should be facing to make the shot in degrees.
-    if (lastNoteY == speakerY) { // The robot is aligned with the speaker in the y-dimension. This prevents calls to atan() which would result in undefined returns.
-        nextAimHeading = 180.0;
-    } else if (lastNoteY < speakerY) {
-        nextAimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI + 90.0; // The robot has a positive heading.
+    if (swerve.getYPos() == speakerY) { // The robot is aligned with the speaker in the y-dimension. This prevents calls to atan() which would result in undefined returns.
+        return 180.0;
+    } else if (swerve.getYPos() < speakerY) {
+        return Math.atan(swerve.getXPos()/(speakerY-swerve.getYPos()))*180.0/Math.PI + 90.0; // The robot has a positive heading.
     } else {
-        nextAimHeading = Math.atan(lastNoteX/(speakerY-lastNoteY))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
+        return Math.atan(swerve.getXPos()/(speakerY-swerve.getYPos()))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
     }
-    
-    // Calculates the Z-error for several angles to see which angle is the best.
-    for (int index = 0; index < totalAngles; index++) {
-      double currentAngle = minAngle + index*(maxAngle-minAngle)/totalAngles; // Converts from the array index to degrees.
-      double noteX = robotX - armPivotX*Math.cos(nextAimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.cos(nextAimHeading*Math.PI/180.0); // The x-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
-      double noteY = robotY + armPivotX*Math.sin(nextAimHeading*Math.PI/180.0) + armL*Math.cos(currentAngle*Math.PI/180.0)*Math.sin(nextAimHeading*Math.PI/180.0); // The y-coordinate of the note as it leaves contact with the thrower in meters. The trig accounts for the effect of the arm angle and robot heading on the note's position.
-      double noteZ = armL*Math.sin(currentAngle*Math.PI/180.0) + armPivotZ; // The height of the note above the carpet just as it loses contact with the thrower.
-      double noteR = Math.sqrt(Math.pow(noteX, 2) + Math.pow(noteY-speakerY, 2)); // The distance between the note's initial position and the speaker slot center.
-      double noteRVel = noteVel*Math.cos(currentAngle*Math.PI/180.0); // The radial velocity of the note, as if the speaker slot center was the origin of a polar coordinate system.
-      double noteTime = noteR/noteRVel; // The airtime of the note before it impacts the speaker.
-      double noteFinalZ =  noteZ + noteVel*Math.sin(currentAngle*Math.PI/180.0)*noteTime - g*Math.pow(noteTime, 2)/2.0; // The kinematics calculated z-position of the note as it impacts the speaker, accounting for intial z velocity and gravity.
-      noteZErrors[index] = noteFinalZ - speakerZ; // The error (either undershoot or overshoot) of this arm angle in the z-dimension.
-    }
-    
-    // Looks through the calcuated z-errors to find the correct arm angle to throw the note.
-    boolean nextAimShotAvailable = false; // Stores whether it is physically possible to shoot the note into the speaker from the robot's current position.
-    double nextAimArmAngle = 50.0; // Stores the optimal arm angle to make the shot, or -1 if it is impossible to make the shot.
-    for (int index = 0; index < totalAngles-1; index++) {
-      if (noteZErrors[index] < 0 && noteZErrors[index+1] > 0) { // There can be two solutions. To identify the correct solution, as the angle increases the Z-error should transition from - to +. The other solution will transition from + to -. If this condition is not met, a shot cannot be made from the robot's current position.
-        double negativeAngleZError = -noteZErrors[index];
-        double positiveAngleZError = noteZErrors[index+1];
-        nextAimArmAngle = minAngle + (index + negativeAngleZError/(positiveAngleZError + negativeAngleZError))*(maxAngle-minAngle)/totalAngles; // Linear interpolation to approximate the arm angle that results in 0 z-error. 
-        nextAimShotAvailable = true;
+  }
+
+  // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
+  double[] distCalArray = {1.0, 2.0, 3.0, 4.0, 5.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
+  double[] armCalArray = {40.0, 30.0, 20.0, 10.0, 0.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
+  public double getAimArmAngle() {
+    double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
+    double distToSpeaker = Math.sqrt(Math.pow(speakerY-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
+    if (distToSpeaker >= distCalArray[distCalArray.length - 1]) { // If the distance to the speaker is larger than the largest calibration distance.
+      return armCalArray[armCalArray.length - 1]; // Return the arm angle that corresponds to the largest calibration distance in the array.
+    } else if (distToSpeaker <= distCalArray[0]) { // If the distance to the speaker is smaller than the smallest calibration distance.
+      return armCalArray[0]; // Return the arm angle that corresponds to the smallest calibration distance in the array.
+    } else { // The distance to the speaker is within the calibration distances tested.
+      int lowerIndex = 0; // The index that corresponds to the entry in the calibration array that is immediately smaller than the current robot distance to the speaker.
+      for (int i = 0; i < distCalArray.length - 2; i++) { // Iterate through the calibration array, except the last entry.
+        if (distCalArray[i+1] > distToSpeaker) { // Find the first array element that is larger than the current distance to the speaker.
+          lowerIndex = i;
+        }
       }
+      return armCalArray[lowerIndex] + ((armCalArray[lowerIndex+1]-armCalArray[lowerIndex])/(distCalArray[lowerIndex+1]+distCalArray[lowerIndex]))*(distToSpeaker-distCalArray[lowerIndex]); // Linear interpolation
     }
+  }
 
-    // Stores this periods solution for the next period to iterate on.
-    aimShotAvailable = nextAimShotAvailable;
-    aimHeading = nextAimHeading;
-    aimArmAngle = nextAimArmAngle;
-
-    // Publishes solution to the dashboard.
-    SmartDashboard.putNumber("aim robot angle", nextAimHeading);
-    SmartDashboard.putBoolean("aim shotAvailable", nextAimShotAvailable);
-    SmartDashboard.putNumber("aim arm angle", nextAimArmAngle);
+  // Whether the robot is in range to make a shot reliably. 
+  public boolean aimShotAvailable() {
+    double maxShotDistance = 5.0; // The longest distance that the robot will make a shot from in meters.
+    double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
+    double distToSpeaker = Math.sqrt(Math.pow(speakerY-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
+    return distToSpeaker < maxShotDistance;
   }
 
   // Initializes toggle booleans to the dashboard.

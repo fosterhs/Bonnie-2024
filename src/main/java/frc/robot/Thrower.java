@@ -24,15 +24,17 @@ public class Thrower {
   private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
   private final double intakeVel = 5.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
-  private final double indexOffset = 0.85; // How much the index motor should back off the note after it is detected by the 2nd sensor in falcon rotations.
+  private final double ampVel = 5.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
+  private final double indexOffset = 0.5; // How much the index motor should back off the note after it is detected by the 2nd sensor in falcon rotations.
   private final double indexError = 0.05; // How much allowable error there is in the back off position in falcon rotations.
   private final double allowableFlywheelAccError = 10.0; // The acceleration of the flywheel that is acceptable to be considered spun down in rotations per second squared.
   private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
-  private final double spinUpDelay = 1.0; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
+  private final double spinUpDelay = 1.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
-  private final Timer throwTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the THROW state.
+  private final double ampDelay = 0.7; // The amount of time the thrower will keep backfeeding after the note is no longer detected. Ensures the note has exited before spinning down.
+  private final Timer throwTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the AMP_SCORE state.
+  private final Timer ampTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the THROW state.
   private final Timer spinUpTimer = new Timer(); // Keeps track of how long the thrower has been in the SPIN_UP state.
-  private int notesThrown = 0; // Tracks how many notes have been thrown based on the number of times the thrower has entered the throw state.
 
   // Keeps track of the different states of the thrower.
   private enum State {
@@ -42,7 +44,8 @@ public class Thrower {
     BACK_UP,
     INTAKE,
     MANUAL,
-    DISABLED
+    DISABLED,
+    AMP_SCORE;
   } 
   private State nextState;
   private State lastState;
@@ -52,11 +55,10 @@ public class Thrower {
   private boolean throwMotor2Failure = false; 
   private boolean indexMotorFailure = false;
 
-  // These variables are used to store the goal position of the motor. Used when the motors would like to be held stationary, such as the intake in the SPIN_UP state.
+  // These variables are used to store the goal position of the motor. Used when the motors need to be moved to a specific position, such as in the BACK_UP state.
   private double indexGoalPos;
-  private double leftThrowerGoalPos;
-  private double rightThrowerGoalPos;
 
+  private boolean ampScoreCommanded = false; // Returns true if an amp score command was recieved, but not yet executed.
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed. Reverts to false if a note is not detected.
   private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
 
@@ -66,15 +68,8 @@ public class Thrower {
   private double indexPowerManual = 0.0;
 
   public Thrower() {
-    indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
-    throwMotor2Failure = !configThrowMotor(throwMotor2, throwMotor2Failure);
-    throwMotor1Failure = !configThrowMotor(throwMotor1, throwMotor1Failure);
-    manualControl = getMotorFailure();
-    lastState = State.DISABLED;
-    nextState = State.DISABLED;
-    notesThrown = 0;
-    throwTimer.restart();
-    spinUpTimer.restart();
+    reboot();
+    init();
   }
 
   // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
@@ -87,9 +82,11 @@ public class Thrower {
     } else {
       nextState = State.INTAKE;
     }
-    notesThrown = 0;
     throwTimer.restart();
     spinUpTimer.restart();
+    ampTimer.restart();
+    throwCommanded = false;
+    ampScoreCommanded = false;
   }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
@@ -104,6 +101,7 @@ public class Thrower {
         indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
 
         throwCommanded = false;
+        ampScoreCommanded = false;
 
         if (manualControl) {
           nextState = State.MANUAL;
@@ -117,9 +115,6 @@ public class Thrower {
         break;
 
       case THROW:
-        if (lastState != State.THROW) {
-          notesThrown++;
-        }
         lastState = State.THROW;
 
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
@@ -139,10 +134,33 @@ public class Thrower {
         }
         break;
 
+      case AMP_SCORE:
+        if (lastState != State.AMP_SCORE) {
+          ampTimer.restart();
+        }
+        lastState = State.AMP_SCORE;
+
+        indexMotor.setControl(new VelocityDutyCycle(ampVel).withSlot(0));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+
+        if (getSensor1() || getSensor2()) {
+          ampTimer.restart();
+        }
+
+        if (manualControl) {
+          nextState = State.MANUAL;
+        } else if (ampTimer.get() > ampDelay) {
+          nextState = State.INTAKE;
+        } else {
+          nextState = State.AMP_SCORE;
+        }
+        break;
+
       case SPIN_UP:
         if (lastState != State.SPIN_UP) {
           indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble();
-          spinUpTimer.reset();
+          spinUpTimer.restart();
         }
         lastState = State.SPIN_UP;
 
@@ -156,6 +174,8 @@ public class Thrower {
           nextState = State.SPIN_DOWN;
         } else if (throwCommanded && (isSpunUp() || spinUpTimer.get() > spinUpDelay)) {
           nextState = State.THROW;
+        } else if (ampScoreCommanded) {
+          nextState = State.AMP_SCORE;
         } else {
           nextState = State.SPIN_UP;
         }
@@ -164,14 +184,12 @@ public class Thrower {
       case BACK_UP:
         if (lastState != State.BACK_UP) {
           indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
-          leftThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
-          rightThrowerGoalPos = throwMotor1.getRotorPosition().getValueAsDouble();
         }
         lastState = State.BACK_UP;
 
         indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
-        throwMotor2.setControl(new MotionMagicDutyCycle(leftThrowerGoalPos).withSlot(1));
-        throwMotor1.setControl(new MotionMagicDutyCycle(rightThrowerGoalPos).withSlot(1));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
 
         double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
         if (manualControl) {
@@ -186,17 +204,14 @@ public class Thrower {
         break;
 
       case INTAKE:
-        if (lastState != State.INTAKE) {
-          leftThrowerGoalPos = throwMotor2.getRotorPosition().getValueAsDouble();
-          rightThrowerGoalPos = throwMotor1.getRotorPosition().getValueAsDouble();
-        }
         lastState = State.INTAKE;
 
         indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
-        throwMotor2.setControl(new MotionMagicDutyCycle(leftThrowerGoalPos).withSlot(1));
-        throwMotor1.setControl(new MotionMagicDutyCycle(rightThrowerGoalPos).withSlot(1));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
 
         throwCommanded = false;
+        ampScoreCommanded = false;
 
         if (manualControl) {
           nextState = State.MANUAL;
@@ -225,6 +240,7 @@ public class Thrower {
         }
 
         throwCommanded = false;
+        ampScoreCommanded = false;
 
         if (!manualControl && getSensor2()) {
           nextState = State.BACK_UP;
@@ -239,6 +255,7 @@ public class Thrower {
         lastState = State.DISABLED;
         nextState = State.DISABLED;
         throwCommanded = false;
+        ampScoreCommanded = false;
         break;
     }
   }
@@ -246,8 +263,19 @@ public class Thrower {
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in falcon rotations per second.
   public void commandThrow(double _flywheelVel) {
     flywheelVel = _flywheelVel;
-    throwCommanded = true;
-  } 
+    if (!throwCommanded && (nextState == State.BACK_UP || nextState == State.SPIN_UP || nextState == State.THROW)) {
+      throwCommanded = true;
+    }
+    ampScoreCommanded = false;
+  }
+  
+  public void commandAmpScore() {
+    flywheelVel = 0.0;
+    if (!ampScoreCommanded && ((nextState == State.BACK_UP || nextState == State.SPIN_UP || nextState == State.AMP_SCORE))) {
+      ampScoreCommanded = true;
+    }
+    throwCommanded = false;
+  }
 
   // Call to set the flywheel velocity to a different value without throwing a note. flywheelVel is in falcon rotations per second.
   public void setFlywheelVel(double _flywheelVel) {
@@ -257,11 +285,6 @@ public class Thrower {
   // Returns true if the thrower is in the process of spinning up and throwing a note.
   public boolean isThrowing() {
     return throwCommanded;
-  }
-
-  // Returns the total number of notes thrown by counting the times the thrower has been in the throw state.
-  public int getNotesThrown() {
-    return notesThrown;
   }
 
   // Returns true if sensor 2 on the thrower is triggered.
@@ -301,17 +324,7 @@ public class Thrower {
     throwMotor2Failure = !configThrowMotor(throwMotor2, throwMotor2Failure);
     throwMotor1Failure = !configThrowMotor(throwMotor1, throwMotor1Failure);
     manualControl = getMotorFailure();
-    lastState = State.DISABLED;
-    if (manualControl) {
-      nextState = State.MANUAL;
-    } else if (getSensor1() || getSensor2()) {
-      nextState = State.SPIN_UP;
-    } else {
-      nextState = State.INTAKE;
-    }
-    notesThrown = 0;
-    throwTimer.restart();
-    spinUpTimer.restart();
+    init();
   }
 
   // Sends information about the thrower to the dashboard each period. This is handled automatically by the thrower class.
