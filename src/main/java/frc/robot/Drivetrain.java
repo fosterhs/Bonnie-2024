@@ -129,16 +129,20 @@ class Drivetrain {
 
   // Should be called periodically to rotate the robot to the demanded angle in degrees while translating the robot st the specified speed in meter per second.
   public void aimDrive(double _xVel, double _yVel, double targetAngle, boolean fieldRelative) {
-    double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
-    atDriveGoal = Math.abs(angleDistance) < angTol;
-    double _angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
-    if (atDriveGoal) {
-      _angVel = 0.0;
+    if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled && isCalibrated) {
+      double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
+      atDriveGoal = Math.abs(angleDistance) < angTol;
+      double _angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
+      if (atDriveGoal) {
+        _angVel = 0.0;
+      }
+      if (Math.abs(_angVel) > Drivetrain.maxAngularVelAuto) {
+        _angVel = _angVel > 0.0 ? Drivetrain.maxAngularVelAuto : -Drivetrain.maxAngularVelAuto;
+      }
+      drive(_xVel, _yVel, _angVel, fieldRelative, 0.0, 0.0);
+    } else {
+      drive(_xVel, _yVel, 0.0, false, 0.0, 0.0);
     }
-    if (Math.abs(_angVel) > Drivetrain.maxAngularVelAuto) {
-      _angVel = _angVel > 0.0 ? Drivetrain.maxAngularVelAuto : -Drivetrain.maxAngularVelAuto;
-    }
-    drive(_xVel, _yVel, _angVel, fieldRelative, 0.0, 0.0);
   }
 
   // Should be called periodically to move the robot to a specified position and angle. Units are meters and degrees.
