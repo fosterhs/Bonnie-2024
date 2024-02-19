@@ -269,8 +269,8 @@ public class Robot extends TimedRobot {
     if (thrower.getManualControl()) {
       thrower.setManualSpeeds(0.0, 0.0); // TODO: Change the inputs to this function to their appropriate keybinds.
     } else {
-      if (operator.getRawButton(1)) { // A Button
-        thrower.commandThrow(30.0); // Commands the thrower to throw a note with a flywheel velocity of 30 rotations per second.
+      if (operator.getRawButtonPressed(1)) { // A Button
+        thrower.commandThrow(120.0); // Commands the thrower to throw a note with a flywheel velocity of 30 rotations per second.
       }
     }
 
@@ -278,7 +278,15 @@ public class Robot extends TimedRobot {
     if (arm.getManualControl()) {
       arm.setManualPower(-operator.getLeftY()); // TODO: Change the inputs to this function to their appropriate keybinds.
     } else {
-      arm.updateSetpoint(aimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
+      if (operator.getRawButtonPressed(2)) { // B Button
+        arm.updateSetpoint(-4.0); // Intake
+      }
+      if (operator.getRawButtonPressed(3)) { // X Bytton
+        arm.updateSetpoint(90.0); // Drive
+      }
+      if (operator.getRawButtonPressed(4)) { // Y Button
+        arm.updateSetpoint(aimArmAngle); // Changes the setpoint of the arm to the calculated arm angle needed to make a shot.
+      }
     }
 
     climber.periodic();

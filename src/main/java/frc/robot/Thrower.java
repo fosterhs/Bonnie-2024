@@ -58,7 +58,7 @@ public class Thrower {
   private double rightThrowerGoalPos;
 
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed. Reverts to false if a note is not detected.
-  private double flywheelVel = 30.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
+  private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
 
   // These variables store the desired motor velocities which are used and updated when the thrower is in the MANUAL state.
   private boolean manualControl = false;
@@ -73,6 +73,8 @@ public class Thrower {
     lastState = State.DISABLED;
     nextState = State.DISABLED;
     notesThrown = 0;
+    throwTimer.restart();
+    spinUpTimer.restart();
   }
 
   // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
@@ -86,6 +88,8 @@ public class Thrower {
       nextState = State.INTAKE;
     }
     notesThrown = 0;
+    throwTimer.restart();
+    spinUpTimer.restart();
   }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
@@ -305,6 +309,9 @@ public class Thrower {
     } else {
       nextState = State.INTAKE;
     }
+    notesThrown = 0;
+    throwTimer.restart();
+    spinUpTimer.restart();
   }
 
   // Sends information about the thrower to the dashboard each period. This is handled automatically by the thrower class.
@@ -336,7 +343,7 @@ public class Thrower {
     TalonFXConfiguration throwMotorConfigs = new TalonFXConfiguration();
 
     throwMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
-    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Inverts the direction of positive motor velocity.
+    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
 
     // Setting current limits
     throwMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;

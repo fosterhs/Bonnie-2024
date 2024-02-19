@@ -9,6 +9,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Arm {
@@ -30,22 +31,33 @@ public class Arm {
 
   private double armMotor1InitialPos = 0.0; // The position of the arm motor on boot() in falcon rotations.
   private double armEncoderInitialPos = 0.0; // The position of the arm encoder on boot() in degrees, with a zero offset applied.
+  private final Timer calibrationTimer = new Timer(); // Keeps track of how long it has been since the arm position was calibrated to the arm encoder.
+  private final double calibrationInterval = 2.0; // How often the arm should be calibrated in seconds. Shorter times lead to more oscilation.
 
   public Arm() {
     reboot();
   }
   
   public void init() {
-    if (!armMotor1Failure) {
-      armMotor1InitialPos = armMotor1.getRotorPosition().getValueAsDouble();
-    }
-    armEncoderInitialPos = getArmEncoder();
+    calibrate();
+    calibrationTimer.restart();
     manualControl = getMotorFailure();  
+  }
+
+  private void calibrate() {
+   if (!armMotor1Failure) {
+      armMotor1InitialPos = armMotor1.getRotorPosition().getValueAsDouble();
+      armEncoderInitialPos = getArmEncoder();
+    }
   }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
   public void periodic() {
     updateDashboard();
+    if (calibrationTimer.get() > calibrationInterval) {
+      calibrate();
+      calibrationTimer.restart();
+    }
     if (manualControl) {
       if (!getMotorFailure()) {
         armMotor1.setControl(new DutyCycleOut(manualPower));
@@ -70,8 +82,8 @@ public class Arm {
   public void updateSetpoint(double _armSetpoint) {
     if (_armSetpoint > 180.0) {
       armSetpoint = 180.0;
-    } else if (_armSetpoint < 0.0) {
-      armSetpoint = 0.0;
+    } else if (_armSetpoint < -4.0) {
+      armSetpoint = -4.0;
     } else {
       armSetpoint = _armSetpoint;
     }
