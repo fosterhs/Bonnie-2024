@@ -320,9 +320,9 @@ public class Robot extends TimedRobot {
       thrower.setManualSpeeds(0.0, 0.0);
     } else {
       if (operator.getRawButton(6)) { // Right Bumper
-        if (currArmState == ArmState.SHOOT) {
+        if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
           thrower.commandThrow(120.0); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
-        } else if (currArmState == ArmState.AMP) {
+        } else if (currArmState == ArmState.AMP && arm.atSetpoint()) {
           thrower.commandAmpScore();
         }
       }

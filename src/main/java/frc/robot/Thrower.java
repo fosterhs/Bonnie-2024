@@ -27,7 +27,6 @@ public class Thrower {
   private final double ampVel = 5.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
   private final double indexOffset = 0.5; // How much the index motor should back off the note after it is detected by the 2nd sensor in falcon rotations.
   private final double indexError = 0.05; // How much allowable error there is in the back off position in falcon rotations.
-  private final double allowableFlywheelAccError = 10.0; // The acceleration of the flywheel that is acceptable to be considered spun down in rotations per second squared.
   private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
   private final double spinUpDelay = 1.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
@@ -38,7 +37,6 @@ public class Thrower {
 
   // Keeps track of the different states of the thrower.
   private enum State {
-    SPIN_DOWN,
     THROW,
     SPIN_UP,
     BACK_UP,
@@ -69,7 +67,6 @@ public class Thrower {
 
   public Thrower() {
     reboot();
-    init();
   }
 
   // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
@@ -93,27 +90,6 @@ public class Thrower {
   public void periodic() {
     updateDashboard();
     switch (nextState) {
-      case SPIN_DOWN:
-        lastState = State.SPIN_DOWN;
-
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-        indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
-
-        throwCommanded = false;
-        ampScoreCommanded = false;
-
-        if (manualControl) {
-          nextState = State.MANUAL;
-        } else if (getSensor2()) {
-          nextState = State.BACK_UP;
-        } else if (isThrowerStopped()) {
-          nextState = State.INTAKE;
-        } else {
-          nextState = State.SPIN_DOWN;
-        }
-        break;
-
       case THROW:
         lastState = State.THROW;
 
@@ -128,7 +104,7 @@ public class Thrower {
         if (manualControl) {
           nextState = State.MANUAL;
         } else if (throwTimer.get() > throwDelay) {
-          nextState = State.SPIN_DOWN;
+          nextState = State.INTAKE;
         } else {
           nextState = State.THROW;
         }
@@ -171,7 +147,7 @@ public class Thrower {
         if (manualControl) {
           nextState = State.MANUAL;
         } else if (!getSensor1() && !getSensor2()) {
-          nextState = State.SPIN_DOWN;
+          nextState = State.INTAKE;
         } else if (throwCommanded && (isSpunUp() || spinUpTimer.get() > spinUpDelay)) {
           nextState = State.THROW;
         } else if (ampScoreCommanded) {
@@ -245,7 +221,7 @@ public class Thrower {
         if (!manualControl && getSensor2()) {
           nextState = State.BACK_UP;
         } else if (!manualControl && !getSensor2()) {
-          nextState = State.SPIN_DOWN;
+          nextState = State.INTAKE;
         } else {
           nextState = State.MANUAL;
         }
@@ -342,14 +318,6 @@ public class Thrower {
     SmartDashboard.putBoolean("throwCommanded", throwCommanded);
     SmartDashboard.putBoolean("ampScoreCommanded", ampScoreCommanded);
     SmartDashboard.putNumber("flywheelVel", flywheelVel);
-  }
-
-  // Returns true if both flywheel motors have near 0 velocity and acceleration
-  private boolean isThrowerStopped() {
-    return Math.abs(throwMotor1.getRotorVelocity().getValueAsDouble()) < allowableFlywheelVelError && 
-      Math.abs(throwMotor2.getRotorVelocity().getValueAsDouble()) < allowableFlywheelVelError &&
-      Math.abs(throwMotor1.getAcceleration().getValueAsDouble()) < allowableFlywheelAccError && 
-      Math.abs(throwMotor2.getAcceleration().getValueAsDouble()) < allowableFlywheelAccError;
   }
 
   // Returns true if both flywheel motors are near the desired flywheel velocity for throwing a note.

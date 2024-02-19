@@ -21,8 +21,7 @@ public class Climber {
   private boolean rightClimbMotorFailure = false; 
 
   public Climber() {
-    leftClimbMotorFailure = !configMotor(leftClimbMotor, leftClimbMotorFailure);
-    rightClimbMotorFailure = !configMotor(rightClimbMotor, rightClimbMotorFailure);
+    reboot();
   }
 
   // Updates any important values on the dashboard.
