@@ -388,7 +388,7 @@ class Drivetrain {
       return pigeonStatus.getValueAsDouble();
     } else {
       gyroFailure = true;
-      return 0;
+      return 0.;
     }
   }
 
@@ -473,8 +473,8 @@ class Drivetrain {
     if (pigeon.setYaw(0.0) != StatusCode.OK) {
       gyroFailure = true;
     } else {
-      gyroFailure = false;
       odometry.resetPosition(new Rotation2d(), getSMPs(), new Pose2d(getXPos(), getYPos(), new Rotation2d()));
+      gyroFailure = false;
     }
   }
 
@@ -582,6 +582,5 @@ class Drivetrain {
     SmartDashboard.putNumber("Path Position Error", getPathPosError());
     SmartDashboard.putNumber("Path Angle Error", getPathAngleError());
     SmartDashboard.putBoolean("Path atEndpoint", atPathEndpoint(0));
-    SmartDashboard.putNumber("Pigeon Yaw", pigeon.getYaw().getValueAsDouble());
   }
 }

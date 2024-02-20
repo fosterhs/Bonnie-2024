@@ -93,9 +93,9 @@ public class Thrower {
       case THROW:
         lastState = State.THROW;
 
-        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
-        indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
+        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
+        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
+        indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
 
         if (getSensor1() || getSensor2()) {
           throwTimer.restart();
@@ -116,9 +116,9 @@ public class Thrower {
         }
         lastState = State.AMP_SCORE;
 
-        indexMotor.setControl(new VelocityDutyCycle(-ampVel).withSlot(0));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        indexMotor.setControl(new VelocityDutyCycle(-ampVel).withSlot(0).withEnableFOC(true));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
 
         if (getSensor1() || getSensor2()) {
           ampTimer.restart();
@@ -140,9 +140,9 @@ public class Thrower {
         }
         lastState = State.SPIN_UP;
 
-        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
-        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
+        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1).withEnableFOC(true));
+        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
+        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
 
         if (manualControl) {
           nextState = State.MANUAL;
@@ -163,9 +163,9 @@ public class Thrower {
         }
         lastState = State.BACK_UP;
 
-        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1).withEnableFOC(true));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
 
         double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
         if (manualControl) {
@@ -182,9 +182,9 @@ public class Thrower {
       case INTAKE:
         lastState = State.INTAKE;
 
-        indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0).withEnableFOC(true));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
 
         throwCommanded = false;
         ampScoreCommanded = false;
@@ -206,13 +206,13 @@ public class Thrower {
         lastState = State.MANUAL;
 
         if (!throwMotor1Failure) {
-          throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual));
+          throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual).withEnableFOC(true));
         }
         if (!throwMotor2Failure) {
-          throwMotor2.setControl(new DutyCycleOut(flywheelPowerManual));
+          throwMotor2.setControl(new DutyCycleOut(flywheelPowerManual).withEnableFOC(true));
         }
         if (!indexMotorFailure) {
-          indexMotor.setControl(new DutyCycleOut(indexPowerManual));
+          indexMotor.setControl(new DutyCycleOut(indexPowerManual).withEnableFOC(true));
         }
 
         throwCommanded = false;

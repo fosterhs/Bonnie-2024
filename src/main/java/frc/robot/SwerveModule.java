@@ -140,7 +140,7 @@ class SwerveModule {
   // Sets the velocity of the module. Units: meters per second
   private void setVel(double vel) {
     if (!driveMotorFailure && !moduleDisabled) {
-      driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)));
+      driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
     } else {
       driveMotor.setControl(new DutyCycleOut(0));
     }
@@ -149,7 +149,7 @@ class SwerveModule {
   // Sets the angle of the module. Units: degrees Can accept values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
   private void setAngle(double angle) {
     if (!turnMotorFailure && !moduleDisabled) {
-      turnMotor.setControl(new MotionMagicDutyCycle(((angle-wheelInitialPos)*turnGearRatio)/360.0+turnMotorInitialPos));
+      turnMotor.setControl(new MotionMagicDutyCycle(((angle-wheelInitialPos)*turnGearRatio)/360.0+turnMotorInitialPos).withEnableFOC(true));
     } else {
       turnMotor.setControl(new DutyCycleOut(0));
     }

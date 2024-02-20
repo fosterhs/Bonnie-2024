@@ -32,10 +32,10 @@ public class Climber {
   // Sets the output of each climb motor. the ClimbPower inputs can range from -1 to 1. -1 corresponds to full power down and +1 is full power up.
   public void set(double leftClimbPower, double rightClimbPower) {
     if (!leftClimbMotorFailure) {
-      leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower));
+      leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower).withEnableFOC(true));
     }
     if (!rightClimbMotorFailure) {
-      rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower));
+      rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower).withEnableFOC(true));
     }
   }
   

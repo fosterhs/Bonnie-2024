@@ -60,12 +60,12 @@ public class Arm {
     }
     if (manualControl) {
       if (!getMotorFailure()) {
-        armMotor1.setControl(new DutyCycleOut(manualPower));
+        armMotor1.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
       }
     } else {
       manualPower = 0.0;
       double setpoint = armMotor1InitialPos + (armSetpoint-armEncoderInitialPos)*gearRatio/360.0;
-      armMotor1.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1));
+      armMotor1.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
     }
   }
 
