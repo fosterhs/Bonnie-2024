@@ -4,7 +4,6 @@ import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.DutyCycleOut;
-import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -23,10 +22,8 @@ public class Thrower {
   private final double throwMotorCurrentLimit = 40.0; // Throw motor current limit in amps. Should be based on the breaker used in the PDP.
   private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
-  private final double intakeVel = 5.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
-  private final double ampVel = 5.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
-  private final double indexOffset = 0.5; // How much the index motor should back off the note after it is detected by the 2nd sensor in falcon rotations.
-  private final double indexError = 0.05; // How much allowable error there is in the back off position in falcon rotations.
+  private final double intakeVel = 20.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
+  private final double ampVel = 20.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
   private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
   private final double spinUpDelay = 1.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
@@ -53,12 +50,9 @@ public class Thrower {
   private boolean throwMotor2Failure = false; 
   private boolean indexMotorFailure = false;
 
-  // These variables are used to store the goal position of the motor. Used when the motors need to be moved to a specific position, such as in the BACK_UP state.
-  private double indexGoalPos;
-
   private boolean ampScoreCommanded = false; // Returns true if an amp score command was recieved, but not yet executed.
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed. Reverts to false if a note is not detected.
-  private double flywheelVel = 30.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
+  private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
 
   // These variables store the desired motor velocities which are used and updated when the thrower is in the MANUAL state.
   private boolean manualControl = false;
@@ -135,14 +129,13 @@ public class Thrower {
 
       case SPIN_UP:
         if (lastState != State.SPIN_UP) {
-          indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble();
           spinUpTimer.restart();
         }
         lastState = State.SPIN_UP;
 
-        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1).withEnableFOC(true));
-        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
+        indexMotor.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
+        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0));
 
         if (manualControl) {
           nextState = State.MANUAL;
@@ -158,21 +151,17 @@ public class Thrower {
         break;
 
       case BACK_UP:
-        if (lastState != State.BACK_UP) {
-          indexGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexOffset;
-        }
         lastState = State.BACK_UP;
 
-        indexMotor.setControl(new MotionMagicDutyCycle(indexGoalPos).withSlot(1).withEnableFOC(true));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        indexMotor.setControl(new VelocityDutyCycle(-5.0).withSlot(0));
+        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0));
+        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0));
 
-        double indexPos = indexMotor.getRotorPosition().getValueAsDouble();
         if (manualControl) {
           nextState = State.MANUAL;
         } else if (!getSensor1() && !getSensor2()) {
           nextState = State.INTAKE;
-        } else if (Math.abs(indexGoalPos - indexPos) < indexError) {
+        } else if (!getSensor2()) {
           nextState = State.SPIN_UP;
         } else {
           nextState = State.BACK_UP;

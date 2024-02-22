@@ -3,6 +3,7 @@ package frc.robot;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -33,12 +34,16 @@ public class Robot extends TimedRobot {
   private String autoSelected;
   private int autoStage = 1;
 
+  public boolean pastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
+  public Timer ampTimer = new Timer();
+
   // Arm States (Teleop)
   private enum ArmState {
     DRIVE,
     SHOOT,
     AMP,
-    INTAKE;
+    INTAKE,
+    MANUAL_SHOOT;
   } 
   ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
 
@@ -49,6 +54,7 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto3, auto3);
     autoChooser.addOption(auto4, auto4);
     SmartDashboard.putData("Autos", autoChooser);
+    ampTimer.restart();
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
     createToggles();
@@ -289,6 +295,9 @@ public class Robot extends TimedRobot {
       if (operator.getRawButtonPressed(4)) { // Y Button
         currArmState = ArmState.AMP;
       }
+      if (operator.getRawButtonPressed(8)) { // Menu Button
+        currArmState = ArmState.MANUAL_SHOOT;
+      }
       switch (currArmState) {
         case INTAKE:
           arm.updateSetpoint(-4.0);
@@ -306,8 +315,22 @@ public class Robot extends TimedRobot {
           break;
 
         case AMP:
-          arm.updateSetpoint(40.0);
-          thrower.setFlywheelVel(0.0);
+          if (thrower.isAmpScoring()) {
+            if (!pastIsAmpScoring) {
+              ampTimer.restart();
+            }
+            arm.updateSetpoint(43.0+6.0*ampTimer.get());
+            pastIsAmpScoring = true;
+          } else {
+            pastIsAmpScoring = false;
+            arm.updateSetpoint(43.0);
+            thrower.setFlywheelVel(0.0);
+          }
+          break;
+
+        case MANUAL_SHOOT:
+          arm.updateSetpoint(4.0);
+          thrower.setFlywheelVel(120.0);
           break;
 
         default:
