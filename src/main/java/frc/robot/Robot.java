@@ -1,5 +1,7 @@
 package frc.robot;
 
+import com.ctre.phoenix.led.CANdle;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -34,8 +36,10 @@ public class Robot extends TimedRobot {
   private String autoSelected;
   private int autoStage = 1;
 
-  public boolean pastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
-  public Timer ampTimer = new Timer();
+  private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
+  private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
+
+  private final CANdle candle = new CANdle(0); // Initialzes the LEDs
 
   // Arm States (Teleop)
   private enum ArmState {
@@ -54,10 +58,11 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto3, auto3);
     autoChooser.addOption(auto4, auto4);
     SmartDashboard.putData("Autos", autoChooser);
-    ampTimer.restart();
+
+    ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
+    createToggles(); // Creates the infrastructure for using dashboard toggles.
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
-    createToggles();
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
@@ -86,7 +91,14 @@ public class Robot extends TimedRobot {
     updateVision(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    updateToggles();
+    updateToggles(); // Checks the dashboard toggles and takes any actions based on them.
+
+    // Sets the LEDs on if the arm is at the setpoint.
+    if (arm.atSetpoint()) {
+      candle.setLEDs(255, 255, 255, 255, 0, 7);
+    } else {
+      candle.setLEDs(0, 0, 0, 0, 0, 7);
+    }
 
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
     if (driver.getRawButtonPressed(8)) {
@@ -302,27 +314,30 @@ public class Robot extends TimedRobot {
         case INTAKE:
           arm.updateSetpoint(-4.0);
           thrower.setFlywheelVel(0.0);
+          lastIsAmpScoring = false;
           break;
 
         case DRIVE:
           arm.updateSetpoint(90.0);
           thrower.setFlywheelVel(0.0);
+          lastIsAmpScoring = false;
           break;
 
         case SHOOT:
           arm.updateSetpoint(getAimArmAngle());
           thrower.setFlywheelVel(120.0);
+          lastIsAmpScoring = false;
           break;
 
         case AMP:
           if (thrower.isAmpScoring()) {
-            if (!pastIsAmpScoring) {
-              ampTimer.restart();
+            if (!lastIsAmpScoring) {
+              ampTimer.restart(); // This timer measures the time since the arm has begun the amp scoring process.
             }
-            arm.updateSetpoint(43.0+6.0*ampTimer.get());
-            pastIsAmpScoring = true;
+            arm.updateSetpoint(43.0+6.0*ampTimer.get()); // Raises the arm at 6 deg/sec.
+            lastIsAmpScoring = true;
           } else {
-            pastIsAmpScoring = false;
+            lastIsAmpScoring = false;
             arm.updateSetpoint(43.0);
             thrower.setFlywheelVel(0.0);
           }
@@ -331,6 +346,7 @@ public class Robot extends TimedRobot {
         case MANUAL_SHOOT:
           arm.updateSetpoint(4.0);
           thrower.setFlywheelVel(120.0);
+          lastIsAmpScoring = false;
           break;
 
         default:
@@ -412,8 +428,8 @@ public class Robot extends TimedRobot {
   }
 
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
-  double[] distCalArray = {1.0, 2.0, 3.0, 4.0, 5.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
-  double[] armCalArray = {5.0, 10.0, 15.0, 20.0, 25.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
+  private double[] distCalArray = {1.0, 2.0, 3.0, 4.0, 5.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
+  private double[] armCalArray = {5.0, 10.0, 15.0, 20.0, 25.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
   public double getAimArmAngle() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
     double distToSpeaker = Math.sqrt(Math.pow(speakerY-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
@@ -441,17 +457,17 @@ public class Robot extends TimedRobot {
   }
 
   // Initializes toggle booleans to the dashboard.
-  boolean moduleToggleFR = false;
-  boolean moduleToggleFL = false;
-  boolean moduleToggleBL = false;
-  boolean moduleToggleBR = false;
-  boolean gyroToggle = false;
-  boolean visionToggle = false;
-  boolean throwerManual = false;
-  boolean throwerReboot = false;
-  boolean armManual = false;
-  boolean armReboot = false;
-  boolean climberReboot = false;
+  private boolean moduleToggleFR = false;
+  private boolean moduleToggleFL = false;
+  private boolean moduleToggleBL = false;
+  private boolean moduleToggleBR = false;
+  private boolean gyroToggle = false;
+  private boolean visionToggle = false;
+  private boolean throwerManual = false;
+  private boolean throwerReboot = false;
+  private boolean armManual = false;
+  private boolean armReboot = false;
+  private boolean climberReboot = false;
   public void createToggles() {
     SmartDashboard.putBoolean("FR Module Toggle", moduleToggleFR);
     SmartDashboard.putBoolean("FL Module Toggle", moduleToggleFL);

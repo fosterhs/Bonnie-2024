@@ -140,7 +140,10 @@ class SwerveModule {
   // Sets the velocity of the module. Units: meters per second
   private void setVel(double vel) {
     if (!driveMotorFailure && !moduleDisabled) {
-      driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
+      StatusCode driveMotorStatus = driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
+      if (driveMotorStatus != StatusCode.OK) {
+        
+      }
     } else {
       driveMotor.setControl(new DutyCycleOut(0));
     }
