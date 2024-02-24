@@ -95,9 +95,9 @@ public class Robot extends TimedRobot {
 
     // Sets the LEDs on if the arm is at the setpoint.
     if (arm.atSetpoint()) {
-      candle.setLEDs(255, 255, 255, 255, 0, 7);
+      candle.setLEDs(0, 255, 0, 0, 0, 8);
     } else {
-      candle.setLEDs(0, 0, 0, 0, 0, 7);
+      candle.setLEDs(255, 0, 255, 0, 0, 8);
     }
 
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.

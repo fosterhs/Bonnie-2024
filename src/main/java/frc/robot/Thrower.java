@@ -4,6 +4,7 @@ import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.DutyCycleOut;
+import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -59,6 +60,8 @@ public class Thrower {
   private boolean manualControl = false;
   private double flywheelPowerManual = 0.0;
   private double indexPowerManual = 0.0;
+
+  private double indexMotorGoalPos = 0.0; // Stores the goal position of the index motor. Used in the BACK_UP state.
 
   public Thrower() {
     reboot();
@@ -131,10 +134,11 @@ public class Thrower {
       case SPIN_UP:
         if (lastState != State.SPIN_UP) {
           spinUpTimer.restart();
+          indexMotorGoalPos = indexMotor.getRotorPosition().getValueAsDouble();
         }
         lastState = State.SPIN_UP;
 
-        indexMotor.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        indexMotor.setControl(new MotionMagicDutyCycle(indexMotorGoalPos).withSlot(1).withEnableFOC(true));
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
         throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
 
