@@ -277,7 +277,7 @@ public class Robot extends TimedRobot {
     if (driver.getRawButton(6)) { // Right Bumper
       swerve.aimDrive(xVel, yVel, getAimHeading(), true); // Rotate to speaker.
     } else if (driver.getRightTriggerAxis() > 0.25) { // Right Trigger
-      double ampHeading = swerve.isBlueAlliance() ? 90.0 : -90.0;
+      double ampHeading = swerve.isBlueAlliance() ? -90.0 : 90.0;
       swerve.aimDrive(xVel, yVel, ampHeading, true); // Rotate to amp.
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
@@ -315,7 +315,7 @@ public class Robot extends TimedRobot {
       }
       switch (currArmState) {
         case INTAKE:
-          arm.updateSetpoint(-4.0);
+          arm.updateSetpoint(-3.0);
           thrower.setFlywheelVel(0.0);
           lastIsAmpScoring = false;
           break;
@@ -327,7 +327,7 @@ public class Robot extends TimedRobot {
           break;
 
         case SHOOT:
-          arm.updateSetpoint(getAimArmAngle());
+          arm.updateSetpoint(getAimArmAngle()); 
           thrower.setFlywheelVel(120.0);
           lastIsAmpScoring = false;
           break;
@@ -337,11 +337,11 @@ public class Robot extends TimedRobot {
             if (!lastIsAmpScoring) {
               ampTimer.restart(); // This timer measures the time since the arm has begun the amp scoring process.
             }
-            arm.updateSetpoint(43.0+6.0*ampTimer.get()); // Raises the arm at 6 deg/sec.
+            arm.updateSetpoint(52.0+6.0*ampTimer.get()); // Raises the arm at 6 deg/sec.
             lastIsAmpScoring = true;
           } else {
             lastIsAmpScoring = false;
-            arm.updateSetpoint(43.0);
+            arm.updateSetpoint(52.0);
             thrower.setFlywheelVel(0.0);
           }
           break;
@@ -431,8 +431,8 @@ public class Robot extends TimedRobot {
   }
 
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
-  private double[] distCalArray = {1.0, 2.0, 3.0, 4.0, 5.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
-  private double[] armCalArray = {5.0, 10.0, 15.0, 20.0, 25.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
+  private double[] distCalArray = {1.0, 2.0, 3.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
+  private double[] armCalArray = {8.0, 21.0, 30.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
   public double getAimArmAngle() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
     double distToSpeaker = Math.sqrt(Math.pow(speakerY-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.

@@ -62,6 +62,7 @@ public class Thrower {
   private double indexPowerManual = 0.0;
 
   private double indexMotorGoalPos = 0.0; // Stores the goal position of the index motor. Used in the BACK_UP state.
+  private final double indexMotorOffset = 1.0;
 
   public Thrower() {
     reboot();
@@ -134,7 +135,7 @@ public class Thrower {
       case SPIN_UP:
         if (lastState != State.SPIN_UP) {
           spinUpTimer.restart();
-          indexMotorGoalPos = indexMotor.getRotorPosition().getValueAsDouble();
+          indexMotorGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexMotorOffset;
         }
         lastState = State.SPIN_UP;
 
