@@ -233,6 +233,9 @@ public class Thrower {
 
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in falcon rotations per second.
   public void commandThrow(double _flywheelVel) {
+    if (Math.abs(flywheelVel-_flywheelVel) > allowableFlywheelVelError) {
+      spinUpTimer.restart();
+    }
     flywheelVel = _flywheelVel;
     if (!throwCommanded && (nextState == State.BACK_UP || nextState == State.SPIN_UP || nextState == State.THROW)) {
       throwCommanded = true;

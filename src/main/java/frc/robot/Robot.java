@@ -51,6 +51,8 @@ public class Robot extends TimedRobot {
   } 
   ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
 
+  private Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
+
   public void robotInit() {
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
@@ -61,6 +63,7 @@ public class Robot extends TimedRobot {
 
     ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
     createToggles(); // Creates the infrastructure for using dashboard toggles.
+    armTimer.restart();
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
 
@@ -100,6 +103,10 @@ public class Robot extends TimedRobot {
       candle.setLEDs(255, 0, 255, 0, 0, 8);
     }
 
+    if (!arm.atSetpoint()) {
+      armTimer.restart();
+    }
+
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
     if (driver.getRawButtonPressed(8)) {
       swerve.resetGyro();
@@ -120,7 +127,7 @@ public class Robot extends TimedRobot {
 
       case auto2:
         // AutoInit 2 code goes here.
-        swerve.resetDriveController(180.0);
+        swerve.resetDriveController(getAimHeading());
         break;
 
       case auto3: 
@@ -135,6 +142,9 @@ public class Robot extends TimedRobot {
 
   public void autonomousPeriodic() {
     thrower.periodic();
+    SmartDashboard.putNumber("autoStage", autoStage);
+    SmartDashboard.putNumber("ArmTimer", armTimer.get());
+    SmartDashboard.putBoolean("atGoal", swerve.atDriveGoal());
     arm.periodic();
     climber.periodic();
     switch (autoSelected) {
@@ -144,8 +154,9 @@ public class Robot extends TimedRobot {
             // Auto 1 code goes here.
             swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
             arm.updateSetpoint(getAimArmAngle());
+            thrower.setFlywheelVel(120.0);
 
-            if (swerve.atDriveGoal() && arm.atSetpoint()) {
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
               thrower.commandThrow(120.0);
               if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
                 autoStage = 2;
@@ -163,73 +174,51 @@ public class Robot extends TimedRobot {
         // Auto 2 code goes here.
         switch (autoStage) {
           case 1:
-            if (!aimShotAvailable()) { // Default escape code
-              return; 
-            }
-    
-            arm.updateSetpoint(getAimArmAngle());
             swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
-    
-            if (arm.atSetpoint() && swerve.atDriveGoal()) {
+            arm.updateSetpoint(getAimArmAngle());
+            thrower.setFlywheelVel(120.0);
+
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
               thrower.commandThrow(120.0);
-    
-              if (!thrower.isThrowing()) {
-                swerve.resetDriveController(0.0);
+              if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+                armTimer.restart();
+                arm.updateSetpoint(-3.0);
                 autoStage = 2;
               }
-    
             }
             break;
-  
+
           case 2:
-            swerve.driveTo(1.0, swerve.getYPos(), 0.0); // Move slightly before game object quickly
-    
-            if (swerve.atDriveGoal()) {
-              autoStage = 3;
-            }
-            break;
-  
-          case 3: // Move slowly into game object to intake, Add a delay t between firing game object and moving back
-            if (swerve.getXPos() < 2.0) {
-              swerve.drive(0.25, 0.0, 0, true, 0, 0);
-            } else {
+            if (armTimer.get() > 1) {  
+             autoStage = 3;
+           }
+          break;
+
+            default: 
               swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
-            }
-    
-            if (thrower.getSensor1()) { // Automatically skips driving into note because of always true getSensor1 function
-              swerve.resetDriveController(180.0);
-              autoStage = 4;
-            } 
-            break;
-  
-          case 4:
-            swerve.driveTo(0.5, swerve.getYPos(), 180.0);
-    
-            if (swerve.atDriveGoal()) {
-              swerve.resetDriveController(180.0);
-              autoStage = 5;
-            }
-            break;
-          
-          case 5:
-            if (!aimShotAvailable()) {
-              return;
-            }
-    
+          break;
+           case 3:
+          if (!thrower.getSensor1()) {
+            swerve.drive(1.0,0.0,0.0,true,0.0,0.0);
+          } else {
+            swerve.drive(0.0,0.0,0.0,true,0.0,0.0);
+          }
+
+          if (thrower.getSensor1()) {
+            autoStage = 4;
+          }
+          break;
+            case 4:
+          swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
             arm.updateSetpoint(getAimArmAngle());
-            swerve.aimDrive(0.5, 0.0, getAimHeading(), true);
-    
-            if (swerve.atDriveGoal() && arm.atSetpoint() && aimShotAvailable()) {
-              thrower.commandThrow(150.0);
-    
-              if (!thrower.isThrowing()) {
-                swerve.resetDriveController(0.0);
-                autoStage = 6;
+            thrower.setFlywheelVel(120.0);
+
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
+              thrower.commandThrow(120.0);
+              if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+                autoStage = 5;
               }
             }
-  
-          default: 
-            swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
             break;
         }
         break;
