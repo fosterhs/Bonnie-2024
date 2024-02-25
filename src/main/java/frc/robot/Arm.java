@@ -25,6 +25,8 @@ public class Arm {
   private double armSetpoint = 90.0; // The last requested setpoint of the arm in degrees. 0 degrees is horizontal and 90 degrees is vertical. 
   private final double armTol = 1.0; // The acceptable error in the angle of the arm in degrees.
   private final double gearRatio = 288.0; // 72:12 chain. 3:1, 4:1, and 4:1 stacked planetaries.
+  private final double lowLimit = -3.0; // The lower limit of the arm in degrees.
+  private final double highLimit = 90.0; // The higher limit of the arm in degrees.
 
   private boolean manualControl = false; // Indicates whether the arm is under manual control. This can happen if there is a motor failure, or if the operator requests it via setManualControl().
   private double manualPower = 0.0; // Stores the desired output of the arm motor when it is under manual control.
@@ -41,15 +43,6 @@ public class Arm {
   // Should be called in teleopInit() and autoInit(). Neccesary for proper function of the arm.
   public void init() {
     calibrate();
-  }
-
-  // Syncs the falcon encoder and arm encoder.
-  private void calibrate() {
-   if (!armMotor1Failure) {
-      armMotor1InitialPos = armMotor1.getRotorPosition().getValueAsDouble();
-      armEncoderInitialPos = getArmEncoder();
-      calibrationTimer.restart();
-    }
   }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
@@ -76,10 +69,10 @@ public class Arm {
 
   // Changes the angle that the arm will move to. Units: degrees
   public void updateSetpoint(double _armSetpoint) {
-    if (_armSetpoint > 90.0) {
-      armSetpoint = 90.0;
-    } else if (_armSetpoint < -4.0) {
-      armSetpoint = -4.0;
+    if (_armSetpoint > highLimit) {
+      armSetpoint = highLimit;
+    } else if (_armSetpoint < lowLimit) {
+      armSetpoint = lowLimit;
     } else {
       armSetpoint = _armSetpoint;
     }
@@ -115,6 +108,15 @@ public class Arm {
     armMotor1Failure = !configMotor(armMotor1, armMotor1Failure, false);
     manualControl = getMotorFailure();  
     init();
+  }
+
+  // Syncs the falcon encoder and arm encoder.
+  private void calibrate() {
+   if (!armMotor1Failure) {
+      armMotor1InitialPos = armMotor1.getRotorPosition().getValueAsDouble();
+      armEncoderInitialPos = getArmEncoder();
+      calibrationTimer.restart();
+    }
   }
 
   // Sends information to the dashboard each period. This is handled automatically by the class.

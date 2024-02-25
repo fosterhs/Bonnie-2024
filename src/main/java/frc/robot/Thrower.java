@@ -35,7 +35,7 @@ public class Thrower {
   private final Timer spinUpTimer = new Timer(); // Keeps track of how long the thrower has been in the SPIN_UP state.
 
   // Keeps track of the different states of the thrower.
-  private enum State {
+  private enum ThrowerState {
     THROW,
     SPIN_UP,
     BACK_UP,
@@ -44,8 +44,8 @@ public class Thrower {
     DISABLED,
     AMP_SCORE;
   } 
-  private State nextState;
-  private State lastState;
+  private ThrowerState nextState;
+  private ThrowerState lastState;
 
   // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
   private boolean throwMotor1Failure = false; 
@@ -62,7 +62,7 @@ public class Thrower {
   private double indexPowerManual = 0.0;
 
   private double indexMotorGoalPos = 0.0; // Stores the goal position of the index motor. Used in the BACK_UP state.
-  private final double indexMotorOffset = 1.0;
+  private final double indexMotorOffset = 1.0; // How far the note should be backed off in the BACK_UP state in falcon rotations.
 
   public Thrower() {
     reboot();
@@ -70,13 +70,13 @@ public class Thrower {
 
   // Should be called once teleopInit() and autoInit() sections of the main robot code. Neccesary for the class to function.
   public void init() {
-    lastState = State.DISABLED;
+    lastState = ThrowerState.DISABLED;
     if (manualControl) {
-      nextState = State.MANUAL;
+      nextState = ThrowerState.MANUAL;
     } else if (getSensor1() || getSensor2()) {
-      nextState = State.SPIN_UP;
+      nextState = ThrowerState.SPIN_UP;
     } else {
-      nextState = State.INTAKE;
+      nextState = ThrowerState.INTAKE;
     }
     throwTimer.restart();
     spinUpTimer.restart();
@@ -90,7 +90,10 @@ public class Thrower {
     updateDashboard();
     switch (nextState) {
       case THROW:
-        lastState = State.THROW;
+        if (lastState != ThrowerState.THROW) {
+          throwTimer.restart();
+        }
+        lastState = ThrowerState.THROW;
 
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
         throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
@@ -99,21 +102,22 @@ public class Thrower {
         if (getSensor1() || getSensor2()) {
           throwTimer.restart();
         }
+        ampScoreCommanded = false;
 
         if (manualControl) {
-          nextState = State.MANUAL;
+          nextState = ThrowerState.MANUAL;
         } else if (throwTimer.get() > throwDelay) {
-          nextState = State.INTAKE;
+          nextState = ThrowerState.INTAKE;
         } else {
-          nextState = State.THROW;
+          nextState = ThrowerState.THROW;
         }
         break;
 
       case AMP_SCORE:
-        if (lastState != State.AMP_SCORE) {
+        if (lastState != ThrowerState.AMP_SCORE) {
           ampTimer.restart();
         }
-        lastState = State.AMP_SCORE;
+        lastState = ThrowerState.AMP_SCORE;
 
         indexMotor.setControl(new VelocityDutyCycle(-ampVel).withSlot(0).withEnableFOC(true));
         throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
@@ -122,60 +126,61 @@ public class Thrower {
         if (getSensor1() || getSensor2()) {
           ampTimer.restart();
         }
+        throwCommanded = false;
 
         if (manualControl) {
-          nextState = State.MANUAL;
+          nextState = ThrowerState.MANUAL;
         } else if (ampTimer.get() > ampDelay) {
-          nextState = State.INTAKE;
+          nextState = ThrowerState.INTAKE;
         } else {
-          nextState = State.AMP_SCORE;
+          nextState = ThrowerState.AMP_SCORE;
         }
         break;
 
       case SPIN_UP:
-        if (lastState != State.SPIN_UP) {
+        if (lastState != ThrowerState.SPIN_UP) {
           spinUpTimer.restart();
           indexMotorGoalPos = indexMotor.getRotorPosition().getValueAsDouble() - indexMotorOffset;
         }
-        lastState = State.SPIN_UP;
+        lastState = ThrowerState.SPIN_UP;
 
         indexMotor.setControl(new MotionMagicDutyCycle(indexMotorGoalPos).withSlot(1).withEnableFOC(true));
         throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
         throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
 
         if (manualControl) {
-          nextState = State.MANUAL;
+          nextState = ThrowerState.MANUAL;
         } else if (!getSensor1() && !getSensor2()) {
-          nextState = State.INTAKE;
+          nextState = ThrowerState.INTAKE;
         } else if (throwCommanded && (isSpunUp() || spinUpTimer.get() > spinUpDelay)) {
-          nextState = State.THROW;
+          nextState = ThrowerState.THROW;
         } else if (ampScoreCommanded) {
-          nextState = State.AMP_SCORE;
+          nextState = ThrowerState.AMP_SCORE;
         } else {
-          nextState = State.SPIN_UP;
+          nextState = ThrowerState.SPIN_UP;
         }
         break;
 
       case BACK_UP:
-        lastState = State.BACK_UP;
+        lastState = ThrowerState.BACK_UP;
 
         indexMotor.setControl(new VelocityDutyCycle(-backUpVel).withSlot(0).withEnableFOC(true));
         throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
         throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
 
         if (manualControl) {
-          nextState = State.MANUAL;
+          nextState = ThrowerState.MANUAL;
         } else if (!getSensor1() && !getSensor2()) {
-          nextState = State.INTAKE;
+          nextState = ThrowerState.INTAKE;
         } else if (!getSensor2()) {
-          nextState = State.SPIN_UP;
+          nextState = ThrowerState.SPIN_UP;
         } else {
-          nextState = State.BACK_UP;
+          nextState = ThrowerState.BACK_UP;
         }
         break;
 
       case INTAKE:
-        lastState = State.INTAKE;
+        lastState = ThrowerState.INTAKE;
 
         indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0).withEnableFOC(true));
         throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
@@ -185,20 +190,20 @@ public class Thrower {
         ampScoreCommanded = false;
 
         if (manualControl) {
-          nextState = State.MANUAL;
+          nextState = ThrowerState.MANUAL;
         } else if (getSensor2()) {
-          nextState = State.BACK_UP;
+          nextState = ThrowerState.BACK_UP;
         } else {
-          nextState = State.INTAKE;
+          nextState = ThrowerState.INTAKE;
         }
         break;
 
       case MANUAL:
-        if (lastState != State.INTAKE) {
+        if (lastState != ThrowerState.INTAKE) {
           indexPowerManual = 0.0;
           flywheelPowerManual = 0.0;
         }
-        lastState = State.MANUAL;
+        lastState = ThrowerState.MANUAL;
 
         if (!throwMotor1Failure) {
           throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual).withEnableFOC(true));
@@ -214,17 +219,17 @@ public class Thrower {
         ampScoreCommanded = false;
 
         if (!manualControl && getSensor2()) {
-          nextState = State.BACK_UP;
+          nextState = ThrowerState.BACK_UP;
         } else if (!manualControl && !getSensor2()) {
-          nextState = State.INTAKE;
+          nextState = ThrowerState.INTAKE;
         } else {
-          nextState = State.MANUAL;
+          nextState = ThrowerState.MANUAL;
         }
         break;
 
       case DISABLED:
-        lastState = State.DISABLED;
-        nextState = State.DISABLED;
+        lastState = ThrowerState.DISABLED;
+        nextState = ThrowerState.DISABLED;
         throwCommanded = false;
         ampScoreCommanded = false;
         break;
@@ -232,20 +237,17 @@ public class Thrower {
   }
 
   // Call when a note should be thrown. This will spin up the flywheel and release the note when the flywheel is at speed. flywheelVel is in falcon rotations per second.
-  public void commandThrow(double _flywheelVel) {
-    if (Math.abs(flywheelVel-_flywheelVel) > allowableFlywheelVelError) {
-      spinUpTimer.restart();
-    }
-    flywheelVel = _flywheelVel;
-    if (!throwCommanded && (nextState == State.BACK_UP || nextState == State.SPIN_UP || nextState == State.THROW)) {
+  public void commandThrow() {
+    setFlywheelVel(flywheelVel);
+    if (!throwCommanded && (nextState == ThrowerState.BACK_UP || nextState == ThrowerState.SPIN_UP || nextState == ThrowerState.THROW)) {
       throwCommanded = true;
     }
     ampScoreCommanded = false;
   }
   
   public void commandAmpScore() {
-    flywheelVel = 0.0;
-    if (!ampScoreCommanded && ((nextState == State.BACK_UP || nextState == State.SPIN_UP || nextState == State.AMP_SCORE))) {
+    setFlywheelVel(0.0);
+    if (!ampScoreCommanded && ((nextState == ThrowerState.BACK_UP || nextState == ThrowerState.SPIN_UP || nextState == ThrowerState.AMP_SCORE))) {
       ampScoreCommanded = true;
     }
     throwCommanded = false;

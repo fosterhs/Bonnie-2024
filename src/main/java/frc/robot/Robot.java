@@ -1,7 +1,6 @@
 package frc.robot;
 
 import com.ctre.phoenix.led.CANdle;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -50,8 +49,12 @@ public class Robot extends TimedRobot {
     MANUAL_SHOOT;
   } 
   ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
-
-  private Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
+  private final double armDriveSetpoint = 90.0; // The arm's driving position in degrees.
+  private final double armAmpSetpoint = 52.0; // The arm's inital amp scoring position in degrees.
+  private final double armIntakeSetpoint = -3.0; // The arm's intake position in degrees.
+  private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
+  private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
+  private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
 
   public void robotInit() {
     // Allows the user to choose which auto to do
@@ -63,7 +66,7 @@ public class Robot extends TimedRobot {
 
     ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
     createToggles(); // Creates the infrastructure for using dashboard toggles.
-    armTimer.restart();
+    armTimer.restart(); // Gets the arm timer started.
 
     swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
 
@@ -84,7 +87,7 @@ public class Robot extends TimedRobot {
     climber.periodic();
     arm.atSetpoint();
     arm.periodic();
-    arm.updateSetpoint(50.0);
+    arm.updateSetpoint(armDriveSetpoint);
     arm.setManualPower(0.0);
     thrower.init();
     thrower.periodic();
@@ -103,7 +106,7 @@ public class Robot extends TimedRobot {
       candle.setLEDs(255, 0, 255, 0, 0, 8);
     }
 
-    if (!arm.atSetpoint()) {
+    if (!arm.atSetpoint()) { // Resets the arm timer to 0 if the arm is not at the current setpoint.
       armTimer.restart();
     }
 
@@ -157,7 +160,7 @@ public class Robot extends TimedRobot {
             thrower.setFlywheelVel(120.0);
 
             if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
-              thrower.commandThrow(120.0);
+              thrower.commandThrow();
               if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
                 autoStage = 2;
               }
@@ -179,46 +182,46 @@ public class Robot extends TimedRobot {
             thrower.setFlywheelVel(120.0);
 
             if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
-              thrower.commandThrow(120.0);
+              thrower.commandThrow();
               if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
                 armTimer.restart();
-                arm.updateSetpoint(-3.0);
+                arm.updateSetpoint(armIntakeSetpoint);
                 autoStage = 2;
               }
             }
             break;
 
           case 2:
-            if (armTimer.get() > 1) {  
+            if (armTimer.get() > 1.0) {  
              autoStage = 3;
-           }
-          break;
+            }
+            break;
 
-            default: 
-              swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
-          break;
-           case 3:
-          if (!thrower.getSensor1()) {
+          case 3:
             swerve.drive(1.0,0.0,0.0,true,0.0,0.0);
-          } else {
-            swerve.drive(0.0,0.0,0.0,true,0.0,0.0);
-          }
 
-          if (thrower.getSensor1()) {
-            autoStage = 4;
-          }
-          break;
-            case 4:
-          swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
+            if (thrower.getSensor1()) {
+              autoStage = 4;
+            } else if (swerve.getXPos() > 4.0) {
+              autoStage = -1; // Goes to default case. 
+            }
+            break;
+
+          case 4:
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
             arm.updateSetpoint(getAimArmAngle());
             thrower.setFlywheelVel(120.0);
 
             if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
-              thrower.commandThrow(120.0);
+              thrower.commandThrow();
               if (!thrower.isThrowing()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
                 autoStage = 5;
               }
             }
+            break;
+
+          default: 
+            swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
             break;
         }
         break;
@@ -304,13 +307,13 @@ public class Robot extends TimedRobot {
       }
       switch (currArmState) {
         case INTAKE:
-          arm.updateSetpoint(-3.0);
+          arm.updateSetpoint(armIntakeSetpoint);
           thrower.setFlywheelVel(0.0);
           lastIsAmpScoring = false;
           break;
 
         case DRIVE:
-          arm.updateSetpoint(90.0);
+          arm.updateSetpoint(armDriveSetpoint);
           thrower.setFlywheelVel(0.0);
           lastIsAmpScoring = false;
           break;
@@ -326,17 +329,17 @@ public class Robot extends TimedRobot {
             if (!lastIsAmpScoring) {
               ampTimer.restart(); // This timer measures the time since the arm has begun the amp scoring process.
             }
-            arm.updateSetpoint(52.0+6.0*ampTimer.get()); // Raises the arm at 6 deg/sec.
+            arm.updateSetpoint(armAmpSetpoint+armAmpRaiseRate*ampTimer.get()); // Raises the arm at 6 deg/sec.
             lastIsAmpScoring = true;
           } else {
             lastIsAmpScoring = false;
-            arm.updateSetpoint(52.0);
+            arm.updateSetpoint(armAmpSetpoint);
             thrower.setFlywheelVel(0.0);
           }
           break;
 
         case MANUAL_SHOOT:
-          arm.updateSetpoint(4.0);
+          arm.updateSetpoint(armManualSetpoint);
           thrower.setFlywheelVel(120.0);
           lastIsAmpScoring = false;
           break;
@@ -363,7 +366,7 @@ public class Robot extends TimedRobot {
     } else {
       if (operator.getRawButton(6)) { // Right Bumper
         if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
-          thrower.commandThrow(120.0); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
+          thrower.commandThrow(); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
         } else if (currArmState == ArmState.AMP && arm.atSetpoint()) {
           thrower.commandAmpScore();
         }
