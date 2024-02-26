@@ -121,7 +121,7 @@ public class Robot extends TimedRobot {
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     arm.init();
     armTimer.restart();
-    autoStage = 1;
+    autoStage = swerve.isCalibrated() ? 1 : -1; // Goes to default case if April Tags were not visible. 
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
       case auto1:
