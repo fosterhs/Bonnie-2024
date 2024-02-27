@@ -37,6 +37,7 @@ public class Robot extends TimedRobot {
 
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
   private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
+  private final Timer pathTimer = new Timer(); 
 
   private final CANdle candle = new CANdle(0); // Initialzes the LEDs
 
@@ -68,7 +69,8 @@ public class Robot extends TimedRobot {
     createToggles(); // Creates the infrastructure for using dashboard toggles.
     armTimer.restart(); // Gets the arm timer started.
 
-    swerve.loadPath("Test", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
+    swerve.loadPath("curvePath", 0.0, 0.0, 0.0, 180.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
+    swerve.loadPath("returnPath", 0.0, 0.0, 0.0, 180.0);
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
@@ -191,7 +193,6 @@ public class Robot extends TimedRobot {
               if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
                 armTimer.restart();
                 arm.updateSetpoint(armIntakeSetpoint);
-                swerve.resetDriveController(180.0);
                 autoStage = 2;
               }
             }
@@ -209,7 +210,6 @@ public class Robot extends TimedRobot {
             swerve.aimDrive(1.0, 0.0, 180.0, true);
 
             if (thrower.getSensor1()) {
-              swerve.resetDriveController(getAimArmAngle());
               arm.updateSetpoint(getAimArmAngle());
               thrower.setFlywheelVel(120.0);
               armTimer.restart();
@@ -239,9 +239,61 @@ public class Robot extends TimedRobot {
 
       case auto3: 
         // Auto 3 code goes here.
-        break;
+        switch (autoStage) {
+          case 1:
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
+            arm.updateSetpoint(getAimArmAngle());
 
-      case auto4: 
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
+              thrower.commandThrow();
+              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+                armTimer.restart();
+                arm.updateSetpoint(armDriveSetpoint);
+                swerve.resetPathController(0);
+                pathTimer.restart();
+                autoStage = 2;
+              }
+            }
+            break;
+          case 2:
+          swerve.followPath(0);
+          if (pathTimer.get() > 2.0 ) {
+            arm.updateSetpoint(armIntakeSetpoint);
+          }
+          
+          if (swerve.atPathEndpoint(0) && thrower.getSensor1()) {
+            pathTimer.restart();
+            swerve.resetPathController(1);
+            arm.updateSetpoint(armDriveSetpoint);
+            autoStage = 3;
+          }
+        break;
+          case 3:
+            swerve.followPath(1);
+            if (swerve.atPathEndpoint(1)) {
+                swerve.resetDriveController(0);
+                autoStage = 4;
+            }
+            break;
+
+            case 4:
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
+            arm.updateSetpoint(getAimArmAngle());
+
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
+              thrower.commandThrow();
+              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the next stage. The code in the if statement will execute once (like an autoStageInit()), then move on to the next stage.
+                armTimer.restart();
+                arm.updateSetpoint(armDriveSetpoint);
+                swerve.resetPathController(0);
+                pathTimer.restart();
+                autoStage = 5;
+              }
+            }
+
+
+      case 5: 
+      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
         // Auto 4 code goes here.
         break;
 
@@ -249,6 +301,7 @@ public class Robot extends TimedRobot {
         swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
         break;
     }
+  }
   }
 
   public void teleopInit() {
