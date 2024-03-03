@@ -9,19 +9,21 @@ import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.revrobotics.CANSparkFlex;
+import com.revrobotics.CANSparkLowLevel.MotorType;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Thrower {
-  private final TalonFX throwMotor1 = new TalonFX(11); // One of the motors running the main flywheel.
-  private final TalonFX throwMotor2 = new TalonFX(12); // The other motor running the main flywheel.
+  private final CANSparkFlex vortex1 = new CANSparkFlex(1, MotorType.kBrushless);
+  private final CANSparkFlex vortex2 = new CANSparkFlex(2, MotorType.kBrushless);
   private final TalonFX indexMotor = new TalonFX(13); // The motor running the intake.
   // Initializes the proximity sensors. These return false if an object is detected and true if no object is detected.
-  private final DigitalInput sensor1 = new DigitalInput(0); // Sensor closest to the intake. Notes will trigger this sensor first when intaked normally.
-  private final DigitalInput sensor2 = new DigitalInput(1); // Sensor closest to the shooter. Notes will trigger this sensor second when intaked normally.
-  private final double throwMotorCurrentLimit = 40.0; // Throw motor current limit in amps. Should be based on the breaker used in the PDP.
-  private final double indexMotorCurrentLimit = 20.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
+  private final DigitalInput sensor1 = new DigitalInput(3); // Sensor closest to the intake. Notes will trigger this sensor first when intaked normally.
+  private final DigitalInput sensor2 = new DigitalInput(4); // Sensor in the middle. Notes will trigger this sensor second when intaked normally.
+  private final DigitalInput sensor3 = new DigitalInput(5); // Sensor closest to the shooter. Notes will trigger this sensor third when intaked normally.
+  private final double motorCurrentLimit = 40.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
   private final double intakeVel = 20.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
   private final double ampVel = 20.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
@@ -48,13 +50,11 @@ public class Thrower {
   private ThrowerState lastState;
 
   // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
-  private boolean throwMotor1Failure = false; 
-  private boolean throwMotor2Failure = false; 
   private boolean indexMotorFailure = false;
 
   private boolean ampScoreCommanded = false; // Returns true if an amp score command was recieved, but not yet executed.
   private boolean throwCommanded = false; // Returns true if a throw command was recieved, but not yet executed. Reverts to false if a note is not detected.
-  private double flywheelVel = 120.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
+  private double flywheelVel = 1.0; // The last demanded flywheel velocity in rotations per second. 100 rps is roughly the max speed of a free spining Falcon.
 
   // These variables store the desired motor velocities which are used and updated when the thrower is in the MANUAL state.
   private boolean manualControl = false;
@@ -73,7 +73,7 @@ public class Thrower {
     lastState = ThrowerState.DISABLED;
     if (manualControl) {
       nextState = ThrowerState.MANUAL;
-    } else if (getSensor1() || getSensor2()) {
+    } else if (getSensor1() || getSensor2() || getSensor3()) {
       nextState = ThrowerState.SPIN_UP;
     } else {
       nextState = ThrowerState.INTAKE;
@@ -95,11 +95,11 @@ public class Thrower {
         }
         lastState = ThrowerState.THROW;
 
-        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
+        vortex1.set(1.0);
+        vortex2.set(1.0);
         indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
 
-        if (getSensor1() || getSensor2()) {
+        if (getSensor1() || getSensor2() || getSensor3()) {
           throwTimer.restart();
         }
         ampScoreCommanded = false;
@@ -120,10 +120,10 @@ public class Thrower {
         lastState = ThrowerState.AMP_SCORE;
 
         indexMotor.setControl(new VelocityDutyCycle(-ampVel).withSlot(0).withEnableFOC(true));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        vortex1.set(0.0);
+        vortex2.set(0.0);
 
-        if (getSensor1() || getSensor2()) {
+        if (getSensor1() || getSensor2() || getSensor3()) {
           ampTimer.restart();
         }
         throwCommanded = false;
@@ -145,14 +145,14 @@ public class Thrower {
         lastState = ThrowerState.SPIN_UP;
 
         indexMotor.setControl(new MotionMagicDutyCycle(indexMotorGoalPos).withSlot(1).withEnableFOC(true));
-        throwMotor2.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
+        vortex1.set(flywheelVel);
+        vortex2.set(flywheelVel);
 
         if (manualControl) {
           nextState = ThrowerState.MANUAL;
-        } else if (!getSensor1() && !getSensor2()) {
+        } else if (!getSensor1() && !getSensor2() && !getSensor3()) {
           nextState = ThrowerState.INTAKE;
-        } else if (throwCommanded && (isSpunUp() || spinUpTimer.get() > spinUpDelay)) {
+        } else if (throwCommanded && (spinUpTimer.get() > spinUpDelay)) {
           nextState = ThrowerState.THROW;
         } else if (ampScoreCommanded) {
           nextState = ThrowerState.AMP_SCORE;
@@ -165,14 +165,14 @@ public class Thrower {
         lastState = ThrowerState.BACK_UP;
 
         indexMotor.setControl(new VelocityDutyCycle(-backUpVel).withSlot(0).withEnableFOC(true));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        vortex1.set(0.0);
+        vortex2.set(0.0);
 
         if (manualControl) {
           nextState = ThrowerState.MANUAL;
-        } else if (!getSensor1() && !getSensor2()) {
+        } else if (!getSensor1() && !getSensor2() && !getSensor3()) {
           nextState = ThrowerState.INTAKE;
-        } else if (!getSensor2()) {
+        } else if (!getSensor3()) {
           nextState = ThrowerState.SPIN_UP;
         } else {
           nextState = ThrowerState.BACK_UP;
@@ -183,15 +183,15 @@ public class Thrower {
         lastState = ThrowerState.INTAKE;
 
         indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0).withEnableFOC(true));
-        throwMotor2.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
-        throwMotor1.setControl(new VelocityDutyCycle(0.0).withSlot(0).withEnableFOC(true));
+        vortex1.set(0.0);
+        vortex2.set(0.0);
 
         throwCommanded = false;
         ampScoreCommanded = false;
 
         if (manualControl) {
           nextState = ThrowerState.MANUAL;
-        } else if (getSensor2()) {
+        } else if (getSensor3()) {
           nextState = ThrowerState.BACK_UP;
         } else {
           nextState = ThrowerState.INTAKE;
@@ -205,12 +205,8 @@ public class Thrower {
         }
         lastState = ThrowerState.MANUAL;
 
-        if (!throwMotor1Failure) {
-          throwMotor1.setControl(new DutyCycleOut(flywheelPowerManual).withEnableFOC(true));
-        }
-        if (!throwMotor2Failure) {
-          throwMotor2.setControl(new DutyCycleOut(flywheelPowerManual).withEnableFOC(true));
-        }
+        vortex1.set(flywheelPowerManual);
+        vortex2.set(flywheelPowerManual);
         if (!indexMotorFailure) {
           indexMotor.setControl(new DutyCycleOut(indexPowerManual).withEnableFOC(true));
         }
@@ -218,9 +214,9 @@ public class Thrower {
         throwCommanded = false;
         ampScoreCommanded = false;
 
-        if (!manualControl && getSensor2()) {
+        if (!manualControl && getSensor3()) {
           nextState = ThrowerState.BACK_UP;
-        } else if (!manualControl && !getSensor2()) {
+        } else if (!manualControl && !getSensor3()) {
           nextState = ThrowerState.INTAKE;
         } else {
           nextState = ThrowerState.MANUAL;
@@ -271,6 +267,11 @@ public class Thrower {
     return ampScoreCommanded;
   }
 
+  // Returns true if sensor 1 on the thrower is triggered.
+  public boolean getSensor3() {
+    return !sensor3.get();
+  }
+
   // Returns true if sensor 2 on the thrower is triggered.
   public boolean getSensor2() {
     return !sensor2.get();
@@ -283,7 +284,7 @@ public class Thrower {
 
   // Returns true if either the thrower motors or the index motor failed to configure on start up.
   public boolean getMotorFailure() {
-    return throwMotor2Failure || indexMotorFailure || throwMotor1Failure;
+    return indexMotorFailure;
   }
 
   // Toggles whether the thrower is under manual control.
@@ -305,67 +306,20 @@ public class Thrower {
   // Attempts to reboot the thrower by reconfiguring the motors. Use if trying to troubleshoot a thrower failure during a match.
   public void reboot() {
     indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
-    throwMotor2Failure = !configThrowMotor(throwMotor2, throwMotor2Failure);
-    throwMotor1Failure = !configThrowMotor(throwMotor1, throwMotor1Failure);
     manualControl = getMotorFailure();
     init();
   }
 
   // Sends information about the thrower to the dashboard each period. This is handled automatically by the thrower class.
-  private void updateDashboard() {
+  public void updateDashboard() {
     SmartDashboard.putBoolean("manualThrowerControl", manualControl);
     SmartDashboard.putBoolean("throwerFailure", getMotorFailure());
     SmartDashboard.putBoolean("throwCommanded", throwCommanded);
     SmartDashboard.putBoolean("ampScoreCommanded", ampScoreCommanded);
     SmartDashboard.putNumber("flywheelVel", flywheelVel);
-  }
-
-  // Returns true if both flywheel motors are near the desired flywheel velocity for throwing a note.
-  private boolean isSpunUp() {
-    return (Math.abs(throwMotor1.getRotorVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError) &&
-      (Math.abs(throwMotor2.getRotorVelocity().getValueAsDouble() - flywheelVel) < allowableFlywheelVelError);
-  }
-
-  // Sets PID constants, brake mode, and enforces a 40 A current limit. Returns true if the motor successfully configued.
-  private boolean configThrowMotor(TalonFX _throwMotor, boolean motorFailure) {
-    // Creates a configurator and config object to configure the motor.
-    TalonFXConfigurator throwMotorConfigurator = _throwMotor.getConfigurator();
-    TalonFXConfiguration throwMotorConfigs = new TalonFXConfiguration();
-
-    throwMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
-    throwMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
-
-    // Setting current limits
-    throwMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    throwMotorConfigs.CurrentLimits.SupplyCurrentLimit = throwMotorCurrentLimit;
-    throwMotorConfigs.CurrentLimits.SupplyCurrentThreshold = throwMotorCurrentLimit;
-    throwMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
-
-    // Velocity PIDV constants for reaching flywheel velocities
-    throwMotorConfigs.Slot0.kP = 0.008;
-    throwMotorConfigs.Slot0.kI = 0.06;
-    throwMotorConfigs.Slot0.kD = 0.0002;
-    throwMotorConfigs.Slot0.kV = 0.009;
-
-    // Motion Magic Parameters for moving set distances
-    throwMotorConfigs.Slot1.kP = 0.8;
-    throwMotorConfigs.Slot1.kI = 2.0;
-    throwMotorConfigs.Slot1.kD = 0.006;
-    throwMotorConfigs.MotionMagic.MotionMagicAcceleration = 75.0;
-    throwMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 50.0;
-    throwMotorConfigs.MotionMagic.MotionMagicJerk = 400.0;
-
-    // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
-    int throwMotorErrors = 0;
-    while (throwMotorConfigurator.apply(throwMotorConfigs, 0.03) != StatusCode.OK) {
-        throwMotorErrors++;
-      motorFailure = throwMotorErrors > maxMotorFailures;
-      if (motorFailure) {
-        disableMotor(_throwMotor);
-        return false;
-      }
-    }
-    return true;
+    SmartDashboard.putBoolean("Sensor 1", getSensor1());
+    SmartDashboard.putBoolean("Sensor 2", getSensor2());
+    SmartDashboard.putBoolean("Sensor 3", getSensor3());
   }
 
   // Sets PID constants, brake mode, and enforces a 20 A current limit. Returns true if the motor successfully configued.
@@ -375,12 +329,12 @@ public class Thrower {
     TalonFXConfiguration indexMotorConfigs = new TalonFXConfiguration();
 
     indexMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
-    indexMotorConfigs.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Inverts the direction of positive motor velocity.
+    indexMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
 
     // Setting current limits
     indexMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    indexMotorConfigs.CurrentLimits.SupplyCurrentLimit = indexMotorCurrentLimit;
-    indexMotorConfigs.CurrentLimits.SupplyCurrentThreshold = indexMotorCurrentLimit;
+    indexMotorConfigs.CurrentLimits.SupplyCurrentLimit = motorCurrentLimit;
+    indexMotorConfigs.CurrentLimits.SupplyCurrentThreshold = motorCurrentLimit;
     indexMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
 
     // Velocity PIDV constants for reaching flywheel velocities

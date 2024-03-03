@@ -2,7 +2,6 @@ package frc.robot;
 
 import java.util.ArrayList;
 import java.util.Optional;
-
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.Pigeon2;
@@ -37,17 +36,17 @@ class Drivetrain {
   public static final double maxAngularAccAuto = 3.5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 
   // Positions of the swerve modules relative to the center of the roboot. +x points towards the robot's front. +y points to the robot's left. Units: meters.
-  private static final Translation2d frontLeftModulePos = new Translation2d(0.352425, 0.238125);
-  private static final Translation2d frontRightModulePos = new Translation2d(0.352425, -0.238125); 
-  private static final Translation2d backRightModulePos = new Translation2d(-0.352425, -0.238125);
-  private static final Translation2d backLeftModulePos = new Translation2d(-0.352425, 0.238125);
+  private static final Translation2d frontLeftModulePos = new Translation2d(0.30162, 0.22542);
+  private static final Translation2d frontRightModulePos = new Translation2d(0.30162, -0.22542); 
+  private static final Translation2d backRightModulePos = new Translation2d(-0.30162, -0.22542);
+  private static final Translation2d backLeftModulePos = new Translation2d(-0.30162, 0.22542);
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module object.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -20.05); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 176.45);
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 110.4);
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -23.4);
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -175.0); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 94.5);
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 146.6);
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -172.6);
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.

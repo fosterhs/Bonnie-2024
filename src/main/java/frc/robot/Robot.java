@@ -34,11 +34,11 @@ public class Robot extends TimedRobot {
   private static final String auto4 = "Auto 4"; 
   private String autoSelected;
   private int autoStage = 1;
-
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
   private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
 
-  private final CANdle candle = new CANdle(0); // Initialzes the LEDs
+  private final CANdle candle0 = new CANdle(0); // Initialzes the LEDs on the left.
+  private final CANdle candle1 = new CANdle(1); // Initialzes the LEDs on the right.
 
   // Arm States (Teleop)
   private enum ArmState {
@@ -49,9 +49,9 @@ public class Robot extends TimedRobot {
     MANUAL_SHOOT;
   } 
   ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
-  private final double armDriveSetpoint = 90.0; // The arm's driving position in degrees.
+  private final double armDriveSetpoint = 75.0; // The arm's driving position in degrees.
   private final double armAmpSetpoint = 48.0; // The arm's inital amp scoring position in degrees.
-  private final double armIntakeSetpoint = -3.0; // The arm's intake position in degrees.
+  private final double armIntakeSetpoint = -5.0; // The arm's intake position in degrees.
   private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
   private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
@@ -69,7 +69,7 @@ public class Robot extends TimedRobot {
     armTimer.restart(); // Gets the arm timer started.
 
     swerve.loadPath("Rush Center", 0.0, 0.0, 0.0, 120.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
-    swerve.loadPath("Return from Center", 0.0, 0.0, 0.0, 180.0);
+    swerve.loadPath("Return From Center", 0.0, 0.0, 0.0, 180.0);
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
@@ -99,12 +99,18 @@ public class Robot extends TimedRobot {
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     updateToggles(); // Checks the dashboard toggles and takes any actions based on them.
-
+    thrower.updateDashboard();
+    SmartDashboard.putNumber("autoStage", autoStage);
+    SmartDashboard.putNumber("ArmTimer", armTimer.get());
+    climber.periodic();
     // Sets the LEDs on if the arm is at the setpoint.
     if (arm.atSetpoint()) {
-      candle.setLEDs(0, 255, 0, 0, 0, 8);
+      candle0.setLEDs(0, 255, 0, 0, 0, 8);
+      candle1.setLEDs(0, 255, 0, 0, 0, 8);
     } else {
-      candle.setLEDs(255, 0, 255, 0, 0, 8);
+      candle0.setLEDs(255, 0, 255, 0, 0, 8);
+      candle1.setLEDs(255, 0, 255, 0, 0, 8);
+      
     }
 
     if (!arm.atSetpoint()) { // Resets the arm timer to 0 if the arm is not at the current setpoint.
@@ -156,9 +162,6 @@ public class Robot extends TimedRobot {
     thrower.periodic();
     arm.periodic();
     climber.periodic();
-    SmartDashboard.putNumber("autoStage", autoStage);
-    SmartDashboard.putNumber("ArmTimer", armTimer.get());
-    SmartDashboard.putBoolean("atGoal", swerve.atDriveGoal());
     switch (autoSelected) {
       case auto1:
         switch (autoStage) {
@@ -434,6 +437,9 @@ public class Robot extends TimedRobot {
 
     climber.periodic();
     climber.set(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
+    if (operator.getRawButtonPressed(7) && arm.getArmEncoder() < 5.0) { // Mode Button
+      climber.toggleLockout();
+    }
   }
   
   public void disabledInit() {

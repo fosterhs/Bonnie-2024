@@ -7,18 +7,23 @@ import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Climber {
-  private final TalonFX leftClimbMotor = new TalonFX(9); // The motor that controls the left climber.
-  private final TalonFX rightClimbMotor = new TalonFX(10); // The other that controls the right climber.
+  private final TalonFX leftClimbMotor = new TalonFX(10); // The motor that controls the left climber.
+  private final TalonFX rightClimbMotor = new TalonFX(9); // The other that controls the right climber.
   private final double motorCurrentLimit = 40.0; // Motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
 
   // Indicates whether the motor failed to configure on startup. Each motor will attempt to configure up to the number of times specified by maxMotorFailures
   private boolean leftClimbMotorFailure = false; 
   private boolean rightClimbMotorFailure = false; 
+
+  private final DigitalInput leftLimit = new DigitalInput(2); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
+  private final DigitalInput rightLimit = new DigitalInput(1); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
+
+  private boolean climberLockout = true; // Prevents the user from moving the climber if true. Prevents accidental collisions between the arm and the climber.
 
   public Climber() {
     reboot();
@@ -27,22 +32,51 @@ public class Climber {
   // Updates any important values on the dashboard.
   public void periodic() {
     SmartDashboard.putBoolean("Climber Failure", getMotorFailure());
+    SmartDashboard.putBoolean("Left Sensor", getLeftSensor());
+    SmartDashboard.putBoolean("Right Sensor", getRightSensor());
+    SmartDashboard.putBoolean("Climber Lockout", climberLockout);
   }
 
   // Sets the output of each climb motor. the ClimbPower inputs can range from -1 to 1. -1 corresponds to full power down and +1 is full power up.
   public void set(double leftClimbPower, double rightClimbPower) {
-    if (!leftClimbMotorFailure) {
-      leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower).withEnableFOC(true));
+    if (!climberLockout) {
+      if (!leftClimbMotorFailure) {
+        if (getLeftSensor() && leftClimbPower < 0.0) {
+          leftClimbPower = 0.0;
+        }
+        leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower).withEnableFOC(true));
+      }
+      if (!rightClimbMotorFailure) {
+        if (getRightSensor() && rightClimbPower < 0.0) {
+          rightClimbPower = 0.0;
+        }
+        rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower).withEnableFOC(true));
+      }
     }
-    if (!rightClimbMotorFailure) {
-      rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower).withEnableFOC(true));
-    }
+  }
+
+  // Returns true if the sensor indicates that the climber is bottomed out.
+  public boolean getLeftSensor() {
+    return !leftLimit.get();
+  }
+
+  // Returns true if the sensor indicates that the climber is bottomed out.
+  public boolean getRightSensor() {
+    return !rightLimit.get();
+  }
+  
+  public void toggleLockout() {
+    climberLockout = !climberLockout;
+  }
+
+  public boolean getLockout() {
+    return climberLockout;
   }
   
   // Attempts to reboot the climber by reconfiguring the motors. Use if trying to troubleshoot a climber failure during a match.
   public void reboot() {
-    leftClimbMotorFailure = !configMotor(leftClimbMotor, leftClimbMotorFailure);
-    rightClimbMotorFailure = !configMotor(rightClimbMotor, rightClimbMotorFailure);
+    leftClimbMotorFailure = !configMotor(leftClimbMotor, leftClimbMotorFailure, true);
+    rightClimbMotorFailure = !configMotor(rightClimbMotor, rightClimbMotorFailure, false);
   }
 
   // Returns true if either of the motors failed to configure on startup or reboot.
@@ -51,13 +85,17 @@ public class Climber {
   }
 
   // Sets PID constants, brake mode, inverts, and enforces a 40 A current limit. Returns true if the motor successfully configured.
-  private boolean configMotor(TalonFX _motor, boolean motorFailure) {
+  private boolean configMotor(TalonFX _motor, boolean motorFailure, boolean inverted) {
     // Creates a configurator and config object to configure the motor.
     TalonFXConfigurator motorConfigurator = _motor.getConfigurator();
     TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
 
     motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake; // Motor brakes instead of coasting.
-    motorConfigs.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Inverts the direction of positive motor velocity.
+    if (inverted) {
+      motorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive; // Inverts the direction of positive motor velocity.
+    } else {
+      motorConfigs.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Inverts the direction of positive motor velocity.
+    }
 
     // Setting current limits
     motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;

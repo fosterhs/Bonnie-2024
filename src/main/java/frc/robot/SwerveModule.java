@@ -18,7 +18,7 @@ class SwerveModule {
   private static final double correctionFactor = 0.95; // Factor that corrects for real-world deviations from the odometry calculated position of the robot. These can be caused by things like tread wear. Set this value to 1, then make the robot follow a 1 meter path in auto. Set this value to the distance the robot actually traveled.
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
-  private static final double driveGearRatio = 57.0/7.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
+  private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
   private static final double driveMotorCurrentLimit = 40.0; // Drive motor current limit in amps.
   private static final double turnMotorCurrentLimit = 20.0; // Turn motor current limit in amps.
   private final AnalogEncoder wheelEncoder;
