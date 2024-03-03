@@ -84,7 +84,7 @@ public class Robot extends TimedRobot {
     swerve.drive(0.1, 0.0, 0.0, false, 0.0, 0.0);
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
-    climber.set(0.0, 0.0);
+    climber.setManual(0.0, 0.0);
     climber.periodic();
     arm.atSetpoint();
     arm.periodic();
@@ -427,7 +427,9 @@ public class Robot extends TimedRobot {
       thrower.setManualSpeeds(flywheelPower, indexPower);
     } else {
       if (operator.getRawButton(6)) { // Right Bumper
-        if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
+        if (arm.getManualControl()) {
+          thrower.commandThrow();
+        } else if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
           thrower.commandThrow(); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
         } else if (currArmState == ArmState.AMP && arm.atSetpoint()) {
           thrower.commandAmpScore();
@@ -436,9 +438,17 @@ public class Robot extends TimedRobot {
     }
 
     climber.periodic();
-    climber.set(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
-    if (operator.getRawButtonPressed(7) && arm.getArmEncoder() < 5.0) { // Mode Button
-      climber.toggleLockout();
+    climber.setManual(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
+    if (arm.getArmEncoder() < 5.0) {
+      climber.disableLockout();
+    }
+    if (arm.getArmEncoder() > 5.0 && (!climber.getLeftSensor() || !climber.getRightSensor())) {
+      climber.enableLockout();
+      climber.setToBottom();
+      currArmState = ArmState.INTAKE;
+    }
+    if (operator.getRawButtonPressed(7)) { // Back Button
+      climber.setToTop();
     }
   }
   

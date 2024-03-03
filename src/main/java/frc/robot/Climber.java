@@ -4,6 +4,7 @@ import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.DutyCycleOut;
+import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -20,10 +21,15 @@ public class Climber {
   private boolean leftClimbMotorFailure = false; 
   private boolean rightClimbMotorFailure = false; 
 
-  private final DigitalInput leftLimit = new DigitalInput(2); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
-  private final DigitalInput rightLimit = new DigitalInput(1); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
+  private final DigitalInput leftLimitSensor = new DigitalInput(2); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
+  private final DigitalInput rightLimitSensor = new DigitalInput(1); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
 
-  private boolean climberLockout = true; // Prevents the user from moving the climber if true. Prevents accidental collisions between the arm and the climber.
+  private boolean lockout = true; // Prevents the user from moving the climber if true. Prevents accidental collisions between the arm and the climber.
+  
+  private double leftClimbMotorZero = 0.0; // The rotor position that corresponds to bottoming out the left climber.
+  private double rightClimbMotorZero = 0.0; // The rotor position that corresponds to bottoming out the right climber.
+  private boolean isCalibrated = false; // Indicates whether the climber was able to calibrate. Calibration requires the limit sensors to be active on boot.
+  private final double rotationsToTop = 200.0; // The approximate number of rotations between the bottom and top of the climber's useful range of motion.
 
   public Climber() {
     reboot();
@@ -34,12 +40,13 @@ public class Climber {
     SmartDashboard.putBoolean("Climber Failure", getMotorFailure());
     SmartDashboard.putBoolean("Left Sensor", getLeftSensor());
     SmartDashboard.putBoolean("Right Sensor", getRightSensor());
-    SmartDashboard.putBoolean("Climber Lockout", climberLockout);
+    SmartDashboard.putBoolean("Climber Lockout", getLockout());
+    SmartDashboard.putBoolean("Climbers Calibrated", isCalibrated());
   }
 
   // Sets the output of each climb motor. the ClimbPower inputs can range from -1 to 1. -1 corresponds to full power down and +1 is full power up.
-  public void set(double leftClimbPower, double rightClimbPower) {
-    if (!climberLockout) {
+  public void setManual(double leftClimbPower, double rightClimbPower) {
+    if (!lockout) {
       if (!leftClimbMotorFailure) {
         if (getLeftSensor() && leftClimbPower < 0.0) {
           leftClimbPower = 0.0;
@@ -55,28 +62,89 @@ public class Climber {
     }
   }
 
+  // Moves the climbers to the bottom position.
+  public void setToBottom() {
+    if (!leftClimbMotorFailure && isCalibrated) {
+      leftClimbMotor.setControl(new MotionMagicDutyCycle(leftClimbMotorZero).withEnableFOC(true).withSlot(1));
+    }
+    if (!rightClimbMotorFailure && isCalibrated) {
+      rightClimbMotor.setControl(new MotionMagicDutyCycle(rightClimbMotorZero).withEnableFOC(true).withSlot(1));
+    }
+  }
+
+  // Moves the climbers to the top position.
+  public void setToTop() {
+    if (!leftClimbMotorFailure && isCalibrated) {
+      leftClimbMotor.setControl(new MotionMagicDutyCycle(leftClimbMotorZero + rotationsToTop).withEnableFOC(true).withSlot(1));
+    }
+    if (!rightClimbMotorFailure && isCalibrated) {
+      rightClimbMotor.setControl(new MotionMagicDutyCycle(rightClimbMotorZero + rotationsToTop).withEnableFOC(true).withSlot(1));
+    }
+  }
+
+  // Automatically sets the climbers to a position. Position is between 0 and 1. 0 corresponds to the bottom of the range and 1 corresponds to the top of the range.
+  public void set(double desiredPosition) {
+    if (desiredPosition < 0.0) {
+      desiredPosition = 0.0;
+    }
+    if (desiredPosition > 1.0) {
+      desiredPosition = 1.0;
+    }
+    if (!leftClimbMotorFailure && isCalibrated) {
+      leftClimbMotor.setControl(new MotionMagicDutyCycle(leftClimbMotorZero + rotationsToTop*desiredPosition).withEnableFOC(true).withSlot(1));
+    }
+    if (!rightClimbMotorFailure && isCalibrated) {
+      rightClimbMotor.setControl(new MotionMagicDutyCycle(rightClimbMotorZero + rotationsToTop*desiredPosition).withEnableFOC(true).withSlot(1));
+    }
+  }
+
   // Returns true if the sensor indicates that the climber is bottomed out.
   public boolean getLeftSensor() {
-    return !leftLimit.get();
+    return !leftLimitSensor.get();
   }
 
   // Returns true if the sensor indicates that the climber is bottomed out.
   public boolean getRightSensor() {
-    return !rightLimit.get();
+    return !rightLimitSensor.get();
   }
   
-  public void toggleLockout() {
-    climberLockout = !climberLockout;
+  public void disableLockout() {
+    lockout = false;
+  }
+
+  public void enableLockout() {
+    lockout = true;
   }
 
   public boolean getLockout() {
-    return climberLockout;
+    return lockout;
   }
   
   // Attempts to reboot the climber by reconfiguring the motors. Use if trying to troubleshoot a climber failure during a match.
   public void reboot() {
     leftClimbMotorFailure = !configMotor(leftClimbMotor, leftClimbMotorFailure, true);
     rightClimbMotorFailure = !configMotor(rightClimbMotor, rightClimbMotorFailure, false);
+    calibrate();
+  }
+
+  // Sets the zero-position of the climb motors. Both limit sensors must be active for this function to work.
+  public void calibrate() {
+    boolean leftCalibrated = false;
+    boolean rightCalibrated = false;
+    if (!leftClimbMotorFailure && getLeftSensor()) {
+      leftClimbMotorZero = leftClimbMotor.getRotorPosition().getValueAsDouble();
+      leftCalibrated = true;
+    }
+    if (!rightClimbMotorFailure && getRightSensor()) {
+      rightClimbMotorZero = rightClimbMotor.getRotorPosition().getValueAsDouble();
+      rightCalibrated = true;
+    }
+    isCalibrated = leftCalibrated && rightCalibrated;
+  }
+
+  // Returns true if the climbers both were able to sense their positions using the limit sensors when calibrate() was called.
+  public boolean isCalibrated() {
+    return isCalibrated;
   }
 
   // Returns true if either of the motors failed to configure on startup or reboot.

@@ -27,7 +27,7 @@ public class Thrower {
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
   private final double intakeVel = 20.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
   private final double ampVel = 20.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
-  private final double backUpVel = 5.0; // The number of rotations per second that the motors will spin backwards when reversing a note in the BACK_UP state.
+  private final double backUpVel = 20.0; // The number of rotations per second that the motors will spin backwards when reversing a note in the BACK_UP state.
   private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
   private final double spinUpDelay = 1.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
   private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.

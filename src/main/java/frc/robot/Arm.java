@@ -34,7 +34,7 @@ public class Arm {
   private boolean manualControl = false; // Indicates whether the arm is under manual control. This can happen if there is a motor failure, or if the operator requests it via setManualControl().
   private double manualPower = 0.0; // Stores the desired output of the arm motor when it is under manual control.
 
-  private double armMotorLInitialPos = 0.0; // The position of the arm motor on boot() in falcon rotations.
+  private double armMotorInitialPos = 0.0; // The position of the arm motor on boot() in falcon rotations.
   private double armEncoderInitialPos = 0.0; // The position of the arm encoder on boot() in degrees, with a zero offset applied.
   private final Timer calibrationTimer = new Timer(); // Keeps track of how long it has been since the arm position was calibrated to the arm encoder.
   private final double calibrationInterval = 1.0; // How often the arm should be calibrated in seconds. Shorter times lead to more oscilation.
@@ -58,12 +58,22 @@ public class Arm {
       if (!getMotorFailure()) {
         armMotorL.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
         armMotorR.setControl(new Follower(12, true));
+      } else if (!armMotorLFailure) {
+        armMotorL.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
+      } else if (!armMotorRFailure) {
+        armMotorR.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
       }
     } else {
       manualPower = 0.0;
-      double setpoint = armMotorLInitialPos + (armSetpoint-armEncoderInitialPos)*gearRatio/360.0;
-      armMotorL.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
-      armMotorR.setControl(new Follower(12, true));
+      double setpoint = armMotorInitialPos + (armSetpoint-armEncoderInitialPos)*gearRatio/360.0;
+      if (!getMotorFailure()) {
+        armMotorL.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
+        armMotorR.setControl(new Follower(12, true));
+      } else if (!armMotorLFailure) {
+        armMotorL.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
+      } else if (!armMotorRFailure) {
+        armMotorR.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
+      }
     }
   }
 
@@ -118,8 +128,12 @@ public class Arm {
 
   // Syncs the falcon encoder and arm encoder.
   private void calibrate() {
-   if (!armMotorLFailure) {
-      armMotorLInitialPos = armMotorL.getRotorPosition().getValueAsDouble();
+   if (!getMotorFailure()) {
+      armMotorInitialPos = armMotorL.getRotorPosition().getValueAsDouble();
+      armEncoderInitialPos = getArmEncoder();
+      calibrationTimer.restart();
+    } else if (!armMotorRFailure) {
+      armMotorInitialPos = armMotorR.getRotorPosition().getValueAsDouble();
       armEncoderInitialPos = getArmEncoder();
       calibrationTimer.restart();
     }
