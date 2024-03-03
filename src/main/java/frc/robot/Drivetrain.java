@@ -26,12 +26,12 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
   public static final double fieldWidth = 8.0; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
-  public static final double maxVelTeleop = 4.0; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
-  public static final double maxAngularVelTeleop = 4*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
-  public static final double maxAccTeleop = 5.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
-  public static final double maxAngularAccTeleop = 5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
+  public static final double maxVelTeleop = 5.0; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
+  public static final double maxAngularVelTeleop = 5.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
+  public static final double maxAccTeleop = 7.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
+  public static final double maxAngularAccTeleop = 7.0*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
   public static final double maxVelAuto = 3.0; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
-  public static final double maxAngularVelAuto = 3*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
+  public static final double maxAngularVelAuto = 3.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
   public static final double maxAccAuto = 3.5; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
   public static final double maxAngularAccAuto = 3.5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 

@@ -87,7 +87,6 @@ public class Thrower {
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
   public void periodic() {
-    updateDashboard();
     switch (nextState) {
       case THROW:
         if (lastState != ThrowerState.THROW) {

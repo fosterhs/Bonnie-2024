@@ -10,7 +10,6 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Arm {
@@ -26,7 +25,7 @@ public class Arm {
   private final DutyCycleEncoder armEncoder = new DutyCycleEncoder(0); // Keeps track of the angle of the arm.
   private double armEncoderZero = 0.694; // The initial arm position reading of the encoder in rotations.
   private double armSetpoint = 75.0; // The last requested setpoint of the arm in degrees. 0 degrees is horizontal and 90 degrees is vertical. 
-  private final double armTol = 1.0; // The acceptable error in the angle of the arm in degrees.
+  private final double armTol = 0.2; // The acceptable error in the angle of the arm in degrees.
   private final double gearRatio = 288.0; // 72:12 chain. 3:1, 4:1, and 4:1 stacked planetaries.
   private final double lowLimit = -5.0; // The lower limit of the arm in degrees.
   private final double highLimit = 75.0; // The higher limit of the arm in degrees.
@@ -36,25 +35,17 @@ public class Arm {
 
   private double armMotorInitialPos = 0.0; // The position of the arm motor on boot() in falcon rotations.
   private double armEncoderInitialPos = 0.0; // The position of the arm encoder on boot() in degrees, with a zero offset applied.
-  private final Timer calibrationTimer = new Timer(); // Keeps track of how long it has been since the arm position was calibrated to the arm encoder.
-  private final double calibrationInterval = 1.0; // How often the arm should be calibrated in seconds. Shorter times lead to more oscilation.
+  private boolean atSetpoint = false;
+  private boolean isCalibrated = false;
 
   public Arm() {
     reboot();
   }
-  
-  // Should be called in teleopInit() and autoInit(). Neccesary for proper function of the arm.
-  public void init() {
-    calibrate();
-  }
 
   // Should be called once teleopPeriodic() and autoPeriodic() sections of the main robot code. Neccesary for the class to function.
   public void periodic() {
-    updateDashboard();
-    if (calibrationTimer.get() > calibrationInterval) {
-      calibrate();
-    }
     if (manualControl) {
+      atSetpoint = false;
       if (!getMotorFailure()) {
         armMotorL.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
         armMotorR.setControl(new Follower(12, true));
@@ -69,17 +60,20 @@ public class Arm {
       if (!getMotorFailure()) {
         armMotorL.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
         armMotorR.setControl(new Follower(12, true));
+        atSetpoint = Math.abs(armMotorL.getRotorPosition().getValueAsDouble() - setpoint) < armTol*360.0/gearRatio;
       } else if (!armMotorLFailure) {
         armMotorL.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
+        atSetpoint = Math.abs(armMotorL.getRotorPosition().getValueAsDouble() - setpoint) < armTol*360.0/gearRatio;
       } else if (!armMotorRFailure) {
         armMotorR.setControl(new MotionMagicDutyCycle(setpoint).withSlot(1).withEnableFOC(true));
+        atSetpoint = Math.abs(armMotorR.getRotorPosition().getValueAsDouble() - setpoint) < armTol*360.0/gearRatio;
       }
     }
   }
 
   // Returns true if the arm currently at the angle specified by armSetpoint, within the tolerance specified by armTol.
   public boolean atSetpoint() {
-    return Math.abs(getArmEncoder() - armSetpoint) < armTol;
+    return atSetpoint;
   }
 
   // Changes the angle that the arm will move to. Units: degrees
@@ -123,29 +117,37 @@ public class Arm {
     armMotorLFailure = !configMotor(armMotorL, armMotorLFailure, false);
     armMotorRFailure = !configMotor(armMotorR, armMotorRFailure, true);
     manualControl = getMotorFailure();  
-    init();
+    calibrate();
   }
 
   // Syncs the falcon encoder and arm encoder.
-  private void calibrate() {
+  public void calibrate() {
    if (!getMotorFailure()) {
       armMotorInitialPos = armMotorL.getRotorPosition().getValueAsDouble();
       armEncoderInitialPos = getArmEncoder();
-      calibrationTimer.restart();
+      isCalibrated = true;
     } else if (!armMotorRFailure) {
       armMotorInitialPos = armMotorR.getRotorPosition().getValueAsDouble();
       armEncoderInitialPos = getArmEncoder();
-      calibrationTimer.restart();
+      isCalibrated = true;
+    } else {
+      isCalibrated = false;
     }
   }
 
+  // Indicates whether the arm was able to calibrate its position on start up.
+  public boolean isCalibrated() {
+    return isCalibrated;
+  }
+
   // Sends information to the dashboard each period. This is handled automatically by the class.
-  private void updateDashboard() {
+  public void updateDashboard() {
     SmartDashboard.putBoolean("manualArmControl", manualControl);
     SmartDashboard.putBoolean("armFailure", getMotorFailure());
     SmartDashboard.putBoolean("atArmSetpoint", atSetpoint());
     SmartDashboard.putNumber("armSetpoint", armSetpoint);
     SmartDashboard.putNumber("armAngle", getArmEncoder());
+    SmartDashboard.putBoolean("Arm Calibrated", isCalibrated());
   }
 
   // Sets PID constants, brake mode, inverts, and enforces a 40 A current limit. Returns true if the motor successfully configured.

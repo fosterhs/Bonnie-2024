@@ -85,7 +85,6 @@ public class Robot extends TimedRobot {
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
     climber.setManual(0.0, 0.0);
-    climber.periodic();
     arm.atSetpoint();
     arm.periodic();
     arm.updateSetpoint(armDriveSetpoint);
@@ -102,7 +101,9 @@ public class Robot extends TimedRobot {
     thrower.updateDashboard();
     SmartDashboard.putNumber("autoStage", autoStage);
     SmartDashboard.putNumber("ArmTimer", armTimer.get());
-    climber.periodic();
+    arm.updateDashboard();
+    climber.updateDashboard();
+    thrower.updateDashboard();
     // Sets the LEDs on if the arm is at the setpoint.
     if (arm.atSetpoint()) {
       candle0.setLEDs(0, 255, 0, 0, 0, 8);
@@ -126,8 +127,8 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     swerve.pushCalibration(); // Updates the robot's position on the field.
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
-    arm.init();
     armTimer.restart();
+    climber.init();
     autoStage = swerve.isCalibrated() && !arm.getMotorFailure() && !thrower.getMotorFailure() && !swerve.getModuleFailure() && !swerve.getGyroFailure() ? 1 : -1; // Goes to default case if April Tags were not visible. 
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
@@ -161,7 +162,6 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
     thrower.periodic();
     arm.periodic();
-    climber.periodic();
     switch (autoSelected) {
       case auto1:
         switch (autoStage) {
@@ -305,7 +305,7 @@ public class Robot extends TimedRobot {
   public void teleopInit() {
     swerve.pushCalibration(); // Updates the robot's position on the field.
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
-    arm.init();
+    climber.init();
   }
 
   public void teleopPeriodic() {
@@ -352,20 +352,24 @@ public class Robot extends TimedRobot {
     if (arm.getManualControl()) {
       arm.setManualPower(operator.getRightTriggerAxis() - operator.getLeftTriggerAxis());
     } else {
-      if (operator.getRawButtonPressed(1)) { // A Bytton
-        currArmState = ArmState.DRIVE;
-      }
-      if (operator.getRawButtonPressed(2)) { // B Button
+      if (!climber.getLeftSensor() || !climber.getRightSensor()) { // One of the climbers is up.
         currArmState = ArmState.INTAKE;
-      }
-      if (operator.getRawButtonPressed(3)) { // X Button
-        currArmState = ArmState.SHOOT;
-      }
-      if (operator.getRawButtonPressed(4)) { // Y Button
-        currArmState = ArmState.AMP;
-      }
-      if (operator.getRawButtonPressed(8)) { // Menu Button
-        currArmState = ArmState.MANUAL_SHOOT;
+      } else {
+        if (operator.getRawButtonPressed(1)) { // A Bytton
+          currArmState = ArmState.DRIVE;
+        }
+        if (operator.getRawButtonPressed(2)) { // B Button
+          currArmState = ArmState.INTAKE;
+        }
+        if (operator.getRawButtonPressed(3)) { // X Button
+          currArmState = ArmState.SHOOT;
+        }
+        if (operator.getRawButtonPressed(4)) { // Y Button
+          currArmState = ArmState.AMP;
+        }
+        if (operator.getRawButtonPressed(8)) { // Menu Button
+          currArmState = ArmState.MANUAL_SHOOT;
+        }
       }
       switch (currArmState) {
         case INTAKE:
@@ -419,10 +423,10 @@ public class Robot extends TimedRobot {
       }
       double indexPower = 0.0;
       if (operator.getPOV() == 0) { // D-pad up
-        indexPower = 0.3;
+        indexPower = 1.0;
       }
       if (operator.getPOV() == 180) { // D-pad down
-        indexPower = -0.3;
+        indexPower = -1.0;
       }
       thrower.setManualSpeeds(flywheelPower, indexPower);
     } else {
@@ -437,19 +441,15 @@ public class Robot extends TimedRobot {
       }
     }
 
-    climber.periodic();
-    climber.setManual(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
     if (arm.getArmEncoder() < 5.0) {
       climber.disableLockout();
-    }
-    if (arm.getArmEncoder() > 5.0 && (!climber.getLeftSensor() || !climber.getRightSensor())) {
+    } else {
       climber.enableLockout();
+      if (!climber.getLeftSensor() || !climber.getRightSensor()) {
       climber.setToBottom();
-      currArmState = ArmState.INTAKE;
+      }
     }
-    if (operator.getRawButtonPressed(7)) { // Back Button
-      climber.setToTop();
-    }
+    climber.setManual(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
   }
   
   public void disabledInit() {
@@ -537,7 +537,9 @@ public class Robot extends TimedRobot {
   private boolean throwerReboot = false;
   private boolean armManual = false;
   private boolean armReboot = false;
+  private boolean armCalibrate = false;
   private boolean climberReboot = false;
+  private boolean climberCalibrate = false;
   public void createToggles() {
     SmartDashboard.putBoolean("FR Module Toggle", moduleToggleFR);
     SmartDashboard.putBoolean("FL Module Toggle", moduleToggleFL);
@@ -549,7 +551,9 @@ public class Robot extends TimedRobot {
     SmartDashboard.putBoolean("Thrower Reboot", throwerReboot);
     SmartDashboard.putBoolean("Arm Manual Toggle", armManual);
     SmartDashboard.putBoolean("Arm Reboot", armReboot);
+    SmartDashboard.putBoolean("Arm Recalibrate", armCalibrate);
     SmartDashboard.putBoolean("Climber Reboot", climberReboot);
+    SmartDashboard.putBoolean("Climber Recalibrate", climberCalibrate);
   }
 
   // Reads toggles from dashboard and executes the corresponding code.
@@ -614,10 +618,22 @@ public class Robot extends TimedRobot {
     }
     armReboot = currArmReboot;
 
+    boolean currArmCalibrate = SmartDashboard.getBoolean("Arm Calibrate", false);
+    if (currArmCalibrate ^ armCalibrate) {
+      arm.calibrate();
+    }
+    armCalibrate = currArmCalibrate;
+
     boolean currClimberReboot = SmartDashboard.getBoolean("Climber Reboot", false);
     if (currClimberReboot ^ climberReboot) {
       climber.reboot();
     }
     climberReboot = currClimberReboot;
+
+    boolean currClimberCalibrate = SmartDashboard.getBoolean("Climber Calibrate", false);
+    if (currClimberCalibrate ^ climberCalibrate) {
+      climber.calibrate();
+    }
+    climberCalibrate = currClimberCalibrate;
   }
 }

@@ -29,14 +29,18 @@ public class Climber {
   private double leftClimbMotorZero = 0.0; // The rotor position that corresponds to bottoming out the left climber.
   private double rightClimbMotorZero = 0.0; // The rotor position that corresponds to bottoming out the right climber.
   private boolean isCalibrated = false; // Indicates whether the climber was able to calibrate. Calibration requires the limit sensors to be active on boot.
-  private final double rotationsToTop = 200.0; // The approximate number of rotations between the bottom and top of the climber's useful range of motion.
+  private final double rotationsToTop = 180.0; // The approximate number of rotations between the bottom and top of the climber's useful range of motion.
 
   public Climber() {
     reboot();
   }
 
+  public void init() {
+    enableLockout();
+  }
+
   // Updates any important values on the dashboard.
-  public void periodic() {
+  public void updateDashboard() {
     SmartDashboard.putBoolean("Climber Failure", getMotorFailure());
     SmartDashboard.putBoolean("Left Sensor", getLeftSensor());
     SmartDashboard.putBoolean("Right Sensor", getRightSensor());
@@ -51,10 +55,16 @@ public class Climber {
         if (getLeftSensor() && leftClimbPower < 0.0) {
           leftClimbPower = 0.0;
         }
+        if (isCalibrated && leftClimbMotor.getRotorPosition().getValueAsDouble() > leftClimbMotorZero + rotationsToTop && leftClimbPower > 0.0) {
+          leftClimbPower = 0.0;
+        }
         leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower).withEnableFOC(true));
       }
       if (!rightClimbMotorFailure) {
         if (getRightSensor() && rightClimbPower < 0.0) {
+          rightClimbPower = 0.0;
+        }
+        if (isCalibrated && rightClimbMotor.getRotorPosition().getValueAsDouble() > rightClimbMotorZero + rotationsToTop && rightClimbPower > 0.0) {
           rightClimbPower = 0.0;
         }
         rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower).withEnableFOC(true));
@@ -74,10 +84,10 @@ public class Climber {
 
   // Moves the climbers to the top position.
   public void setToTop() {
-    if (!leftClimbMotorFailure && isCalibrated) {
+    if (!leftClimbMotorFailure && isCalibrated && !lockout) {
       leftClimbMotor.setControl(new MotionMagicDutyCycle(leftClimbMotorZero + rotationsToTop).withEnableFOC(true).withSlot(1));
     }
-    if (!rightClimbMotorFailure && isCalibrated) {
+    if (!rightClimbMotorFailure && isCalibrated && !lockout) {
       rightClimbMotor.setControl(new MotionMagicDutyCycle(rightClimbMotorZero + rotationsToTop).withEnableFOC(true).withSlot(1));
     }
   }
@@ -90,10 +100,10 @@ public class Climber {
     if (desiredPosition > 1.0) {
       desiredPosition = 1.0;
     }
-    if (!leftClimbMotorFailure && isCalibrated) {
+    if (!leftClimbMotorFailure && isCalibrated && !lockout) {
       leftClimbMotor.setControl(new MotionMagicDutyCycle(leftClimbMotorZero + rotationsToTop*desiredPosition).withEnableFOC(true).withSlot(1));
     }
-    if (!rightClimbMotorFailure && isCalibrated) {
+    if (!rightClimbMotorFailure && isCalibrated && !lockout) {
       rightClimbMotor.setControl(new MotionMagicDutyCycle(rightClimbMotorZero + rotationsToTop*desiredPosition).withEnableFOC(true).withSlot(1));
     }
   }
