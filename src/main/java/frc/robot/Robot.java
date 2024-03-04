@@ -310,13 +310,13 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     if (driver.getRawButtonPressed(4)) { // Y Button
-      speedScaleFactor = 0.15;
+      speedScaleFactor = 1.0;
     }
     if (driver.getRawButtonPressed(2)) { // B button
       speedScaleFactor = 0.6;
     }
     if (driver.getRawButtonPressed(1)) { // A button
-      speedScaleFactor = 1.0;
+      speedScaleFactor = 0.15;
     }
 
     // Applies a deadband to controller inputs. Also limits the acceleration of controller inputs.
@@ -349,11 +349,9 @@ public class Robot extends TimedRobot {
     }
 
     arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
-    if (arm.getManualControl()) {
-      arm.setManualPower(operator.getRightTriggerAxis() - operator.getLeftTriggerAxis());
-    } else {
-      if (!climber.getLeftSensor() || !climber.getRightSensor()) { // One of the climbers is up.
-        currArmState = ArmState.INTAKE;
+    if (climber.getLockout()) { // Climber is not active.
+      if (arm.getManualControl()) {
+        arm.setManualPower(operator.getRightTriggerAxis() - operator.getLeftTriggerAxis());
       } else {
         if (operator.getRawButtonPressed(1)) { // A Bytton
           currArmState = ArmState.DRIVE;
@@ -370,84 +368,83 @@ public class Robot extends TimedRobot {
         if (operator.getRawButtonPressed(8)) { // Menu Button
           currArmState = ArmState.MANUAL_SHOOT;
         }
-      }
-      switch (currArmState) {
-        case INTAKE:
-          arm.updateSetpoint(armIntakeSetpoint);
-          thrower.setFlywheelVel(0.0);
-          lastIsAmpScoring = false;
-          break;
-
-        case DRIVE:
-          arm.updateSetpoint(armDriveSetpoint);
-          thrower.setFlywheelVel(0.0);
-          lastIsAmpScoring = false;
-          break;
-
-        case SHOOT:
-          arm.updateSetpoint(getAimArmAngle()); 
-          thrower.setFlywheelVel(120.0);
-          lastIsAmpScoring = false;
-          break;
-
-        case AMP:
-          if (thrower.isAmpScoring()) {
-            if (!lastIsAmpScoring) {
-              ampTimer.restart(); // This timer measures the time since the arm has begun the amp scoring process.
-            }
-            arm.updateSetpoint(armAmpSetpoint+armAmpRaiseRate*ampTimer.get()); // Raises the arm at 6 deg/sec.
-            lastIsAmpScoring = true;
-          } else {
-            lastIsAmpScoring = false;
-            arm.updateSetpoint(armAmpSetpoint);
+        switch (currArmState) {
+          case INTAKE:
+            arm.updateSetpoint(armIntakeSetpoint);
             thrower.setFlywheelVel(0.0);
-          }
-          break;
+            lastIsAmpScoring = false;
+            break;
 
-        case MANUAL_SHOOT:
-          arm.updateSetpoint(armManualSetpoint);
-          thrower.setFlywheelVel(120.0);
-          lastIsAmpScoring = false;
-          break;
+          case DRIVE:
+            arm.updateSetpoint(armDriveSetpoint);
+            thrower.setFlywheelVel(0.0);
+            lastIsAmpScoring = false;
+            break;
 
-        default:
-          break;
-      }
-    }
+          case SHOOT:
+            arm.updateSetpoint(getAimArmAngle()); 
+            thrower.setFlywheelVel(120.0);
+            lastIsAmpScoring = false;
+            break;
 
-    thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
-    if (thrower.getManualControl()) {
-      double flywheelPower = 0.0;
-      if (operator.getRawButton(5)) { // Left Bumper
-        flywheelPower = 1.0;
-      }
-      double indexPower = 0.0;
-      if (operator.getPOV() == 0) { // D-pad up
-        indexPower = 1.0;
-      }
-      if (operator.getPOV() == 180) { // D-pad down
-        indexPower = -1.0;
-      }
-      thrower.setManualSpeeds(flywheelPower, indexPower);
-    } else {
-      if (operator.getRawButton(6)) { // Right Bumper
-        if (arm.getManualControl()) {
-          thrower.commandThrow();
-        } else if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
-          thrower.commandThrow(); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
-        } else if (currArmState == ArmState.AMP && arm.atSetpoint()) {
-          thrower.commandAmpScore();
+          case AMP:
+            if (thrower.isAmpScoring()) {
+              if (!lastIsAmpScoring) {
+                ampTimer.restart(); // This timer measures the time since the arm has begun the amp scoring process.
+              }
+              arm.updateSetpoint(armAmpSetpoint+armAmpRaiseRate*ampTimer.get()); // Raises the arm at 6 deg/sec.
+              lastIsAmpScoring = true;
+            } else {
+              lastIsAmpScoring = false;
+              arm.updateSetpoint(armAmpSetpoint);
+              thrower.setFlywheelVel(0.0);
+            }
+            break;
+
+          case MANUAL_SHOOT:
+            arm.updateSetpoint(armManualSetpoint);
+            thrower.setFlywheelVel(120.0);
+            lastIsAmpScoring = false;
+            break;
+
+          default:
+            break;
         }
       }
     }
 
-    if (arm.getArmEncoder() < 5.0) {
-      climber.disableLockout();
-    } else {
-      climber.enableLockout();
-      if (!climber.getLeftSensor() || !climber.getRightSensor()) {
-      climber.setToBottom();
+    thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
+    if (climber.getLockout()) {
+      if (thrower.getManualControl()) {
+        double flywheelPower = 0.0;
+        if (operator.getRawButton(5)) { // Left Bumper
+          flywheelPower = 1.0;
+        }
+        double indexPower = 0.0;
+        if (operator.getPOV() == 0) { // D-pad up
+          indexPower = 1.0;
+        }
+        if (operator.getPOV() == 180) { // D-pad down
+          indexPower = -1.0;
+        }
+        thrower.setManualSpeeds(flywheelPower, indexPower);
+      } else {
+        if (operator.getRawButton(6)) { // Right Bumper
+          if (arm.getManualControl()) {
+            thrower.commandThrow();
+          } else if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
+            thrower.commandThrow(); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
+          } else if (currArmState == ArmState.AMP && arm.atSetpoint()) {
+            thrower.commandAmpScore();
+          }
+        }
       }
+    } else {
+      thrower.setFlywheelVel(0.0);
+    }
+
+    if (operator.getRawButtonPressed(7) && arm.getArmEncoder() < 10.0) { // Mode Button
+      climber.disableLockout();
     }
     climber.setManual(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
   }
@@ -540,6 +537,7 @@ public class Robot extends TimedRobot {
   private boolean armCalibrate = false;
   private boolean climberReboot = false;
   private boolean climberCalibrate = false;
+  private boolean climberLockoutToggle = false;
   public void createToggles() {
     SmartDashboard.putBoolean("FR Module Toggle", moduleToggleFR);
     SmartDashboard.putBoolean("FL Module Toggle", moduleToggleFL);
@@ -554,6 +552,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putBoolean("Arm Recalibrate", armCalibrate);
     SmartDashboard.putBoolean("Climber Reboot", climberReboot);
     SmartDashboard.putBoolean("Climber Recalibrate", climberCalibrate);
+    SmartDashboard.putBoolean("Climber Lockout Toggle", climberLockoutToggle);
   }
 
   // Reads toggles from dashboard and executes the corresponding code.
@@ -635,5 +634,11 @@ public class Robot extends TimedRobot {
       climber.calibrate();
     }
     climberCalibrate = currClimberCalibrate;
+
+    boolean currClimberLockoutToggle = SmartDashboard.getBoolean("Climber Lockout Toggle", false);
+    if (currClimberLockoutToggle ^ climberLockoutToggle) {
+      climber.enableLockout();
+    }
+    climberLockoutToggle = currClimberLockoutToggle;
   }
 }
