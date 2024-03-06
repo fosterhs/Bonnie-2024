@@ -56,6 +56,8 @@ public class Robot extends TimedRobot {
   private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
 
+  private double armDashControl = 75.0;
+
   public void robotInit() {
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
@@ -66,6 +68,7 @@ public class Robot extends TimedRobot {
 
     ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
     createToggles(); // Creates the infrastructure for using dashboard toggles.
+    SmartDashboard.putNumber("Arm Dash Control", armDashControl);
     armTimer.restart(); // Gets the arm timer started.
 
     swerve.loadPath("Rush Center", 0.0, 0.0, 0.0, 120.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
@@ -101,6 +104,7 @@ public class Robot extends TimedRobot {
     thrower.updateDashboard();
     SmartDashboard.putNumber("autoStage", autoStage);
     SmartDashboard.putNumber("ArmTimer", armTimer.get());
+    armDashControl = SmartDashboard.getNumber("Arm Dash Control", 75.0);
     arm.updateDashboard();
     climber.updateDashboard();
     thrower.updateDashboard();
@@ -136,25 +140,26 @@ public class Robot extends TimedRobot {
         // AutoInit 1 code goes here.
         swerve.resetDriveController(getAimHeading());
         arm.updateSetpoint(getAimArmAngle());
-        thrower.setFlywheelVel(120.0);
+        thrower.setDisableFlywheel(false);
         break;
 
       case auto2:
         // AutoInit 2 code goes here.
         swerve.resetDriveController(getAimHeading());
         arm.updateSetpoint(getAimArmAngle());
-        thrower.setFlywheelVel(120.0);
+        thrower.setDisableFlywheel(false);
         break;
 
       case auto3: 
         // AutoInit 3 code goes here.
         swerve.resetDriveController(getAimHeading());
         arm.updateSetpoint(getAimArmAngle());
-        thrower.setFlywheelVel(120.0);
+        thrower.setDisableFlywheel(false);
         break;
 
       case auto4:
-        // AutoInit 4 code goes here.
+        arm.updateSetpoint(armIntakeSetpoint);
+        thrower.setDisableFlywheel(true);
         break;
     }
   }
@@ -294,6 +299,9 @@ public class Robot extends TimedRobot {
 
       case auto4: 
         // Auto 4 code goes here.
+        swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
+        climber.disableLockout();
+        climber.setManual(-0.3, -0.3);
         break;
 
       default:
@@ -371,19 +379,19 @@ public class Robot extends TimedRobot {
         switch (currArmState) {
           case INTAKE:
             arm.updateSetpoint(armIntakeSetpoint);
-            thrower.setFlywheelVel(0.0);
+            thrower.setDisableFlywheel(true);
             lastIsAmpScoring = false;
             break;
 
           case DRIVE:
             arm.updateSetpoint(armDriveSetpoint);
-            thrower.setFlywheelVel(0.0);
+            thrower.setDisableFlywheel(true);
             lastIsAmpScoring = false;
             break;
 
           case SHOOT:
-            arm.updateSetpoint(11); 
-            thrower.setFlywheelVel(120.0);
+            arm.updateSetpoint(armDashControl); 
+            thrower.setDisableFlywheel(false);
             lastIsAmpScoring = false;
             break;
 
@@ -397,13 +405,13 @@ public class Robot extends TimedRobot {
             } else {
               lastIsAmpScoring = false;
               arm.updateSetpoint(armAmpSetpoint);
-              thrower.setFlywheelVel(0.0);
+              thrower.setDisableFlywheel(true);
             }
             break;
 
           case MANUAL_SHOOT:
             arm.updateSetpoint(armManualSetpoint);
-            thrower.setFlywheelVel(120.0);
+            thrower.setDisableFlywheel(false);
             lastIsAmpScoring = false;
             break;
 
@@ -440,7 +448,7 @@ public class Robot extends TimedRobot {
         }
       }
     } else {
-      thrower.setFlywheelVel(0.0);
+      thrower.setDisableFlywheel(false);
     }
 
     if (operator.getRawButtonPressed(7) && arm.getArmEncoder() < 10.0) { // Mode Button
