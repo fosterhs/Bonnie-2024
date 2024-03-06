@@ -10,6 +10,9 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.revrobotics.CANSparkFlex;
+import com.revrobotics.REVLibError;
+import com.revrobotics.CANSparkBase.ControlType;
+import com.revrobotics.CANSparkBase.IdleMode;
 import com.revrobotics.CANSparkLowLevel.MotorType;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Timer;
@@ -25,16 +28,18 @@ public class Thrower {
   private final DigitalInput sensor3 = new DigitalInput(5); // Sensor closest to the shooter. Notes will trigger this sensor third when intaked normally.
   private final double motorCurrentLimit = 40.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
-  private final double intakeVel = 20.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
-  private final double ampVel = 20.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
+  private final double intakeVel = 50.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
+  private final double ampVel = 50.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
   private final double backUpVel = 20.0; // The number of rotations per second that the motors will spin backwards when reversing a note in the BACK_UP state.
   private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
-  private final double spinUpDelay = 1.5; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
-  private final double throwDelay = 0.7; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
-  private final double ampDelay = 0.7; // The amount of time the thrower will keep backfeeding after the note is no longer detected. Ensures the note has exited before spinning down.
+  private final double spinUpDelay = 4.0; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
+  private final double throwDelay = 1.0; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
+  private final double ampDelay = 1.5; // The amount of time the thrower will keep backfeeding after the note is no longer detected. Ensures the note has exited before spinning down.
   private final Timer throwTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the AMP_SCORE state.
   private final Timer ampTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the THROW state.
   private final Timer spinUpTimer = new Timer(); // Keeps track of how long the thrower has been in the SPIN_UP state.
+  private double vortex1Vel = 4700.0; // The top one.
+  private double vortex2Vel = 4800.0; // The bottom one.
 
   // Keeps track of the different states of the thrower.
   private enum ThrowerState {
@@ -94,8 +99,8 @@ public class Thrower {
         }
         lastState = ThrowerState.THROW;
 
-        vortex1.set(1.0);
-        vortex2.set(1.0);
+        vortex1.getPIDController().setReference(vortex1Vel, ControlType.kSmartVelocity, 0);
+        vortex2.getPIDController().setReference(vortex2Vel, ControlType.kSmartVelocity, 0);
         indexMotor.setControl(new VelocityDutyCycle(flywheelVel).withSlot(0).withEnableFOC(true));
 
         if (getSensor1() || getSensor2() || getSensor3()) {
@@ -144,14 +149,14 @@ public class Thrower {
         lastState = ThrowerState.SPIN_UP;
 
         indexMotor.setControl(new MotionMagicDutyCycle(indexMotorGoalPos).withSlot(1).withEnableFOC(true));
-        vortex1.set(flywheelVel);
-        vortex2.set(flywheelVel);
+        vortex1.getPIDController().setReference(vortex1Vel, ControlType.kSmartVelocity, 0);
+        vortex2.getPIDController().setReference(vortex2Vel, ControlType.kSmartVelocity, 0);
 
         if (manualControl) {
           nextState = ThrowerState.MANUAL;
         } else if (!getSensor1() && !getSensor2() && !getSensor3()) {
           nextState = ThrowerState.INTAKE;
-        } else if (throwCommanded && (spinUpTimer.get() > spinUpDelay)) {
+        } else if (throwCommanded && (spinUpTimer.get() > spinUpDelay || isSpunUp())) {
           nextState = ThrowerState.THROW;
         } else if (ampScoreCommanded) {
           nextState = ThrowerState.AMP_SCORE;
@@ -184,6 +189,11 @@ public class Thrower {
         indexMotor.setControl(new VelocityDutyCycle(intakeVel).withSlot(0).withEnableFOC(true));
         vortex1.set(0.0);
         vortex2.set(0.0);
+        
+        // Prevents integer overflow issues.
+        if (indexMotor.getRotorPosition().getValueAsDouble() > 1000.0) {
+          indexMotor.setPosition(0.0);
+        }
 
         throwCommanded = false;
         ampScoreCommanded = false;
@@ -266,6 +276,10 @@ public class Thrower {
     return ampScoreCommanded;
   }
 
+  public boolean isSpunUp() {
+    return Math.abs(vortex1.getEncoder().getVelocity() - vortex1Vel) < 10.0 && Math.abs(vortex2.getEncoder().getVelocity() - vortex2Vel) < 10.0;
+  }
+
   // Returns true if sensor 1 on the thrower is triggered.
   public boolean getSensor3() {
     return !sensor3.get();
@@ -306,6 +320,30 @@ public class Thrower {
   public void reboot() {
     indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
     manualControl = getMotorFailure();
+    while (vortex1.restoreFactoryDefaults() != REVLibError.kOk);
+    while (vortex1.getPIDController().setP(0.00043, 0) != REVLibError.kOk);
+    while (vortex1.getPIDController().setI(0.000004, 0) != REVLibError.kOk);
+    while (vortex1.getPIDController().setD(0.0, 0) != REVLibError.kOk);
+    while (vortex1.getPIDController().setFF(0.000163, 0) != REVLibError.kOk);
+    while (vortex1.getPIDController().setSmartMotionMaxAccel(8000.0, 0) != REVLibError.kOk);
+    while (vortex1.getPIDController().setSmartMotionMaxVelocity(6600.0, 0) != REVLibError.kOk);
+    while (vortex1.getPIDController().setIMaxAccum(0.05, 0) != REVLibError.kOk);
+    while (vortex1.setIdleMode(IdleMode.kBrake) != REVLibError.kOk);
+    while (vortex1.setSmartCurrentLimit(40) != REVLibError.kOk);
+    while (vortex1.burnFlash() != REVLibError.kOk);
+    vortex1.setInverted(true);
+
+    while (vortex2.restoreFactoryDefaults() != REVLibError.kOk);
+    while (vortex2.getPIDController().setP(0.00043, 0) != REVLibError.kOk);
+    while (vortex2.getPIDController().setI(0.000004, 0) != REVLibError.kOk);
+    while (vortex2.getPIDController().setD(0.0, 0) != REVLibError.kOk);
+    while (vortex2.getPIDController().setFF(0.000163, 0) != REVLibError.kOk);
+    while (vortex2.getPIDController().setSmartMotionMaxAccel(8000.0, 0) != REVLibError.kOk);
+    while (vortex2.getPIDController().setSmartMotionMaxVelocity(6600.0, 0) != REVLibError.kOk);
+    while (vortex2.getPIDController().setIMaxAccum(0.05, 0) != REVLibError.kOk);
+    while (vortex2.setIdleMode(IdleMode.kBrake) != REVLibError.kOk);
+    while (vortex2.setSmartCurrentLimit(40) != REVLibError.kOk);
+    while (vortex2.burnFlash() != REVLibError.kOk);
     init();
   }
 
@@ -319,6 +357,10 @@ public class Thrower {
     SmartDashboard.putBoolean("Sensor 1", getSensor1());
     SmartDashboard.putBoolean("Sensor 2", getSensor2());
     SmartDashboard.putBoolean("Sensor 3", getSensor3());
+    SmartDashboard.putNumber("1 vel", vortex1.getEncoder().getVelocity());
+    SmartDashboard.putNumber("2 vel", vortex2.getEncoder().getVelocity());
+    SmartDashboard.putNumber("index goal", indexMotorGoalPos);
+    SmartDashboard.putNumber("index", indexMotor.getRotorPosition().getValueAsDouble());
   }
 
   // Sets PID constants, brake mode, and enforces a 20 A current limit. Returns true if the motor successfully configued.

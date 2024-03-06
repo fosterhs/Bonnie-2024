@@ -23,11 +23,11 @@ public class Arm {
   private boolean armMotorRFailure = false;
 
   private final DutyCycleEncoder armEncoder = new DutyCycleEncoder(0); // Keeps track of the angle of the arm.
-  private double armEncoderZero = 0.694; // The initial arm position reading of the encoder in rotations.
+  private double armEncoderZero = 0.518; // The initial arm position reading of the encoder in rotations.
   private double armSetpoint = 75.0; // The last requested setpoint of the arm in degrees. 0 degrees is horizontal and 90 degrees is vertical. 
   private final double armTol = 0.2; // The acceptable error in the angle of the arm in degrees.
   private final double gearRatio = 288.0; // 72:12 chain. 3:1, 4:1, and 4:1 stacked planetaries.
-  private final double lowLimit = -5.0; // The lower limit of the arm in degrees.
+  private final double lowLimit = -3.0; // The lower limit of the arm in degrees.
   private final double highLimit = 75.0; // The higher limit of the arm in degrees.
 
   private boolean manualControl = false; // Indicates whether the arm is under manual control. This can happen if there is a motor failure, or if the operator requests it via setManualControl().
@@ -89,7 +89,7 @@ public class Arm {
 
   // Returns the position of the arm in degrees.
   public double getArmEncoder() {
-    double encoderValue = armEncoderZero-armEncoder.getAbsolutePosition();
+    double encoderValue = armEncoderZero - armEncoder.getAbsolutePosition();
     return encoderValue*360.0; 
   }
 

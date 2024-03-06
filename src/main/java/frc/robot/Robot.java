@@ -51,7 +51,7 @@ public class Robot extends TimedRobot {
   ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
   private final double armDriveSetpoint = 75.0; // The arm's driving position in degrees.
   private final double armAmpSetpoint = 48.0; // The arm's inital amp scoring position in degrees.
-  private final double armIntakeSetpoint = -5.0; // The arm's intake position in degrees.
+  private final double armIntakeSetpoint = -3.0; // The arm's intake position in degrees.
   private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
   private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
@@ -382,7 +382,7 @@ public class Robot extends TimedRobot {
             break;
 
           case SHOOT:
-            arm.updateSetpoint(getAimArmAngle()); 
+            arm.updateSetpoint(11); 
             thrower.setFlywheelVel(120.0);
             lastIsAmpScoring = false;
             break;
