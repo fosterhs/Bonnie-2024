@@ -510,8 +510,7 @@ public class Robot extends TimedRobot {
     double presentDistance = -presentDistanceArray[2];
     SmartDashboard.putNumber("Distance to Tag", presentDistance);
     double ta = LimelightHelpers.getTA("");
-    double tid = LimelightHelpers.getFiducialID("");
-    if (!isSquare && ta > 1.5 && (((tid == 8 || tid == 7) && swerve.isBlueAlliance()) || ((tid == 4 || tid == 3) && swerve.isRedAlliance()))) {
+    if (!isSquare && ta > 1.5) {
       swerve.addVisionEstimate(0.04, 0.04);
     } else {
     }
