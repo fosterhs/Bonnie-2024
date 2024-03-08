@@ -40,9 +40,8 @@ public class Robot extends TimedRobot {
 
   private final CANdle candle0 = new CANdle(0, "rio"); // Initialzes the LEDs on the left.
   private final CANdle candle1 = new CANdle(1, "rio"); // Initialzes the LEDs on the right.
-  private boolean pastHasNote = false;
+  private boolean lightsOn = false;
   private int noteIterations = 0;
-  private boolean strobeOn = false;
   private int strobeIterations = 0;
 
   // Arm States (Teleop)
@@ -73,9 +72,10 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("Autos", autoChooser);
 
     ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
+    armTimer.restart(); // Gets the arm timer started.
+    
     createToggles(); // Creates the infrastructure for using dashboard toggles.
     SmartDashboard.putNumber("Arm Dash Control", armDashControl);
-    armTimer.restart(); // Gets the arm timer started.
 
     swerve.loadPath("Rush Center", 0.0, 0.0, 0.0, 120.0); // Loads the path. All paths should be loaded in robotInit() because this call is computationally expensive.
     swerve.loadPath("Return From Center", 0.0, 0.0, 0.0, 180.0);
@@ -106,43 +106,14 @@ public class Robot extends TimedRobot {
     updateVision(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    updateToggles(); // Checks the dashboard toggles and takes any actions based on them.
+    arm.updateDashboard();
     thrower.updateDashboard();
+    climber.updateDashboard();
+    updateToggles(); // Checks the dashboard toggles and takes any actions based on them.
     SmartDashboard.putNumber("autoStage", autoStage);
     SmartDashboard.putNumber("ArmTimer", armTimer.get());
     armDashControl = SmartDashboard.getNumber("Arm Dash Control", 75.0);
-    arm.updateDashboard();
-    climber.updateDashboard();
-    thrower.updateDashboard();
-    
-    // Sets the LEDs if a note is intaken.
-
-    boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3();
-    if (hasNote && !pastHasNote) {
-      noteIterations = 0;
-    }
-    if (hasNote) {
-      if (noteIterations % 4 == 0 && strobeIterations < 11) {
-        strobeOn = !strobeOn;
-        strobeIterations++;
-      }
-      noteIterations++;
-      if (strobeOn) {
-        candle0.setLEDs(0, 255, 0, 0, 0, 8);
-        candle1.setLEDs(0, 255, 0, 0, 0, 8);
-      } else {
-        candle0.setLEDs(0, 0, 0, 0, 0, 8);
-        candle1.setLEDs(0, 0, 0, 0, 0, 8);
-      }
-    } else {
-      noteIterations = 0;
-      strobeIterations = 0;
-      strobeOn = false;
-      candle0.setLEDs(255, 0, 255, 0, 0, 8);
-      candle1.setLEDs(255, 0, 255, 0, 0, 8);
-      
-    }
-    pastHasNote = hasNote;
+    controlLEDs();
 
     if (!arm.atSetpoint()) { // Resets the arm timer to 0 if the arm is not at the current setpoint.
       armTimer.restart();
@@ -503,6 +474,32 @@ public class Robot extends TimedRobot {
   
   public void disabledPeriodic() {
     swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+  }
+
+  // Sets the LEDs based on whether a note is detected.
+  public void controlLEDs() {
+    boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3();
+    if (hasNote) {
+      if (noteIterations % 4 == 0 && strobeIterations < 11) {
+        lightsOn = !lightsOn;
+        strobeIterations++;
+      }
+      noteIterations++;
+      if (lightsOn) {
+        candle0.setLEDs(0, 255, 0, 0, 0, 8);
+        candle1.setLEDs(0, 255, 0, 0, 0, 8);
+      } else {
+        candle0.setLEDs(0, 0, 0, 0, 0, 8);
+        candle1.setLEDs(0, 0, 0, 0, 0, 8);
+      }
+    } else {
+      noteIterations = 0;
+      strobeIterations = 0;
+      lightsOn = false;
+      candle0.setLEDs(255, 0, 255, 0, 0, 8);
+      candle1.setLEDs(255, 0, 255, 0, 0, 8);
+      
+    }
   }
 
   // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
