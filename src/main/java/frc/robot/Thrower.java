@@ -28,6 +28,8 @@ public class Thrower {
   private final DigitalInput sensor3 = new DigitalInput(5); // Sensor closest to the shooter. Notes will trigger this sensor third when intaked normally.
   private final double motorCurrentLimit = 40.0; // Index motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the thrower into a manual state.
+  private final int maxVortexFailures = 50;
+  private boolean vortexFailure = false;
   private final double intakeVel = 50.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
   private final double ampVel = 75.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
   private final double scoreVel = 120.0; // The number of rotations per second that the motors will spin forwards when loading a note into the flywheels
@@ -214,14 +216,15 @@ public class Thrower {
         break;
 
       case MANUAL:
-        if (lastState != ThrowerState.INTAKE) {
+        if (lastState != ThrowerState.MANUAL) {
           indexPowerManual = 0.0;
           flywheelPowerManual = 0.0;
         }
         lastState = ThrowerState.MANUAL;
-
-        vortex1.set(flywheelPowerManual);
-        vortex2.set(flywheelPowerManual);
+        if (!vortexFailure) {
+          vortex1.set(flywheelPowerManual);
+          vortex2.set(flywheelPowerManual);
+        }
         if (!indexMotorFailure) {
           indexMotor.setControl(new DutyCycleOut(indexPowerManual).withEnableFOC(true));
         }
@@ -334,6 +337,7 @@ public class Thrower {
   public void reboot() {
     indexMotorFailure = !configIndexMotor(indexMotor, indexMotorFailure);
     manualControl = getMotorFailure();
+    vortexFailure = false;
     configVortex();
     init();
   }
@@ -349,81 +353,167 @@ public class Thrower {
     SmartDashboard.putBoolean("Sensor 3", getSensor3());
     SmartDashboard.putNumber("Vortex 1 Vel", vortex1.getEncoder().getVelocity());
     SmartDashboard.putNumber("Vortex 2 Vel", vortex2.getEncoder().getVelocity());
-    SmartDashboard.putNumber("index goal", indexMotorGoalPos);
-    SmartDashboard.putNumber("index", indexMotor.getRotorPosition().getValueAsDouble());
+    SmartDashboard.putBoolean("Vortex Failure", vortexFailure);
   }
 
   private void configVortex() {
     int motorErrors = 0;
     while (vortex1.restoreFactoryDefaults() != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setP(0.00043, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setI(0.000004, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setD(0.0, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setFF(0.000163, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setSmartMotionMaxAccel(8000.0, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setSmartMotionMaxVelocity(6600.0, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.getPIDController().setIMaxAccum(0.05, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.setIdleMode(IdleMode.kBrake) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.setSmartCurrentLimit(80) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex1.burnFlash() != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     vortex1.setInverted(true);
 
     while (vortex2.restoreFactoryDefaults() != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setP(0.00043, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setI(0.000004, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setD(0.0, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setFF(0.000163, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setSmartMotionMaxAccel(8000.0, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setSmartMotionMaxVelocity(6600.0, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.getPIDController().setIMaxAccum(0.05, 0) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.setIdleMode(IdleMode.kBrake) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.setSmartCurrentLimit(80) != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
     while (vortex2.burnFlash() != REVLibError.kOk) {
       motorErrors++;
+      if (motorErrors > maxVortexFailures) {
+        vortexFailure = true;
+        break;
+      }
     }
-    SmartDashboard.putNumber("Vortex Errors", motorErrors);
   }
 
   // Sets PID constants, brake mode, and enforces a 20 A current limit. Returns true if the motor successfully configued.

@@ -109,8 +109,6 @@ public class Robot extends TimedRobot {
     updateToggles(); // Checks the dashboard toggles and takes any actions based on them.
     thrower.updateDashboard();
     SmartDashboard.putNumber("autoStage", autoStage);
-    double distToSpeaker = Math.sqrt(Math.pow(5.548-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
-    SmartDashboard.putNumber("Distance to Speaker", distToSpeaker);
     SmartDashboard.putNumber("ArmTimer", armTimer.get());
     armDashControl = SmartDashboard.getNumber("Arm Dash Control", 75.0);
     arm.updateDashboard();
@@ -401,7 +399,7 @@ public class Robot extends TimedRobot {
     arm.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the arm.
     if (climber.getLockout()) { // Climber is not active.
       if (arm.getManualControl()) {
-        arm.setManualPower(operator.getRightTriggerAxis() - operator.getLeftTriggerAxis());
+        arm.setManualPower(operator.getRightTriggerAxis()*0.25 - operator.getLeftTriggerAxis()*0.25);
       } else {
         if (operator.getRawButtonPressed(1)) { // A Bytton
           currArmState = ArmState.DRIVE;
@@ -669,7 +667,7 @@ public class Robot extends TimedRobot {
     }
     armReboot = currArmReboot;
 
-    boolean currArmCalibrate = SmartDashboard.getBoolean("Arm Calibrate", false);
+    boolean currArmCalibrate = SmartDashboard.getBoolean("Arm Recalibrate", false);
     if (currArmCalibrate ^ armCalibrate) {
       arm.calibrate();
     }
@@ -681,7 +679,7 @@ public class Robot extends TimedRobot {
     }
     climberReboot = currClimberReboot;
 
-    boolean currClimberCalibrate = SmartDashboard.getBoolean("Climber Calibrate", false);
+    boolean currClimberCalibrate = SmartDashboard.getBoolean("Climber Recalibrate", false);
     if (currClimberCalibrate ^ climberCalibrate) {
       climber.calibrate();
     }
