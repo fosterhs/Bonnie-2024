@@ -43,16 +43,16 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module object.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -175.0); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 94.5);
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 146.6);
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -172.6);
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -175.0, "left"); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 94.5, "right");
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 146.6, "right");
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -172.6, "left");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.
 
   // Gyroscope Variables
-  private final Pigeon2 pigeon = new Pigeon2(0); // Pigeon 2.0 CAN Gyroscope
+  private final Pigeon2 pigeon = new Pigeon2(0, "right"); // Pigeon 2.0 CAN Gyroscope
   private boolean gyroFailure = false; // Indicates whether the gyro has lost connection at any point after a yaw-reset.
   private boolean gyroDisabled = false; // Indicates whether the gyro was disabled on startup, or by the driver by calling toggleGyro()
 

@@ -30,6 +30,7 @@ class SwerveModule {
   private double driveMotorInitialPos = 0.0; // The drive motor position on start up in falcon rotations.
   private double wheelInitialPos = 0.0; // The wheel encoder position on start up in degrees.
   private double angleSetpoint = 0.0; // The last calculated turn setpoint of the swerve wheel in degrees. Not bounded within 180/-180.
+  private final String canbus;
 
   // Motor error code tracking variables.
   private final int maxMotorErrors = 3; // The most times a configuration command can be unsuccesfully sent to a motor before a failure is declared and the motor is disabled. 
@@ -38,12 +39,13 @@ class SwerveModule {
   private boolean moduleFailure = false; // Whether either the drive motor or the turn motor has failed to configure correctly.
   private boolean moduleDisabled = false; // Whether the module has been disabled by the driver.
 
-  public SwerveModule(int turnID, int driveID, int encoderID, boolean _invertDrive, double _wheelEncoderZero) {
+  public SwerveModule(int turnID, int driveID, int encoderID, boolean _invertDrive, double _wheelEncoderZero, String _canbus) {
+    canbus = _canbus;
     wheelEncoderZero = _wheelEncoderZero;
     invertDrive = _invertDrive;
     wheelEncoder = new AnalogEncoder(encoderID);
-    driveMotor = new TalonFX(driveID);
-    turnMotor = new TalonFX(turnID);
+    driveMotor = new TalonFX(driveID, canbus);
+    turnMotor = new TalonFX(turnID, canbus);
     configDriveMotor();
     configTurnMotor();
     moduleDisabled = driveMotorFailure && turnMotorFailure;

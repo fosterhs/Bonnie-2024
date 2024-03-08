@@ -31,14 +31,19 @@ public class Robot extends TimedRobot {
   private static final String auto1 = "Auto 1";
   private static final String auto2 = "Auto 2";
   private static final String auto3 = "Auto 3"; 
-  private static final String auto4 = "Auto 4"; 
+  private static final String auto4 = "Auto 4";
+  private static final String auto5 = "Auto 5"; 
   private String autoSelected;
   private int autoStage = 1;
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
   private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
 
-  private final CANdle candle0 = new CANdle(0); // Initialzes the LEDs on the left.
-  private final CANdle candle1 = new CANdle(1); // Initialzes the LEDs on the right.
+  private final CANdle candle0 = new CANdle(0, "rio"); // Initialzes the LEDs on the left.
+  private final CANdle candle1 = new CANdle(1, "rio"); // Initialzes the LEDs on the right.
+  private boolean pastHasNote = false;
+  private int noteIterations = 0;
+  private boolean strobeOn = false;
+  private int strobeIterations = 0;
 
   // Arm States (Teleop)
   private enum ArmState {
@@ -64,6 +69,7 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto2, auto2);
     autoChooser.addOption(auto3, auto3);
     autoChooser.addOption(auto4, auto4);
+    autoChooser.addOption(auto5, auto5);
     SmartDashboard.putData("Autos", autoChooser);
 
     ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
@@ -103,20 +109,42 @@ public class Robot extends TimedRobot {
     updateToggles(); // Checks the dashboard toggles and takes any actions based on them.
     thrower.updateDashboard();
     SmartDashboard.putNumber("autoStage", autoStage);
+    double distToSpeaker = Math.sqrt(Math.pow(5.548-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
+    SmartDashboard.putNumber("Distance to Speaker", distToSpeaker);
     SmartDashboard.putNumber("ArmTimer", armTimer.get());
     armDashControl = SmartDashboard.getNumber("Arm Dash Control", 75.0);
     arm.updateDashboard();
     climber.updateDashboard();
     thrower.updateDashboard();
-    // Sets the LEDs on if the arm is at the setpoint.
-    if (arm.atSetpoint()) {
-      candle0.setLEDs(0, 255, 0, 0, 0, 8);
-      candle1.setLEDs(0, 255, 0, 0, 0, 8);
+    
+    // Sets the LEDs if a note is intaken.
+
+    boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3();
+    if (hasNote && !pastHasNote) {
+      noteIterations = 0;
+    }
+    if (hasNote) {
+      if (noteIterations % 4 == 0 && strobeIterations < 11) {
+        strobeOn = !strobeOn;
+        strobeIterations++;
+      }
+      noteIterations++;
+      if (strobeOn) {
+        candle0.setLEDs(0, 255, 0, 0, 0, 8);
+        candle1.setLEDs(0, 255, 0, 0, 0, 8);
+      } else {
+        candle0.setLEDs(0, 0, 0, 0, 0, 8);
+        candle1.setLEDs(0, 0, 0, 0, 0, 8);
+      }
     } else {
+      noteIterations = 0;
+      strobeIterations = 0;
+      strobeOn = false;
       candle0.setLEDs(255, 0, 255, 0, 0, 8);
       candle1.setLEDs(255, 0, 255, 0, 0, 8);
       
     }
+    pastHasNote = hasNote;
 
     if (!arm.atSetpoint()) { // Resets the arm timer to 0 if the arm is not at the current setpoint.
       armTimer.restart();
@@ -133,6 +161,7 @@ public class Robot extends TimedRobot {
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     armTimer.restart();
     climber.init();
+    arm.init();
     autoStage = swerve.isCalibrated() && !arm.getMotorFailure() && !thrower.getMotorFailure() && !swerve.getModuleFailure() && !swerve.getGyroFailure() ? 1 : -1; // Goes to default case if April Tags were not visible. 
     autoSelected = autoChooser.getSelected();
     switch (autoSelected) {
@@ -158,8 +187,13 @@ public class Robot extends TimedRobot {
         break;
 
       case auto4:
+        // AutoInit 4 code goes here.
         arm.updateSetpoint(armIntakeSetpoint);
         thrower.setDisableFlywheel(true);
+        break;
+
+      case auto5:
+        // AutoInit 5 code goes here.
         break;
     }
   }
@@ -302,7 +336,14 @@ public class Robot extends TimedRobot {
         swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
         climber.disableLockout();
         climber.setManual(-0.3, -0.3);
+        if (climber.getLeftSensor() && climber.getRightSensor()) {
+          arm.updateSetpoint(armDriveSetpoint);
+        }
         break;
+
+      case auto5:
+      // Auto 5 code goes here.
+      break;
 
       default:
         swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
@@ -314,6 +355,7 @@ public class Robot extends TimedRobot {
     swerve.pushCalibration(); // Updates the robot's position on the field.
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
+    arm.init();
   }
 
   public void teleopPeriodic() {
@@ -390,7 +432,7 @@ public class Robot extends TimedRobot {
             break;
 
           case SHOOT:
-            arm.updateSetpoint(armDashControl); 
+            arm.updateSetpoint(getAimArmAngle()); 
             thrower.setDisableFlywheel(false);
             lastIsAmpScoring = false;
             break;
@@ -476,6 +518,7 @@ public class Robot extends TimedRobot {
     double tid = LimelightHelpers.getFiducialID("");
     if (!isSquare && ta > 1.5 && (((tid == 8 || tid == 7) && swerve.isBlueAlliance()) || ((tid == 4 || tid == 3) && swerve.isRedAlliance()))) {
       swerve.addVisionEstimate(0.04, 0.04);
+    } else {
     }
   }
   
@@ -503,11 +546,12 @@ public class Robot extends TimedRobot {
   }
 
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
-  private double[] distCalArray = {1.0, 2.0, 3.0}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
-  private double[] armCalArray = {8.0, 21.0, 30.0}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
+  private double[] distCalArray = {1.58, 2.25, 2.75}; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
+  private double[] armCalArray = {-3.00, 5.80, 14.50}; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
   public double getAimArmAngle() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance. 
     double distToSpeaker = Math.sqrt(Math.pow(speakerY-swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
+    SmartDashboard.putNumber("Distance to Speaker", distToSpeaker);
     if (distToSpeaker >= distCalArray[distCalArray.length - 1]) { // If the distance to the speaker is larger than the largest calibration distance.
       return armCalArray[armCalArray.length - 1]; // Return the arm angle that corresponds to the largest calibration distance in the array.
     } else if (distToSpeaker <= distCalArray[0]) { // If the distance to the speaker is smaller than the smallest calibration distance.
