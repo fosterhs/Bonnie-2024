@@ -3,6 +3,7 @@ package frc.robot;
 import com.ctre.phoenix.led.CANdle;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
@@ -44,6 +45,10 @@ public class Robot extends TimedRobot {
   private int noteIterations = 0;
   private int strobeIterations = 0;
 
+  private Timer rumbleTimer = new Timer(); // Duration of rumble intake cue
+  private Timer noteFiredTimer = new Timer(); // Tracks time elapsed since note fired
+  private boolean hadNote = false; // Tracks if the robot previously had a note
+
   // Arm States (Teleop)
   private enum ArmState {
     DRIVE,
@@ -55,7 +60,7 @@ public class Robot extends TimedRobot {
   ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value intialized here when teleop is first entered.
   private final double armDriveSetpoint = 75.0; // The arm's driving position in degrees.
   private final double armAmpSetpoint = 48.0; // The arm's inital amp scoring position in degrees.
-  private final double armIntakeSetpoint = -3.0; // The arm's intake position in degrees.
+  private final double armIntakeSetpoint = -4.5; // The arm's intake position in degrees.
   private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
   private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint 
@@ -163,6 +168,7 @@ public class Robot extends TimedRobot {
 
       case auto5:
         // AutoInit 5 code goes here.
+        swerve.resetDriveController(getAimHeading());
         break;
     }
   }
@@ -312,11 +318,33 @@ public class Robot extends TimedRobot {
 
       case auto5:
       // Auto 5 code goes here.
-      break;
+      switch (autoStage) {
+        case 1:
+        swerve.driveTo(2.0, (swerve.isBlueAlliance() ? 7.5 : 0.5), (swerve.isBlueAlliance() ? -90.0 : 90.0));
+        arm.updateSetpoint(armAmpSetpoint);
 
-      default:
-        swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
+        if (swerve.atDriveGoal() && arm.atSetpoint()) {
+          thrower.commandAmpScore();
+          if (!thrower.isAmpScoring() && !thrower.getSensor1() && !thrower.getSensor2() && !thrower.getSensor3()) {
+            swerve.resetDriveController(0.0);
+            autoStage = 2;
+          }
+        }
         break;
+
+        case 2:
+        swerve.driveTo(3.5, (swerve.isBlueAlliance() ? 7.5 : 0.5), 0.0);
+        if (swerve.atDriveGoal()) {
+          swerve.resetDriveController(0.0);
+          autoStage = -1;
+        }
+
+        default:
+        swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+          break;
+        }
+      default:
+      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
     }
   }
 
@@ -325,6 +353,8 @@ public class Robot extends TimedRobot {
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
     arm.init();
+    rumbleTimer.restart(); // TODO Check if this is right
+    noteFiredTimer.restart();
   }
 
   public void teleopPeriodic() {
@@ -387,6 +417,7 @@ public class Robot extends TimedRobot {
         if (operator.getRawButtonPressed(8)) { // Menu Button
           currArmState = ArmState.MANUAL_SHOOT;
         }
+        
         switch (currArmState) {
           case INTAKE:
             arm.updateSetpoint(armIntakeSetpoint);
@@ -431,6 +462,18 @@ public class Robot extends TimedRobot {
         }
       }
     }
+
+    boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3(); // Rumble cue when the robot intakes a note
+    if ((hasNote && !hadNote) || (!hasNote && hadNote)) { // Note Pickup Rumble Cue
+      rumbleTimer.restart();
+      driver.setRumble(RumbleType.kBothRumble, 0.2);
+      operator.setRumble(RumbleType.kBothRumble, 0.2);  
+    }
+    if (rumbleTimer.get() > 0.4) {
+      driver.setRumble(RumbleType.kBothRumble, 0.0);
+      operator.setRumble(RumbleType.kBothRumble, 0.0);
+    } 
+    hadNote = hasNote;
 
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (climber.getLockout()) {
@@ -479,7 +522,18 @@ public class Robot extends TimedRobot {
   // Sets the LEDs based on whether a note is detected.
   public void controlLEDs() {
     boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3();
-    if (hasNote) {
+    boolean armFailure = arm.getMotorFailure() || !arm.isCalibrated();
+    boolean climberFaliure = climber.getMotorFailure() || !arm.isCalibrated();
+    boolean swerveFailure = swerve.getGyroFailure() || swerve.getGyroDisabled() || swerve.getModuleFailure() || swerve.getModuleDisabled() || swerve.getVisionDisconnected() || swerve.getVisionDisabled() || !swerve.isCalibrated();
+
+    if (armFailure || climberFaliure || swerveFailure || thrower.getMotorFailure()) {
+      noteIterations = 0;
+      strobeIterations = 0;
+      lightsOn = false;
+
+      candle0.setLEDs(255, 0, 0, 0, 0, 8);
+      candle1.setLEDs(255, 0, 0, 0, 0, 8);
+    } else if (hasNote) {
       if (noteIterations % 4 == 0 && strobeIterations < 11) {
         lightsOn = !lightsOn;
         strobeIterations++;
@@ -496,9 +550,9 @@ public class Robot extends TimedRobot {
       noteIterations = 0;
       strobeIterations = 0;
       lightsOn = false;
+
       candle0.setLEDs(255, 0, 255, 0, 0, 8);
       candle1.setLEDs(255, 0, 255, 0, 0, 8);
-      
     }
   }
 

@@ -126,7 +126,7 @@ class Drivetrain {
     atDriveGoal = false;
   }
 
-  // Should be called periodically to rotate the robot to the demanded angle in degrees while translating the robot st the specified speed in meter per second.
+  // Should be called periodically to rotate the robot to the demanded angle in degrees while translating the robot at the specified speed in meter per second.
   public void aimDrive(double _xVel, double _yVel, double targetAngle, boolean fieldRelative) {
     if (!gyroFailure && !gyroDisabled && !moduleFailure && !moduleDisabled && isCalibrated) {
       double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
@@ -384,6 +384,7 @@ class Drivetrain {
   public double getGyroAng() {
     StatusSignal<Double> pigeonStatus = pigeon.getYaw();
     if (pigeonStatus.getStatus() == StatusCode.OK) {
+      gyroFailure = false;
       return pigeonStatus.getValueAsDouble();
     } else {
       gyroFailure = true;
@@ -571,13 +572,13 @@ class Drivetrain {
     SmartDashboard.putNumber("Gyro Angle", getGyroAng());
     SmartDashboard.putNumberArray("Demanded Velocity", new double[] {xVel, yVel, angVel});
     SmartDashboard.putNumberArray("Path Position", new double[] {pathXPos, pathYPos, pathAngPos});
-    SmartDashboard.putBoolean("visionDisabled", visionDisabled);
-    SmartDashboard.putBoolean("visionDisconnected", getVisionDisconnected());
+    SmartDashboard.putBoolean("visionDisabled", !visionDisabled);
+    SmartDashboard.putBoolean("visionDisconnected", !getVisionDisconnected());
     SmartDashboard.putBoolean("isCalibrated", isCalibrated);
-    SmartDashboard.putBoolean("gyroFailure", gyroFailure);
-    SmartDashboard.putBoolean("gyroDisabled", gyroDisabled);
-    SmartDashboard.putBoolean("moduleFailure", moduleFailure);
-    SmartDashboard.putBoolean("moduleDisabled", moduleDisabled);
+    SmartDashboard.putBoolean("gyroFailure", !gyroFailure);
+    SmartDashboard.putBoolean("gyroDisabled", !gyroDisabled);
+    SmartDashboard.putBoolean("moduleFailure", !moduleFailure);
+    SmartDashboard.putBoolean("moduleDisabled", !moduleDisabled);
     SmartDashboard.putNumber("Path Position Error", getPathPosError());
     SmartDashboard.putNumber("Path Angle Error", getPathAngleError());
     SmartDashboard.putBoolean("Path atEndpoint", atPathEndpoint(0));

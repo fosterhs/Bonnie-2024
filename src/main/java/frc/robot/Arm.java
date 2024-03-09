@@ -27,7 +27,7 @@ public class Arm {
   private double armSetpoint = 75.0; // The last requested setpoint of the arm in degrees. 0 degrees is horizontal and 90 degrees is vertical. 
   private final double armTol = 0.2; // The acceptable error in the angle of the arm in degrees.
   private final double gearRatio = 288.0; // 72:12 chain. 3:1, 4:1, and 4:1 stacked planetaries.
-  private final double lowLimit = -3.0; // The lower limit of the arm in degrees.
+  private final double lowLimit = -4.5; // The lower limit of the arm in degrees.
   private final double highLimit = 75.0; // The higher limit of the arm in degrees.
 
   private boolean manualControl = false; // Indicates whether the arm is under manual control. This can happen if there is a motor failure, or if the operator requests it via setManualControl().
@@ -52,7 +52,7 @@ public class Arm {
       atSetpoint = false;
       if (!getMotorFailure()) {
         armMotorL.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
-        armMotorR.setControl(new Follower(12, true));
+        armMotorR.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
       } else if (!armMotorLFailure) {
         armMotorL.setControl(new DutyCycleOut(manualPower).withEnableFOC(true));
       } else if (!armMotorRFailure) {
@@ -146,8 +146,8 @@ public class Arm {
 
   // Sends information to the dashboard each period. This is handled automatically by the class.
   public void updateDashboard() {
-    SmartDashboard.putBoolean("manualArmControl", manualControl);
-    SmartDashboard.putBoolean("armFailure", getMotorFailure());
+    SmartDashboard.putBoolean("manualArmControl", !manualControl);
+    SmartDashboard.putBoolean("armFailure", !getMotorFailure());
     SmartDashboard.putBoolean("atArmSetpoint", atSetpoint());
     SmartDashboard.putNumber("armSetpoint", armSetpoint);
     SmartDashboard.putNumber("armAngle", getArmEncoder());

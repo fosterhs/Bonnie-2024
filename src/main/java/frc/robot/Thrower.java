@@ -314,7 +314,7 @@ public class Thrower {
 
   // Returns true if either the thrower motors or the index motor failed to configure on start up.
   public boolean getMotorFailure() {
-    return indexMotorFailure;
+    return indexMotorFailure || vortexFailure;
   }
 
   // Toggles whether the thrower is under manual control.
@@ -344,8 +344,8 @@ public class Thrower {
 
   // Sends information about the thrower to the dashboard each period. This is handled automatically by the thrower class.
   public void updateDashboard() {
-    SmartDashboard.putBoolean("manualThrowerControl", manualControl);
-    SmartDashboard.putBoolean("throwerFailure", getMotorFailure());
+    SmartDashboard.putBoolean("manualThrowerControl", !manualControl);
+    SmartDashboard.putBoolean("throwerFailure", !getMotorFailure());
     SmartDashboard.putBoolean("throwCommanded", throwCommanded);
     SmartDashboard.putBoolean("ampScoreCommanded", ampScoreCommanded);
     SmartDashboard.putBoolean("Sensor 1", getSensor1());
@@ -353,7 +353,7 @@ public class Thrower {
     SmartDashboard.putBoolean("Sensor 3", getSensor3());
     SmartDashboard.putNumber("Vortex 1 Vel", vortex1.getEncoder().getVelocity());
     SmartDashboard.putNumber("Vortex 2 Vel", vortex2.getEncoder().getVelocity());
-    SmartDashboard.putBoolean("Vortex Failure", vortexFailure);
+    SmartDashboard.putBoolean("Vortex Failure", !vortexFailure);
   }
 
   private void configVortex() {
