@@ -205,6 +205,7 @@ public class Robot extends TimedRobot {
 
           default: 
             swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0); // Stops the robot after auto is completed.
+            arm.updateSetpoint(armDriveSetpoint);
             break;
         }
         break;
@@ -262,6 +263,7 @@ public class Robot extends TimedRobot {
 
           default: 
             swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
+            arm.updateSetpoint(armDriveSetpoint);
             break;
         }
         break;
@@ -311,6 +313,7 @@ public class Robot extends TimedRobot {
 
           default:
             swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
+            arm.updateSetpoint(armDriveSetpoint);
             break;
         }
         break;
@@ -344,6 +347,7 @@ public class Robot extends TimedRobot {
           
           case 2:
             swerve.driveTo(3.5, (swerve.isBlueAlliance() ? 7.5 : 0.5), 0.0);
+            arm.updateSetpoint(armDriveSetpoint);
             if (swerve.atDriveGoal()) {
               swerve.resetDriveController(0.0);
               autoStage = -1;
@@ -352,16 +356,21 @@ public class Robot extends TimedRobot {
 
           default:
             swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+            arm.updateSetpoint(armDriveSetpoint);
             break;
           }
           
-      case auto6: // Has 5 indents when it should have 4
+      case auto6:
         // Auto 6 code goes here.
         switch (autoStage) {
           case 1:
             arm.updateSetpoint(getAimArmAngle());
             thrower.setDisableFlywheel(false);
-            swerve.aimDrive(0.8, 0.0, getAimHeading(), true);
+            if (swerve.getXPos() > 2.0) {
+              swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
+            } else {
+              swerve.aimDrive(0.8, 0.0, getAimHeading(), true);
+            }
 
             if (swerve.getXPos() > 2.0 && swerve.atDriveGoal() && arm.atSetpoint() && aimShotAvailable()) {
               thrower.commandThrow();
@@ -379,6 +388,7 @@ public class Robot extends TimedRobot {
 
       default:
       swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+      arm.updateSetpoint(armDriveSetpoint);
       break;
     }
   }
@@ -626,6 +636,15 @@ public class Robot extends TimedRobot {
     } else {
         return Math.atan(swerve.getXPos()/(speakerY-swerve.getYPos()))*180.0/Math.PI - 90.0; // The robot has a negative heading. 
     }
+  }
+
+  // getAimNoteHeading() (WIP)
+  // Switch to Limelight neural network
+  // Calculate robot heading
+  // Rotate
+  // Switch out of Limelight neural network
+  public double getAimNoteHeading() { // Rotates towards note
+    return 0.0;
   }
 
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
