@@ -426,7 +426,7 @@ public class Robot extends TimedRobot {
     }
     if (driver.getRawButton(6)) { // Right Bumper
       swerve.aimDrive(xVel, yVel, getAimHeading(), true); // Rotate to speaker.
-    } else if (driver.getRawButton(6)) { // Left Bumper
+    } else if (driver.getRawButton(5)) { // Left Bumper
       swerve.aimDrive(xVel, yVel, swerve.isBlueAlliance() ? -90.0 : 90.0, true); // Rotate to amp.
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
