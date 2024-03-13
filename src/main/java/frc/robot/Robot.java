@@ -421,12 +421,13 @@ public class Robot extends TimedRobot {
     // Auto Rotate to Aim Heading
     if (driver.getRawButtonPressed(6)) { // Right Bumper
       swerve.resetDriveController(getAimHeading());
+    } else if (driver.getRightTriggerAxis() > 0.25) { // Right Trigger
+      swerve.resetDriveController(swerve.isBlueAlliance() ? -90.0 : 90.0); // Rotate to amp.
     }
     if (driver.getRawButton(6)) { // Right Bumper
       swerve.aimDrive(xVel, yVel, getAimHeading(), true); // Rotate to speaker.
     } else if (driver.getRightTriggerAxis() > 0.25) { // Right Trigger
-      double ampHeading = swerve.isBlueAlliance() ? -90.0 : 90.0;
-      swerve.aimDrive(xVel, yVel, ampHeading, true); // Rotate to amp.
+      swerve.aimDrive(xVel, yVel, swerve.isBlueAlliance() ? -90.0 : 90.0, true); // Rotate to amp.
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
