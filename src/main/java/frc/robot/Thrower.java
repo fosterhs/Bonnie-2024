@@ -35,8 +35,8 @@ public class Thrower {
   private final double scoreVel = 120.0; // The number of rotations per second that the motors will spin forwards when loading a note into the flywheels
   private final double backUpVel = 20.0; // The number of rotations per second that the motors will spin backwards when reversing a note in the BACK_UP state.
   private final double allowableFlywheelVelError = 2.0; // The number of rotations per second of error in the flywheel velocity that is acceptable before a note begins to be launched.
-  private final double spinUpDelay = 4.0; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
-  private final double throwDelay = 1.0; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
+  private final double spinUpDelay = 1.2; // The amount of time in seconds that the thrower motor is allowed to stay at 100% power without attaining the commanded flywheel velocity before the note is thrown. This value should correspond to the amount of time the thrower motor takes to spin up to full speed.
+  private final double throwDelay = 0.25; // The amount of time the flywheel will keep spinning after the note is no longer detected. Ensures the note has exited the flywheel before spinning down.
   private final double ampDelay = 1.5; // The amount of time the thrower will keep backfeeding after the note is no longer detected. Ensures the note has exited before spinning down.
   private final Timer throwTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the AMP_SCORE state.
   private final Timer ampTimer = new Timer(); // Keeps track of how long it has been since the note was last detected in the THROW state.

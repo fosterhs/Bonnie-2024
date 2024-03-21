@@ -22,10 +22,12 @@ public class Arm {
   private boolean armMotorLFailure = false; 
   private boolean armMotorRFailure = false;
 
-  private final DutyCycleEncoder armEncoder = new DutyCycleEncoder(0); // Keeps track of the angle of the arm.
-  private double armEncoderZero = 0.518; // The initial arm position reading of the encoder in rotations.
+  private final DutyCycleEncoder armEncoderLeft = new DutyCycleEncoder(0); // Keeps track of the angle of the arm.
+  private final DutyCycleEncoder armEncoderRight = new DutyCycleEncoder(9);
+  private double armEncoderLeftZero = 0.696; // The initial arm position reading of the encoder in rotations.
+  private double armEncoderRightZero = 0.659;
   private double armSetpoint = 75.0; // The last requested setpoint of the arm in degrees. 0 degrees is horizontal and 90 degrees is vertical. 
-  private final double armTol = 0.2; // The acceptable error in the angle of the arm in degrees.
+  private final double armTol = 1.0; // The acceptable error in the angle of the arm in degrees.
   private final double gearRatio = 288.0; // 72:12 chain. 3:1, 4:1, and 4:1 stacked planetaries.
   private final double lowLimit = -6.0; // The lower limit of the arm in degrees.
   private final double highLimit = 75.0; // The higher limit of the arm in degrees.
@@ -92,9 +94,19 @@ public class Arm {
   }
 
   // Returns the position of the arm in degrees.
-  public double getArmEncoder() {
-    double encoderValue = armEncoderZero - armEncoder.getAbsolutePosition();
+  public double getArmEncoderLeft() {
+    double encoderValue = armEncoderLeftZero - armEncoderLeft.getAbsolutePosition();
     return encoderValue*360.0; 
+  }
+
+    public double getArmEncoderRight() {
+    double encoderValue = armEncoderRightZero - armEncoderRight.getAbsolutePosition();
+    return encoderValue*360.0; 
+  }
+
+  public double getArmEncoders() {
+    double encoderValue = (getArmEncoderLeft() + getArmEncoderRight()) / 2.0;
+    return encoderValue;
   }
 
   public void setManualPower(double _manualPower) {
@@ -128,11 +140,11 @@ public class Arm {
   public void calibrate() {
    if (!getMotorFailure()) {
       armMotorInitialPos = armMotorL.getRotorPosition().getValueAsDouble();
-      armEncoderInitialPos = getArmEncoder();
+      armEncoderInitialPos = getArmEncoderLeft();
       isCalibrated = true;
     } else if (!armMotorRFailure) {
       armMotorInitialPos = armMotorR.getRotorPosition().getValueAsDouble();
-      armEncoderInitialPos = getArmEncoder();
+      armEncoderInitialPos = getArmEncoderLeft();
       isCalibrated = true;
     } else {
       isCalibrated = false;
@@ -150,7 +162,8 @@ public class Arm {
     SmartDashboard.putBoolean("armFailure", !getMotorFailure());
     SmartDashboard.putBoolean("atArmSetpoint", atSetpoint());
     SmartDashboard.putNumber("armSetpoint", armSetpoint);
-    SmartDashboard.putNumber("armAngle", getArmEncoder());
+    SmartDashboard.putNumber("armAngle Left", getArmEncoderLeft());
+    SmartDashboard.putNumber("armAngle Right", getArmEncoderRight());
     SmartDashboard.putBoolean("Arm Calibrated", isCalibrated());
   }
 

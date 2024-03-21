@@ -30,10 +30,10 @@ class Drivetrain {
   public static final double maxAngularVelTeleop = 5.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
   public static final double maxAccTeleop = 7.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
   public static final double maxAngularAccTeleop = 7.0*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
-  public static final double maxVelAuto = 3.0; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
-  public static final double maxAngularVelAuto = 3.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
-  public static final double maxAccAuto = 3.5; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
-  public static final double maxAngularAccAuto = 3.5*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
+  public static final double maxVelAuto = 5.0; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
+  public static final double maxAngularVelAuto = 5.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
+  public static final double maxAccAuto = 7.0; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
+  public static final double maxAngularAccAuto = 7.0*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 
   // Positions of the swerve modules relative to the center of the roboot. +x points towards the robot's front. +y points to the robot's left. Units: meters.
   private static final Translation2d frontLeftModulePos = new Translation2d(0.30162, 0.22542);
@@ -79,8 +79,8 @@ class Drivetrain {
   private final ProfiledPIDController yController = new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxVelAuto, maxAccAuto)); // Controls the y-position of the robot.
   private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxAngularVelAuto, maxAngularAccAuto)); // Controls the angle of the robot.
   private boolean atDriveGoal = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol when controlled by aimDrive() or moveToTarget()
-  private double posTol = 0.03; // The allowable error in the x and y position of the robot in meters.
-  private double angTol = 1.0; // The allowable error in the angle of the robot in degrees.
+  private double posTol = 0.07; // The allowable error in the x and y position of the robot in meters.
+  private double angTol = 2.5; // The allowable error in the angle of the robot in degrees.
   
   // These variables are updated each period so they can be passed to the dashboard. 
   private double xVel = 0.0; // Unit: meters per second
