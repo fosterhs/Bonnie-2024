@@ -42,7 +42,7 @@ public class Robot extends TimedRobot {
   private static final String auto8 = "4 piece (WIP)";
   private static final String auto9 = "4 piece (Zone)";
   private static final String auto10 = "2 Piece Side ";
-  private static final String auto11 = "Troll Auto"; // TODO Rename 'troll auto'
+  private static final String auto11 = "Troll Auto";
   private String autoSelected;
   private int autoStage = 1;
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
@@ -77,6 +77,8 @@ public class Robot extends TimedRobot {
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint
 
   private double armDashControl = 75.0;
+  private boolean rightTriggerWasPressed = false;
+  private boolean leftTriggerWasPressed = false;
 
   public void robotInit() {
     // Allows the user to choose which auto to do
@@ -925,18 +927,29 @@ public class Robot extends TimedRobot {
         * Drivetrain.maxAngularVelTeleop;
 
     // Auto Rotate to Aim Heading
+    boolean rightTriggerPressed = driver.getRightTriggerAxis() > 0.25;
+    boolean leftTriggerPressed = driver.getLeftTriggerAxis() > 0.25;
     if (driver.getRawButtonPressed(6)) { // Right Bumper
       swerve.resetDriveController(getAimHeading());
     } else if (driver.getRawButtonPressed(5)) { // Left Bumper
       swerve.resetDriveController(swerve.isBlueAlliance() ? -90.0 : 90.0); // Rotate to amp.
+    } else if (rightTriggerPressed && !rightTriggerWasPressed) {
+      swerve.resetDriveController(getAimHeading());
+    } else if (leftTriggerPressed && !leftTriggerWasPressed) {
+      swerve.resetDriveController(swerve.isBlueAlliance() ? -90.0 : 90.0); // Rotate to amp.
     }
+    rightTriggerWasPressed = rightTriggerPressed;
+    leftTriggerWasPressed = leftTriggerPressed;
+
     if (driver.getRawButton(6)) { // Right Bumper
       swerve.driveTo(1.89, (swerve.isBlueAlliance() ? 5.56 : Drivetrain.fieldWidth - 5.56), getAimHeading()); // Snap to speaker.
-      arm.updateSetpoint(getAimArmAngle());
     } else if (driver.getRawButton(5)) { // Left Bumper
       swerve.driveTo(1.8, (swerve.isBlueAlliance() ? 7.42 : Drivetrain.fieldWidth - 7.42), // Snap to Amp.
           (swerve.isBlueAlliance() ? -90.0 : 90.0));
-
+    } else if (rightTriggerPressed) {
+      swerve.aimDrive(xVel, yVel, getAimHeading(), true);
+    } else if (leftTriggerPressed) {
+      swerve.aimDrive(xVel, yVel, swerve.isBlueAlliance() ? -90.0 : 90.0, true);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
@@ -1367,5 +1380,3 @@ public class Robot extends TimedRobot {
     climberLockoutToggle = currClimberLockoutToggle;
   }
 }
-
-// TODO Add ASCII art
