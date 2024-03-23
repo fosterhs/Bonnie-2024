@@ -36,8 +36,8 @@ public class Robot extends TimedRobot {
   private static final String auto2 = "2 Piece";
   private static final String auto3 = "3 Piece";
   private static final String auto4 = "CLIMBER_RESET";
-  private static final String auto5 = "Auto 5";
-  private static final String auto6 = "Auto 6";
+  private static final String auto5 = "Auto 5 Amp(?)";
+  private static final String auto6 = "Auto 6 (?)";
   private static final String auto7 = "1 Piece Side";
   private static final String auto8 = "4 piece (WIP)";
   private static final String auto9 = "4 piece (Zone)";
