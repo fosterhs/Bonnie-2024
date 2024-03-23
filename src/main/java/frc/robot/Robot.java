@@ -41,7 +41,8 @@ public class Robot extends TimedRobot {
   private static final String auto7 = "1 Piece Side";
   private static final String auto8 = "4 piece (WIP)";
   private static final String auto9 = "4 piece (Zone)";
-  private static final String auto10 = "2 Piece side ";
+  private static final String auto10 = "2 Piece Side ";
+  private static final String auto11 = "Troll Auto"; // TODO Rename 'troll auto'
   private String autoSelected;
   private int autoStage = 1;
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
@@ -89,6 +90,7 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto8, auto8);
     autoChooser.addOption(auto9, auto9);
     autoChooser.addOption(auto10, auto10);
+    autoChooser.addOption(auto11, auto11);
     SmartDashboard.putData("Autos", autoChooser);
 
     ampTimer.restart(); // Gets the amp timer started. Used in teleop to incline the arm.
@@ -222,6 +224,13 @@ public class Robot extends TimedRobot {
         break;
       case auto10:
         // AutoInit 10 code goes here.
+        swerve.resetDriveController(getAimHeading());
+        arm.updateSetpoint(getAimArmAngle());
+        thrower.setDisableFlywheel(false);
+        break;
+
+      case auto11:
+        // AutoInit 11 code goes here.
         swerve.resetDriveController(getAimHeading());
         arm.updateSetpoint(getAimArmAngle());
         thrower.setDisableFlywheel(false);
@@ -464,6 +473,7 @@ public class Robot extends TimedRobot {
           case 1:
             // Auto 7 code goes here
             arm.updateSetpoint(getAimArmAngle()); // 1.61, 6.68
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
             if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
               thrower.commandThrow();
               if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the
@@ -761,7 +771,12 @@ public class Robot extends TimedRobot {
             break;
 
           case 9:
-            swerve.driveTo(3.73, 5.53, 180);
+            swerve.driveTo(8.7, (swerve.isBlueAlliance() ? 7.3 : Drivetrain.fieldWidth - 7.3), 180.0);
+
+            if (swerve.atDriveGoal()) {
+              arm.updateSetpoint(armDriveSetpoint);
+              autoStage = -1;
+            }
           break;
 
           default:
@@ -769,6 +784,107 @@ public class Robot extends TimedRobot {
             break;
         }
         break;
+
+      case auto10:
+        switch (autoStage) {
+          case 1:
+            arm.updateSetpoint(getAimArmAngle());
+
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
+              thrower.commandThrow();
+              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { 
+                armTimer.restart();
+                arm.updateSetpoint(armIntakeSetpoint);
+                swerve.resetDriveController(180.0);
+                autoStage = 2;
+              }
+            }
+            break;
+
+          case 2:
+            swerve.aimDrive(0.0, 0.0, 180.0, true);
+
+            if (armTimer.get() > 0.3) {
+              autoStage = 3;
+            }
+            break;
+
+          case 3:
+            swerve.aimDrive(1.0, 0.0, 180.0, true);
+
+            if (thrower.getSensor1()) {
+              swerve.resetDriveController(getAimHeading());
+              arm.updateSetpoint(getAimArmAngle());
+              armTimer.restart();
+              autoStage = 4;
+            } else if (swerve.getXPos() > 4.0) {
+              autoStage = -1; // Goes to default case.
+            }
+            break;
+
+          case 4:
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
+            arm.updateSetpoint(getAimArmAngle());
+
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
+              thrower.commandThrow();
+              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the
+                                                                                             // next stage. The code in
+                                                                                             // the if statement will
+                                                                                             // execute once (like an
+                                                                                             // autoStageInit()), then
+                                                                                             // move on to the next
+                                                                                             // stage.
+                autoStage = -1; // Default case
+              }
+            }
+            break;
+
+          default:
+            swerve.drive(0.0, 0.0, 0.0, false, 0, 0);
+            arm.updateSetpoint(armDriveSetpoint);
+            break;
+        }
+        break;
+
+      case auto11:
+        switch (autoStage) {
+          case 1:
+            swerve.driveTo(1.91, swerve.isBlueAlliance() ? 5.48 : Drivetrain.fieldWidth - 5.48, getAimHeading());
+            arm.updateSetpoint(getAimArmAngle());
+            
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
+              thrower.commandThrow();
+              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { 
+                armTimer.restart();
+                  arm.updateSetpoint(armDriveSetpoint);
+                  swerve.resetDriveController(45.0);
+                  autoStage = 2;
+                }
+              }
+              break;
+
+          case 2:
+            swerve.driveTo(7.75, (swerve.isBlueAlliance() ? 0.73 : Drivetrain.fieldWidth - 0.73), 180.0);
+            if (swerve.atDriveGoal()) {
+              swerve.resetDriveController(45.0);
+              autoStage = 3;
+            }
+            break;
+
+          case 3:
+            swerve.driveTo(7.75, (swerve.isBlueAlliance() ? 7.0 : Drivetrain.fieldWidth - 7.0), 180.0);
+            if (swerve.atDriveGoal()) {
+              swerve.resetDriveController(180.0);
+              autoStage = -1;
+            }
+            break;
+
+          default:
+            swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+            arm.updateSetpoint(armDriveSetpoint);
+            break;             
+    }
 
       default:
         swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
@@ -1251,3 +1367,5 @@ public class Robot extends TimedRobot {
     climberLockoutToggle = currClimberLockoutToggle;
   }
 }
+
+// TODO Add ASCII art
