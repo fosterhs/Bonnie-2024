@@ -435,6 +435,7 @@ public class Thrower {
         break;
       }
     }
+    Timer.delay(0.5);
     vortex1.setInverted(true);
 
     while (vortex2.restoreFactoryDefaults() != REVLibError.kOk) {
@@ -514,6 +515,8 @@ public class Thrower {
         break;
       }
     }
+    Timer.delay(0.5);
+    SmartDashboard.putNumber("Vortex Errors", motorErrors);
   }
 
   // Sets PID constants, brake mode, and enforces a 20 A current limit. Returns true if the motor successfully configued.

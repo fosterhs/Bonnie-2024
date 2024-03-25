@@ -893,7 +893,7 @@ public class Robot extends TimedRobot {
             break;
 
           case 3:
-            swerve.driveTo(7.75, (swerve.isBlueAlliance() ? 7.0 : Drivetrain.fieldWidth - 7.0), (swerve.isBlueAlliance() ? 45.0 : -45.0)); // TODO: CHANGE TO 45 degrees
+            swerve.driveTo(7.75, (swerve.isBlueAlliance() ? 7.0 : Drivetrain.fieldWidth - 7.0), (swerve.isBlueAlliance() ? 45.0 : -45.0)); 
             if (swerve.atDriveGoal()) {
               swerve.resetDriveController(180.0);
               autoStage = -1;
