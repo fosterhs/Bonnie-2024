@@ -25,13 +25,13 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
-  public static final double fieldWidth = 8.0; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
-  public static final double maxVelTeleop = 5.0; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
-  public static final double maxAngularVelTeleop = 5.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
-  public static final double maxAccTeleop = 7.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
-  public static final double maxAngularAccTeleop = 7.0*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
-  public static final double maxVelAuto = 5.0; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
-  public static final double maxAngularVelAuto = 5.0*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
+  public static final double fieldWidth = 8.0137; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
+  public static final double maxVelTeleop = 5.27; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
+  public static final double maxAngularVelTeleop = 5.27*Math.PI; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
+  public static final double maxAccTeleop = 10.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
+  public static final double maxAngularAccTeleop = 10.0*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
+  public static final double maxVelAuto = 5.27; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
+  public static final double maxAngularVelAuto = 5.27*Math.PI; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
   public static final double maxAccAuto = 7.0; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
   public static final double maxAngularAccAuto = 7.0*Math.PI; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 
@@ -43,16 +43,16 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module object.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -175.0, "left"); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 94.5, "right");
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 146.6, "right");
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -172.6, "left");
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 0, false, -175.0, "canivore"); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 1, true, 94.5, "canivore");
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 2, true, 146.6, "canivore");
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 3, false, -172.6, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
   private boolean moduleFailure = false; // Indicates whether there is at least 1 swerve module engine failure.
   private boolean moduleDisabled = false; // Indcates whether at least 1 module is disabled, either on startup or by the driver.
 
   // Gyroscope Variables
-  private final Pigeon2 pigeon = new Pigeon2(0, "right"); // Pigeon 2.0 CAN Gyroscope
+  private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
   private boolean gyroFailure = false; // Indicates whether the gyro has lost connection at any point after a yaw-reset.
   private boolean gyroDisabled = false; // Indicates whether the gyro was disabled on startup, or by the driver by calling toggleGyro()
 
@@ -64,7 +64,7 @@ class Drivetrain {
 
   // Calibration Variables
   private final int calibrationFrames = 100; // The number of Limelight frames that will be averaged to determine the position of the robot when it is disabled()
-  private final int minCalibrationPoints = 10; // The minimum amount of frames that must be processed to accept a calibration.
+  private final int minCalibrationPoints = 1; // The minimum amount of frames that must be processed to accept a calibration.
   private double[][] calibrationPosition = new double[3][calibrationFrames]; // An array that stores the Limelight botpose for the most recent frames, up to the number of frames specified by calibrationFrames
   private int calibrationIndex = 0; // The index of the most recent entry into the calibrationPosition array. The index begins at 0 and goes up to calibrationFrames-1, after which it returns to 0 and repeats.
   private int calibrationPoints = 0; // The current number of frames stored in the calibrationPosition array. 
@@ -421,6 +421,21 @@ class Drivetrain {
       gyroFailure = true;
       return 0;
     }
+  }
+
+  // Returns the last commanded x-velocity of the robot in meters per second.
+  public double getXVel() {
+    return xVel;
+  }
+
+  // Returns the last commanded y-velocity of the robot in meters per second.
+  public double getYVel() {
+    return yVel;
+  }
+
+  // Returns the last commanded angular-velocity of the robot in degrees per second.
+  public double getAngVel() {
+    return angVel;
   }
   
   // Returns the odometry calculated x position of the robot in meters. This is based on vision and gyro data combined.

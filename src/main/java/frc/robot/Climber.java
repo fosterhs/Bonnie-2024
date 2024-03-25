@@ -12,8 +12,8 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Climber {
-  private final TalonFX leftClimbMotor = new TalonFX(10, "rio"); // The motor that controls the left climber.
-  private final TalonFX rightClimbMotor = new TalonFX(9, "rio"); // The other that controls the right climber.
+  private final TalonFX leftClimbMotor = new TalonFX(10, "canivore"); // The motor that controls the left climber.
+  private final TalonFX rightClimbMotor = new TalonFX(9, "canivore"); // The other that controls the right climber.
   private final double motorCurrentLimit = 40.0; // Motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
 

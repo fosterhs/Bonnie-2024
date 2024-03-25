@@ -42,7 +42,7 @@ public class Robot extends TimedRobot {
   private static final String auto8 = "4 piece (WIP)";
   private static final String auto9 = "4 piece (Zone)";
   private static final String auto10 = "2 Piece Side ";
-  private static final String auto11 = "Troll Auto";
+  private static final String auto11 = "Troll Auto (Right)";
   private String autoSelected;
   private int autoStage = 1;
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
@@ -67,11 +67,11 @@ public class Robot extends TimedRobot {
     MANUAL_SHOOT;
   }
 
-  ArmState currArmState = ArmState.DRIVE; // Stores the current arm state. The robot will default to the value
+  ArmState currArmState = ArmState.INTAKE; // Stores the current arm state. The robot will default to the value
                                           // intialized here when teleop is first entered.
   private final double armDriveSetpoint = 75.0; // The arm's driving position in degrees.
   private final double armAmpSetpoint = 48.0; // The arm's inital amp scoring position in degrees.
-  private final double armIntakeSetpoint = -6.0; // The arm's intake position in degrees.
+  private final double armIntakeSetpoint = -5.0; // The arm's intake position in degrees.
   private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
   private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint
@@ -109,7 +109,7 @@ public class Robot extends TimedRobot {
     // not need to be initialized during autonomousInit() or teleopInit(), saving
     // computational resources.
     swerve.resetDriveController(0.0);
-    swerve.aimDrive(0.1, 0.0, 0.0, true);
+    swerve.aimDrive(0.01, 0.0, 0.0, true);
     swerve.driveTo(0.0, 0.0, 0.0);
     swerve.addCalibrationEstimate();
     swerve.pushCalibration();
@@ -447,21 +447,41 @@ public class Robot extends TimedRobot {
         // Auto 6 code goes here.
         switch (autoStage) {
           case 1:
+            swerve.aimDrive(0.0, 0.0, getAimHeading(), true);
             arm.updateSetpoint(getAimArmAngle());
-            thrower.setDisableFlywheel(false);
-            if (swerve.getXPos() > 2.0) {
-              swerve.drive(0.0, 0.0, 0.0, false, 0.0, 0.0);
-            } else {
-              swerve.aimDrive(0.8, 0.0, getAimHeading(), true);
-            }
 
-            if (swerve.getXPos() > 2.0 && swerve.atDriveGoal() && arm.atSetpoint() && aimShotAvailable()) {
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
               thrower.commandThrow();
-              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2() && !thrower.getSensor3()) {
-                autoStage = -1;
+              if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the
+                                                                                             // next stage. The code in
+                                                                                             // the if statement will
+                                                                                             // execute once (like an
+                                                                                             // autoStageInit()), then
+                                                                                             // move on to the next
+                                                                                             // stage.
+                armTimer.restart();
+                arm.updateSetpoint(armIntakeSetpoint);
+                swerve.resetDriveController(180.0);
+                autoStage = 2; // Goes to default case.
               }
             }
             break;
+
+          case 2:
+            // 6.51 , 0.98
+            arm.updateSetpoint(armIntakeSetpoint);
+            swerve.driveTo(6.95, (swerve.isBlueAlliance() ? 0.80 : Drivetrain.fieldWidth - 0.80), 180.0);
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.5) {
+              armTimer.restart();
+              arm.updateSetpoint(armIntakeSetpoint);
+              swerve.resetDriveController(180.0);
+              autoStage = 3;
+            }
+          break;
+
+          case 3:
+
+          break;
 
           default:
             arm.updateSetpoint(armDriveSetpoint);
@@ -664,8 +684,8 @@ public class Robot extends TimedRobot {
         break;
       case auto9:
         switch (autoStage) {
-          case 1:
-           swerve.driveTo(1.91, swerve.isBlueAlliance() ? 5.48 : Drivetrain.fieldWidth - 5.48, getAimHeading());
+          case 1: //Put robot at shooting pos
+            swerve.driveTo(1.91, swerve.isBlueAlliance() ? 5.48 : Drivetrain.fieldWidth - 5.48, getAimHeading());
             arm.updateSetpoint(getAimArmAngle());
 
             if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.0) {
@@ -687,7 +707,7 @@ public class Robot extends TimedRobot {
             }
             break;
 
-          case 3:
+          case 3: // gets the midile pice 
             swerve.aimDrive(1.0, 0.0, 180.0, true);
 
             if (thrower.getSensor1()) {
@@ -715,8 +735,8 @@ public class Robot extends TimedRobot {
             }
             break;
           // Add delay if needed
-          case 5:
-            swerve.driveTo(2.63, swerve.isBlueAlliance() ? 6.55 : Drivetrain.fieldWidth - 6.55, swerve.isBlueAlliance() ? -120.0 : 120.0);
+          case 5: // Gwt top pice
+            swerve.driveTo(2.67, swerve.isBlueAlliance() ? 6.65 : Drivetrain.fieldWidth - 6.65, swerve.isBlueAlliance() ? -120.0 : 120.0);
 
             if (thrower.getSensor1()) {
               swerve.resetDriveController(getAimHeading());
@@ -743,16 +763,14 @@ public class Robot extends TimedRobot {
             }
             break;
           
-          case 7:
-            swerve.driveTo(2.53, swerve.isBlueAlliance() ? 4.52 : Drivetrain.fieldWidth - 4.52, swerve.isBlueAlliance() ? 120 : -120);
+          case 7:// gets bottom pice
+            swerve.driveTo(2.67, swerve.isBlueAlliance() ? 4.36 : Drivetrain.fieldWidth - 4.36, swerve.isBlueAlliance() ? 120 : -120);
 
             if (thrower.getSensor1()) {
               swerve.resetDriveController(getAimHeading());
               arm.updateSetpoint(getAimArmAngle());
               armTimer.restart();
               autoStage = 8;
-            } else if (swerve.getXPos() > 4.0) {
-              autoStage = -1; // Goes to default case.
             }
             break;
 
@@ -761,7 +779,7 @@ public class Robot extends TimedRobot {
             arm.updateSetpoint(getAimArmAngle());
 
 
-            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.0) {
+            if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
               thrower.commandThrow();
               if (!thrower.isThrowing() && !thrower.getSensor1() && !thrower.getSensor2()) { // Condition to move to the next stage. The code in the if statement will execute once ( like an autoStageInit() ), then move on to the next stage.
                 armTimer.restart();
@@ -772,7 +790,7 @@ public class Robot extends TimedRobot {
             }
             break;
 
-          case 9:
+          case 9: // Center note
             swerve.driveTo(8.7, (swerve.isBlueAlliance() ? 7.3 : Drivetrain.fieldWidth - 7.3), 180.0);
 
             if (swerve.atDriveGoal()) {
@@ -806,7 +824,7 @@ public class Robot extends TimedRobot {
           case 2:
             swerve.aimDrive(0.0, 0.0, 180.0, true);
 
-            if (armTimer.get() > 0.3) {
+            if (armTimer.get() > 0.2) {
               autoStage = 3;
             }
             break;
@@ -852,7 +870,7 @@ public class Robot extends TimedRobot {
       case auto11:
         switch (autoStage) {
           case 1:
-            swerve.driveTo(1.91, swerve.isBlueAlliance() ? 5.48 : Drivetrain.fieldWidth - 5.48, getAimHeading());
+            swerve.driveTo(swerve.getXPos(), swerve.getYPos(), getAimHeading());
             arm.updateSetpoint(getAimArmAngle());
             
             if (swerve.atDriveGoal() && arm.atSetpoint() && armTimer.get() > 0.3) {
@@ -875,7 +893,7 @@ public class Robot extends TimedRobot {
             break;
 
           case 3:
-            swerve.driveTo(7.75, (swerve.isBlueAlliance() ? 7.0 : Drivetrain.fieldWidth - 7.0), 180.0);
+            swerve.driveTo(7.75, (swerve.isBlueAlliance() ? 7.0 : Drivetrain.fieldWidth - 7.0), (swerve.isBlueAlliance() ? 45.0 : -45.0)); // TODO: CHANGE TO 45 degrees
             if (swerve.atDriveGoal()) {
               swerve.resetDriveController(180.0);
               autoStage = -1;
@@ -886,7 +904,8 @@ public class Robot extends TimedRobot {
             swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
             arm.updateSetpoint(armDriveSetpoint);
             break;             
-    }
+        }
+        break;
 
       default:
         swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
@@ -894,12 +913,16 @@ public class Robot extends TimedRobot {
         break;
     }
   }
+  
 
   public void teleopInit() {
-    swerve.pushCalibration(); // Updates the robot's position on the field.
+    double ta = LimelightHelpers.getTA("");
+    if (ta > 0.01) {
+      swerve.pushCalibration(); // Updates the robot's position on the field.
+    }
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
-    arm.init();
+    // arm.init();
     rumbleTimer.restart();
     noteFiredTimer.restart();
   }
@@ -939,13 +962,12 @@ public class Robot extends TimedRobot {
       swerve.resetDriveController(swerve.isBlueAlliance() ? -90.0 : 90.0); // Rotate to amp.
     }
     rightTriggerWasPressed = rightTriggerPressed;
-    leftTriggerWasPressed = leftTriggerPressed;
+    leftTriggerWasPressed = leftTriggerPressed; 
 
     if (driver.getRawButton(6)) { // Right Bumper
       swerve.driveTo(1.89, (swerve.isBlueAlliance() ? 5.56 : Drivetrain.fieldWidth - 5.56), getAimHeading()); // Snap to speaker.
     } else if (driver.getRawButton(5)) { // Left Bumper
-      swerve.driveTo(1.8, (swerve.isBlueAlliance() ? 7.42 : Drivetrain.fieldWidth - 7.42), // Snap to Amp.
-          (swerve.isBlueAlliance() ? -90.0 : 90.0));
+      swerve.driveTo(1.8, (swerve.isBlueAlliance() ? 7.42 : Drivetrain.fieldWidth - 7.42), (swerve.isBlueAlliance() ? -90.0 : 90.0)); // Snap to amp.
     } else if (rightTriggerPressed) {
       swerve.aimDrive(xVel, yVel, getAimHeading(), true);
     } else if (leftTriggerPressed) {
@@ -953,6 +975,7 @@ public class Robot extends TimedRobot {
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel.
     }
+
     // The following 3 calls allow the user to calibrate the position of the robot
     // based on April Tag information. Should be called when the robot is
     // stationary.
@@ -1082,12 +1105,18 @@ public class Robot extends TimedRobot {
         MathUtil.applyDeadband(-operator.getRightY(), 0.1));
   }
 
-  public void disabledInit() {
-    swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
+  public void disabledInit() {    
+    double ta = LimelightHelpers.getTA("");
+    if (ta > 0.01) {
+      swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
+    }
   }
 
   public void disabledPeriodic() {
-    swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    double ta = LimelightHelpers.getTA("");
+    if (ta > 0.01) {
+      swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    }
   }
 
   // Sets the LEDs based on whether a note is detected.
@@ -1139,7 +1168,7 @@ public class Robot extends TimedRobot {
     double presentDistance = -presentDistanceArray[2];
     SmartDashboard.putNumber("Distance to Tag", presentDistance);
     double ta = LimelightHelpers.getTA("");
-    if (!isSquare && ta > 1.5) {
+    if (!isSquare && ta > 1.5 && swerve.getXVel() < 0.1 && swerve.getYVel() < 0.1 && swerve.getAngVel() < 0.1) {
       swerve.addVisionEstimate(0.04, 0.04);
     } else {
     }
@@ -1186,7 +1215,7 @@ public class Robot extends TimedRobot {
   private double[] distCalArray = { 1.58, 2.25, 2.75 }; // Stores the distance between the center of the robot and the
                                                         // center of the speaker in meters. Should be sorted with
                                                         // smallest distances first.
-  private double[] armCalArray = { -3.00, 5.80, 14.50 }; // Stores the arm angle that corresponds with each distance
+  private double[] armCalArray = { -4.00, 4.80, 13.50 }; // Stores the arm angle that corresponds with each distance
                                                          // value. This is the angle the arm should be at to make the
                                                          // shot in degrees.
 

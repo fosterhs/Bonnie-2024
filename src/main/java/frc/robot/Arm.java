@@ -13,8 +13,8 @@ import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Arm {
-  private final TalonFX armMotorL = new TalonFX(12, "rio"); // One of the motors that controls the arm.
-  private final TalonFX armMotorR = new TalonFX(11, "rio"); // One of the motors that controls the arm.
+  private final TalonFX armMotorL = new TalonFX(12, "canivore"); // One of the motors that controls the arm.
+  private final TalonFX armMotorR = new TalonFX(11, "canivore"); // One of the motors that controls the arm.
   private final double motorCurrentLimit = 40.0; // Motor current limit in amps. Should be based on the breaker used in the PDP.
   private final int maxMotorFailures = 3; // The number of times a motor will attempt to reconfigure before declaring a failure and putting the device into a manual state.
 
