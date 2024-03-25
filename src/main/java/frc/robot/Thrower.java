@@ -428,6 +428,7 @@ public class Thrower {
         break;
       }
     }
+    vortex1.setInverted(true);
     while (vortex1.burnFlash() != REVLibError.kOk) {
       motorErrors++;
       if (motorErrors > maxVortexFailures) {
@@ -436,7 +437,6 @@ public class Thrower {
       }
     }
     Timer.delay(0.5);
-    vortex1.setInverted(true);
 
     while (vortex2.restoreFactoryDefaults() != REVLibError.kOk) {
       motorErrors++;
