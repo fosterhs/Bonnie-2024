@@ -117,7 +117,7 @@ public class Robot extends TimedRobot {
     swerve.resetPathController(0);
     swerve.followPath(0);
     swerve.atPathEndpoint(0);
-    swerve.drive(0.1, 0.0, 0.0, false, 0.0, 0.0);
+    swerve.drive(0.01, 0.0, 0.0, false, 0.0, 0.0);
     swerve.resetOdometry(0, 0, 0);
     swerve.updateDash();
     climber.setManual(0.0, 0.0);
@@ -127,6 +127,7 @@ public class Robot extends TimedRobot {
     arm.setManualPower(0.0);
     thrower.init();
     thrower.periodic();
+    robotPeriodic();
   }
 
   public void robotPeriodic() {

@@ -436,7 +436,7 @@ public class Thrower {
         break;
       }
     }
-    Timer.delay(0.5);
+    Timer.delay(0.8);
 
     while (vortex2.restoreFactoryDefaults() != REVLibError.kOk) {
       motorErrors++;
@@ -515,7 +515,7 @@ public class Thrower {
         break;
       }
     }
-    Timer.delay(0.5);
+    Timer.delay(0.8);
     SmartDashboard.putNumber("Vortex Errors", motorErrors);
   }
 
