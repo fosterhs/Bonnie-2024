@@ -288,7 +288,6 @@ class Drivetrain {
       if (calibrationFrames < maxCalibrationFrames) { // Increments calibrationPoints until the calibrationPosition array is full.
         calibrationFrames++; 
       }
-      odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), new Pose2d(calibrationArray[0][calibrationIndex], calibrationArray[1][calibrationIndex], Rotation2d.fromDegrees(calibrationArray[2][calibrationIndex])));
       lastFrame = currentFrame;
     } 
   }

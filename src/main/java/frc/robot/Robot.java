@@ -1060,27 +1060,18 @@ public class Robot extends TimedRobot {
 
   // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
   public void updateVision() {
-    boolean isSquare = isSquare();
-    SmartDashboard.putBoolean("isSquare", isSquare);
-    double[] presentDistanceArray = LimelightHelpers.getLimelightNTTableEntry("limelight", "botpose_targetspace").getDoubleArray(new double[6]);
-    double presentDistance = -presentDistanceArray[2];
-    SmartDashboard.putNumber("Distance to Tag", presentDistance);
-    double ta = LimelightHelpers.getTA("");
+    boolean isSquare = isSquare(); // Will be false if more than 1 April Tag is detected.
+    double ta = LimelightHelpers.getTA(""); // The area of the box bounding the April Tags in percent of the screen.
     if (!isSquare && ta > 1.5 && swerve.getXVel() < 0.1 && swerve.getYVel() < 0.1 && swerve.getAngVel() < 0.1) {
       swerve.addVisionEstimate(0.04, 0.04);
-    } else {
-    }
+    } 
   }
 
   // Determines whether a Limelight target is square. Useful for identifying whether multiple April Tages are detected.
   public boolean isSquare() {
     double thor = LimelightHelpers.getLimelightNTTableEntry("limelight", "thor").getDouble(0);
     double tvert = LimelightHelpers.getLimelightNTTableEntry("limelight", "tvert").getDouble(0);
-    if (Math.abs(tvert / thor - 1.0) < 0.2) {
-      return true;
-    } else {
-      return false;
-    }
+    return Math.abs(tvert / thor - 1.0) < 0.2;
   }
 
   // Calculates the angle the robot should be facing to make the shot in degrees.
