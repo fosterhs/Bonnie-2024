@@ -3,7 +3,6 @@ package frc.robot;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
-import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -19,37 +18,24 @@ class SwerveModule {
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
   private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
-  private static final double driveMotorCurrentLimit = 40.0; // Drive motor current limit in amps.
-  private static final double turnMotorCurrentLimit = 20.0; // Turn motor current limit in amps.
   private final AnalogEncoder wheelEncoder;
   private final double wheelEncoderZero;
   private final TalonFX driveMotor;
   private final TalonFX turnMotor;
-  private final boolean invertDrive;
   private double turnMotorInitialPos = 0.0; // The turn motor position on start up in falcon rotations.
   private double driveMotorInitialPos = 0.0; // The drive motor position on start up in falcon rotations.
   private double wheelInitialPos = 0.0; // The wheel encoder position on start up in degrees.
   private double angleSetpoint = 0.0; // The last calculated turn setpoint of the swerve wheel in degrees. Not bounded within 180/-180.
-  private final String canbus;
-
-  // Motor error code tracking variables.
-  private final int maxMotorErrors = 3; // The most times a configuration command can be unsuccesfully sent to a motor before a failure is declared and the motor is disabled. 
   private boolean driveMotorFailure = false; // Whether the drive motor has failed to configure correctly.
   private boolean turnMotorFailure = false; // Whether the turn motor has failed to configure correctly.
-  private boolean moduleFailure = false; // Whether either the drive motor or the turn motor has failed to configure correctly.
-  private boolean moduleDisabled = false; // Whether the module has been disabled by the driver.
 
-  public SwerveModule(int turnID, int driveID, int encoderID, boolean _invertDrive, double _wheelEncoderZero, String _canbus) {
-    canbus = _canbus;
+  public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double _wheelEncoderZero, String canbus) {
     wheelEncoderZero = _wheelEncoderZero;
-    invertDrive = _invertDrive;
     wheelEncoder = new AnalogEncoder(encoderID);
     driveMotor = new TalonFX(driveID, canbus);
     turnMotor = new TalonFX(turnID, canbus);
-    configDriveMotor();
-    configTurnMotor();
-    moduleDisabled = driveMotorFailure && turnMotorFailure;
-    moduleFailure = driveMotorFailure || turnMotorFailure;
+    driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 60.0, 3);
+    turnMotorFailure = !configTurnMotor(turnMotor, false, 60.0, 3);
   }
 
   // Sets the swerve module to the given state (velocity and angle).
@@ -93,43 +79,31 @@ class SwerveModule {
   
   // Returns the velocity and angle of the module.
   public SwerveModuleState getSMS() {
-    return new SwerveModuleState(getVel(), Rotation2d.fromDegrees(getAngle()));
+    return new SwerveModuleState(getDriveMotorVel(), Rotation2d.fromDegrees(getTurnMotorAngle()));
   }
   
   // Returns the postion and angle of the module.
   public SwerveModulePosition getSMP() {
-    return new SwerveModulePosition(getPos(), Rotation2d.fromDegrees(getAngle()));
+    return new SwerveModulePosition(getDriveMotorPos(), Rotation2d.fromDegrees(getTurnMotorAngle()));
   }
 
   // Returns the velocity of the wheel. Unit: meters per second
-  public double getVel() {
-    if (!driveMotorFailure && !moduleDisabled) {
-      return driveMotor.getVelocity().getValueAsDouble()*wheelCirc*correctionFactor/driveGearRatio;
-    } else {
-      return 0;
-    }
+  public double getDriveMotorVel() {
+    return driveMotor.getVelocity().getValueAsDouble()*wheelCirc*correctionFactor/driveGearRatio;
   }
 
   // Returns total distance the wheel has rotated. Unit: meters
-  public double getPos() {
-    if (!driveMotorFailure && !moduleDisabled) {
-      return (driveMotor.getRotorPosition().getValueAsDouble()-driveMotorInitialPos)*wheelCirc*correctionFactor/driveGearRatio;
-    } else {
-      return 0;
-    }
+  public double getDriveMotorPos() {
+    return (driveMotor.getRotorPosition().getValueAsDouble()-driveMotorInitialPos)*wheelCirc*correctionFactor/driveGearRatio;
   }
   
   // Returns the angle of the wheel in degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y). Can return values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
-  public double getAngle() {
-    if (!turnMotorFailure && !moduleDisabled) {
-      return (turnMotor.getRotorPosition().getValueAsDouble()-turnMotorInitialPos)*360.0/turnGearRatio+wheelInitialPos;
-    } else {
-      return 0;
-    }
+  public double getTurnMotorAngle() {
+    return (turnMotor.getRotorPosition().getValueAsDouble()-turnMotorInitialPos)*360.0/turnGearRatio+wheelInitialPos;
   }
   
   // Returns the raw value of the wheel encoder. Range: -180 to 180 degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y).
-  public double getWheelEncoder() {
+  public double getWheelEncoderAngle() {
     double wheelAngle = wheelEncoder.getAbsolutePosition()*360.0 - wheelEncoderZero;
     if (wheelAngle > 180.0) {
       wheelAngle = wheelAngle - 360.0;
@@ -141,36 +115,12 @@ class SwerveModule {
   
   // Sets the velocity of the module. Units: meters per second
   private void setVel(double vel) {
-    if (!driveMotorFailure && !moduleDisabled) {
-      StatusCode driveMotorStatus = driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
-      if (driveMotorStatus != StatusCode.OK) {
-        
-      }
-    } else {
-      driveMotor.setControl(new DutyCycleOut(0));
-    }
+    driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
   }
   
   // Sets the angle of the module. Units: degrees Can accept values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
   private void setAngle(double angle) {
-    if (!turnMotorFailure && !moduleDisabled) {
-      turnMotor.setControl(new MotionMagicDutyCycle(((angle-wheelInitialPos)*turnGearRatio)/360.0+turnMotorInitialPos).withEnableFOC(true));
-    } else {
-      turnMotor.setControl(new DutyCycleOut(0));
-    }
-  }
-
-  // Toggles whether the module is enabled or disabled. Used in the case of an engine failure.
-  public void toggleModule() {
-    if (moduleDisabled) {
-      enableDriveMotor();
-      enableTurnMotor();
-    } else {
-      disableDriveMotor();
-      disableTurnMotor();
-    }
-    moduleDisabled = !moduleDisabled;
-    moduleFailure = driveMotorFailure || turnMotorFailure;
+    turnMotor.setControl(new MotionMagicDutyCycle(((angle-wheelInitialPos)*turnGearRatio)/360.0+turnMotorInitialPos).withEnableFOC(true));
   }
 
   // True if the drive motor failed to respond to configuration commands on startup or reboot. Is a likely indicator of motor or CAN failure.
@@ -183,110 +133,80 @@ class SwerveModule {
     return turnMotorFailure;
   }
 
-  // True if the drive motor *or* turn motor failed to configure.
-  public boolean getModuleFailure() {
-    return moduleFailure;
-  }
+  // Attempts to configure the drive motor. Sets inverts, neutral mode, PID constants, and defines the intiial positions. Returns true if the motor successfully configued.
+  private boolean configDriveMotor(TalonFX motor, boolean invert, double currentLimit, int maxMotorErrors) {
+    // Creates a configurator and config object to configure the motor.
+    TalonFXConfigurator motorConfigurator = motor.getConfigurator();
+    TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
 
-  // True if the drive motor *and* the turn motor failed to configure on startup, or if the driver disabled the module.
-  public boolean getModuleDisabled() {
-    return moduleDisabled;
-  }
-
-  // The following 2 functions disable the motor in the case of too many CAN errors, or if the driver chooses to disable the module in the case of an engine or mechanical failure.
-  private void disableTurnMotor() {
-    TalonFXConfigurator turnMotorConfigurator = turnMotor.getConfigurator();
-    TalonFXConfiguration turnMotorConfigs = new TalonFXConfiguration();
-    turnMotorConfigurator.refresh(turnMotorConfigs);
-    turnMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Coast;
-    turnMotorConfigurator.apply(turnMotorConfigs);
-
-    turnMotor.setControl(new DutyCycleOut(0));
-  }
-
-  private void disableDriveMotor() {
-    TalonFXConfigurator driveMotorConfigurator = driveMotor.getConfigurator();
-    TalonFXConfiguration driveMotorConfigs = new TalonFXConfiguration();
-    driveMotorConfigurator.refresh(driveMotorConfigs);
-    driveMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Coast;
-    driveMotorConfigurator.apply(driveMotorConfigs);
-
-    driveMotor.setControl(new DutyCycleOut(0));
-  }
-
-  // The following 2 functions re-enable the motor. These should be called if the motors were previously disabled by the driver, or failed to properly initialize at robot start-up. Motors will automatically be re-disabled if they are not able to be configured properly.
-  private void enableTurnMotor() {
-    turnMotorFailure = false;
-    configTurnMotor();
-  }
-
-  private void enableDriveMotor() {
-    turnMotorFailure = false;
-    configDriveMotor();
-  }
-
-  // Attempts to configure the drive motor. Sets inverts, neutral mode, PID constants, and defines the intiial position.
-  private void configDriveMotor() {
-    TalonFXConfigurator driveMotorConfigurator = driveMotor.getConfigurator();
-    TalonFXConfiguration driveMotorConfigs = new TalonFXConfiguration();
-
-    driveMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    driveMotorConfigs.MotorOutput.Inverted = invertDrive ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
+    motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
     
-    driveMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    driveMotorConfigs.CurrentLimits.SupplyCurrentLimit = driveMotorCurrentLimit;
-    driveMotorConfigs.CurrentLimits.SupplyCurrentThreshold = driveMotorCurrentLimit;
-    driveMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+    // Setting current limits
+    motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
+    motorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
+    motorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
+    motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
 
-    driveMotorConfigs.Slot0.kP = 0.008;
-    driveMotorConfigs.Slot0.kI = 0.06;
-    driveMotorConfigs.Slot0.kD = 0.0002;
-    driveMotorConfigs.Slot0.kV = 0.009;
+    // Setting PID parameters for velocity control
+    motorConfigs.Slot0.kP = 0.008;
+    motorConfigs.Slot0.kI = 0.06;
+    motorConfigs.Slot0.kD = 0.0002;
+    motorConfigs.Slot0.kV = 0.009;
 
-    int driveMotorErrors = 0;
-    while (driveMotorConfigurator.apply(driveMotorConfigs, 0.03) != StatusCode.OK) {
-      driveMotorErrors++;
-      driveMotorFailure = driveMotorErrors > maxMotorErrors;
-      if (driveMotorFailure) {
-        disableDriveMotor();
-        break;
+    // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
+    int motorErrors = 0;
+    boolean motorFailure = false;
+    while (motorConfigurator.apply(motorConfigs, 0.03) != StatusCode.OK) {
+      motorErrors++;
+      motorFailure = motorErrors > maxMotorErrors;
+      if (motorFailure) {
+        return false;
       }
     }
 
-    driveMotorInitialPos = driveMotorFailure ? 0.0 : driveMotor.getRotorPosition().getValueAsDouble();
+    // Defines initial position of the module
+    driveMotorInitialPos = driveMotor.getRotorPosition().getValueAsDouble();
+    return true;
   }
 
-  // Attempts to configure the turn motor. Sets inverts, neutral mode, PID constants, and defines the intiial positions.
-  private void configTurnMotor() {
-    TalonFXConfigurator turnMotorConfigurator = turnMotor.getConfigurator();
-    TalonFXConfiguration turnMotorConfigs = new TalonFXConfiguration();
+  // Attempts to configure the turn motor. Sets inverts, neutral mode, PID constants, and defines the intiial positions. Returns true if the motor successfully configued.
+  private boolean configTurnMotor(TalonFX motor, boolean invert, double currentLimit, int maxMotorErrors) {
+    // Creates a configurator and config object to configure the motor.
+    TalonFXConfigurator motorConfigurator = motor.getConfigurator();
+    TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
 
-    turnMotorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    turnMotorConfigs.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
 
-    turnMotorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    turnMotorConfigs.CurrentLimits.SupplyCurrentLimit = turnMotorCurrentLimit;
-    turnMotorConfigs.CurrentLimits.SupplyCurrentThreshold = turnMotorCurrentLimit;
-    turnMotorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+    // Setting current limits
+    motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
+    motorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
+    motorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
+    motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
 
-    turnMotorConfigs.Slot0.kP = 0.8;
-    turnMotorConfigs.Slot0.kI = 2.0;
-    turnMotorConfigs.Slot0.kD = 0.006;
-    turnMotorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0;
-    turnMotorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0;
+    // Setting Motion Magic parameters
+    motorConfigs.Slot0.kP = 0.8;
+    motorConfigs.Slot0.kI = 2.0;
+    motorConfigs.Slot0.kD = 0.006;
+    motorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0;
+    motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0;
 
-    int turnMotorErrors = 0;
-    while (turnMotorConfigurator.apply(turnMotorConfigs, 0.03) != StatusCode.OK) {
-      turnMotorErrors++;
-      turnMotorFailure = turnMotorErrors > maxMotorErrors;
-      if (turnMotorFailure) {
-        disableTurnMotor();
-        break;
+    // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
+    int motorErrors = 0;
+    boolean motorFailure = false;
+    while (motorConfigurator.apply(motorConfigs, 0.03) != StatusCode.OK) {
+      motorErrors++;
+      motorFailure = motorErrors > maxMotorErrors;
+      if (motorFailure) {
+        return false;
       }
     }
     
-    wheelInitialPos = getWheelEncoder();
-    turnMotorInitialPos = turnMotorFailure ? 0.0 : turnMotor.getRotorPosition().getValueAsDouble();
-    angleSetpoint = getAngle();
+    // Defines initial position of the module
+    wheelInitialPos = getWheelEncoderAngle();
+    turnMotorInitialPos = turnMotor.getRotorPosition().getValueAsDouble();
+    angleSetpoint = getTurnMotorAngle();
+    return true;
   }
 }
