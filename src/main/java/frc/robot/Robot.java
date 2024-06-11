@@ -1008,14 +1008,13 @@ public class Robot extends TimedRobot {
         }
       }
     } else {
-      thrower.setDisableFlywheel(false);
+      thrower.setDisableFlywheel(true);
     }
 
     if (operator.getRawButtonPressed(7) && arm.getEncoderLeft() < 10.0) { // Mode Button
       climber.disableUserLockout();
     }
-    climber.setManual(MathUtil.applyDeadband(-operator.getLeftY(), 0.1),
-        MathUtil.applyDeadband(-operator.getRightY(), 0.1));
+    climber.setManual(MathUtil.applyDeadband(-operator.getLeftY(), 0.1), MathUtil.applyDeadband(-operator.getRightY(), 0.1));
   }
 
   public void disabledInit() {    

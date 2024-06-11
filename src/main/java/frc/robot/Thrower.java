@@ -39,8 +39,8 @@ public class Thrower {
     DISABLED,
     AMP_SCORE;
   } 
-  private ThrowerState nextState;
-  private ThrowerState lastState;
+  private ThrowerState nextState; // The desired state of the thrower in the next period.
+  private ThrowerState lastState; // The state of the thrower in the previous period.
 
   private final double intakeVel = 50.0; // The number of rotations per second that the motors will spin in reverse when intaking a note.
   private final double ampVel = 75.0; // The number of rotations per second that the motors will spin forwards when scoing a note in the amp.
@@ -64,7 +64,7 @@ public class Thrower {
   private double indexMotorGoalPos = 0.0; // Stores the goal position of the index motor. Used in the BACK_UP state.
 
   public Thrower() {
-    indexMotorFailure = !configIndexMotor(indexMotor, false, 60.0, 3);
+    indexMotorFailure = !configIndexMotor(indexMotor, true, 60.0, 3);
     vortex1Failure = !configVortex(vortex1, true, 80, 3);
     vortex2Failure = !configVortex(vortex2, false, 80, 3);
   }

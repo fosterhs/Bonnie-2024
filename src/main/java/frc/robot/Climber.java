@@ -12,8 +12,8 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Climber {
-  private final TalonFX leftClimbMotor = new TalonFX(10, "canivore"); // The motor that controls the left climber.
-  private final TalonFX rightClimbMotor = new TalonFX(9, "canivore"); // The other that controls the right climber.
+  private final TalonFX leftClimbMotor = new TalonFX(10, "canivore"); // The Falcon 500 motor that controls the left climber.
+  private final TalonFX rightClimbMotor = new TalonFX(9, "canivore"); // The other Falcon 500 motor that controls the right climber.
   private final DigitalInput leftLimitSensor = new DigitalInput(2); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
   private final DigitalInput rightLimitSensor = new DigitalInput(1); // Hall effect sensor that detects whether a magnet is present. Triggered when the climber is bottomed out.
   private final double rotationsToTop = 180.0; // The approximate number of rotations between the bottom and top of the climber's useful range of motion.

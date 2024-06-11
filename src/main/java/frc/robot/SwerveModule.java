@@ -18,10 +18,10 @@ class SwerveModule {
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
   private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
-  private final AnalogEncoder wheelEncoder;
-  private final double wheelEncoderZero;
-  private final TalonFX driveMotor;
-  private final TalonFX turnMotor;
+  private final AnalogEncoder wheelEncoder; // The wheel encoder connected the the DIO port
+  private final double wheelEncoderZero; // The reading of the wheel encoder when the wheel is pointed forwards. 
+  private final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
+  private final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
   private double turnMotorInitialPos = 0.0; // The turn motor position on start up in falcon rotations.
   private double driveMotorInitialPos = 0.0; // The drive motor position on start up in falcon rotations.
   private double wheelInitialPos = 0.0; // The wheel encoder position on start up in degrees.
