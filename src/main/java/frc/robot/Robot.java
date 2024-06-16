@@ -76,7 +76,7 @@ public class Robot extends TimedRobot {
 
   public void autonomousPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     switch (autoSelected) {
       case auto1:
         switch (autoStage) {
@@ -121,7 +121,7 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
       speedScaleFactor = 1.0;
     }
