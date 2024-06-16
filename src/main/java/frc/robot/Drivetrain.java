@@ -259,11 +259,16 @@ class Drivetrain {
 
   // Incorporates vision information to determine the position of the robot on the field. Should be used only when vision information is deemed to be highly reliable (>1 april tag, close to april tag...)
   // xSD, ySD, and angSD tell the pose estimator how much to trust vision estimates. Larger values are less trustworthy. Units: xSD and ySD are in meters and angSD is in degrees. Default values can be found in pose estimate initialization.
-  public void addVisionEstimate(double xSD, double ySD) {
+  public void addVisionEstimate() {
     long currentFrame = LimelightHelpers.getLimelightNTTableEntry("limelight", "hb").getInteger(0); // Gets the Limelight frame number from network tables.
-    if (LimelightHelpers.getTV("") && currentFrame != lastFrame) { // Checks to see whether there is at least 1 vision target and the LL has provided a new frame.
+    double thor = LimelightHelpers.getLimelightNTTableEntry("limelight", "thor").getDouble(0); // The horizontal width of the box bounding the April Tags in pixels.
+    double tvert = LimelightHelpers.getLimelightNTTableEntry("limelight", "tvert").getDouble(0); // The vertical width of the box bounding the April Tags in pixels.
+    double ta = LimelightHelpers.getTA(""); // The area of the box bounding the April Tags in percent of the screen.
+    boolean tv = LimelightHelpers.getTV(""); // Whether a target is detected.
+    boolean isSquare = Math.abs(tvert / thor - 1.0) < 0.2; // Checks to see if the box bounding the April Tags is square, indicating that 1 April Tag is likely detected.
+    if (currentFrame != lastFrame && tv && !isSquare && ta > 1.5 && getXVel() < 0.1 && getYVel() < 0.1 && getAngVel() < 0.1) { // >1 April Tag is detected, the robot is relatively close to the April Tags, the robot is relatively stationary, and there is a new frame.
       double[] botpose = isBlueAlliance() ? LimelightHelpers.getBotPose_wpiBlue("") : LimelightHelpers.getBotPose_wpiRed(""); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
-      odometry.addVisionMeasurement(new Pose2d(botpose[0], botpose[1], Rotation2d.fromDegrees(getFusedAng())), Timer.getFPGATimestamp()-botpose[6]/1000.0, VecBuilder.fill(xSD, ySD, Units.degreesToRadians(10)));
+      odometry.addVisionMeasurement(new Pose2d(botpose[0], botpose[1], Rotation2d.fromDegrees(getFusedAng())), Timer.getFPGATimestamp()-botpose[6]/1000.0, VecBuilder.fill(0.04, 0.04, Units.degreesToRadians(10)));      
       lastFrame = currentFrame;
     }
   }
@@ -279,7 +284,9 @@ class Drivetrain {
   // Should be called during disabled(). Calibrates the robot's starting position based on any April Tags in sight of the Limelight.
   public void addCalibrationEstimate() {
     long currentFrame = LimelightHelpers.getLimelightNTTableEntry("limelight", "hb").getInteger(0); // Gets the Limelight frame number from network tables.
-    if (LimelightHelpers.getTV("") && currentFrame != lastFrame) { // Checks to see whether there is at least 1 vision target and the LL has provided a new frame.
+    boolean tv = LimelightHelpers.getTV(""); // Whether a target is detected.
+    if (tv && currentFrame != lastFrame) { // Checks to see whether there is at least 1 vision target and the LL has provided a new frame.
+      lastFrame = currentFrame;
       double[] botpose = isBlueAlliance() ? LimelightHelpers.getBotPose_wpiBlue("") : LimelightHelpers.getBotPose_wpiRed(""); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
       calibrationArray[0][calibrationIndex] = botpose[0]; // Adds an x-position entry to the calibrationPosition array. 
       calibrationArray[1][calibrationIndex] = botpose[1]; // Adds a y-position entry to the calibrationPosition array. 
@@ -288,7 +295,6 @@ class Drivetrain {
       if (calibrationFrames < maxCalibrationFrames) { // Increments calibrationPoints until the calibrationPosition array is full.
         calibrationFrames++; 
       }
-      lastFrame = currentFrame;
     } 
   }
 

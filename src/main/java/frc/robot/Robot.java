@@ -33,6 +33,8 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto2, auto2);
     SmartDashboard.putData("Autos", autoChooser);
 
+    swerve.loadPath("Example", 0.0, 0.0, 0.0, 180.0); // Loads a path into the drivetrain with the given parameters.
+
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
     swerve.aimDrive(0.01, 0.0, 0.0, true);
@@ -45,13 +47,11 @@ public class Robot extends TimedRobot {
     swerve.atPathEndpoint(0);
     swerve.drive(0.01, 0.0, 0.0, false, 0.0, 0.0);
     swerve.updateDash();
-    robotPeriodic();
   }
 
   public void robotPeriodic() {
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
-    swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    SmartDashboard.putNumber("autoStage", autoStage);
+    updateDash();
 
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
     if (driver.getRawButtonPressed(8)) {
@@ -75,6 +75,8 @@ public class Robot extends TimedRobot {
   }
 
   public void autonomousPeriodic() {
+    swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
+    swerve.addVisionEstimate(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     switch (autoSelected) {
       case auto1:
         switch (autoStage) {
@@ -96,7 +98,7 @@ public class Robot extends TimedRobot {
       case auto2:
         switch (autoStage) {
           case 1:
-            // Auto 1 code goes here.
+            // Auto 2 code goes here.
             // Stage 1 code goes here.
           break;
 
@@ -114,14 +116,12 @@ public class Robot extends TimedRobot {
   
 
   public void teleopInit() {
-    double ta = LimelightHelpers.getTA("");
-    if (ta > 0.01) { // Checks to see if there is at least 1 target in sight.
-      swerve.pushCalibration(); // Updates the robot's position on the field.
-    }
+    swerve.pushCalibration(); // Updates the robot's position on the field.
   }
 
   public void teleopPeriodic() {
-    updateVision(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
+    swerve.addVisionEstimate(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
       speedScaleFactor = 1.0;
     }
@@ -151,32 +151,15 @@ public class Robot extends TimedRobot {
   }
 
   public void disabledInit() {    
-    double ta = LimelightHelpers.getTA("");
-    if (ta > 0.01) { // Checks to see if there is at least 1 target in sight.
-      swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
-    }
+    swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
   }
 
   public void disabledPeriodic() {
-    double ta = LimelightHelpers.getTA("");
-    if (ta > 0.01) { // Checks to see if there is at least 1 target in sight.
-      swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-    }
+    swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 
-  // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
-  public void updateVision() {
-    boolean isSquare = isSquare(); // Will be false if more than 1 April Tag is detected.
-    double ta = LimelightHelpers.getTA(""); // The area of the box bounding the April Tags in percent of the screen.
-    if (!isSquare && ta > 1.5 && swerve.getXVel() < 0.1 && swerve.getYVel() < 0.1 && swerve.getAngVel() < 0.1) {
-      swerve.addVisionEstimate(0.04, 0.04);
-    } 
-  }
-
-  // Determines whether a Limelight target is square. Useful for identifying whether multiple April Tages are detected.
-  public boolean isSquare() {
-    double thor = LimelightHelpers.getLimelightNTTableEntry("limelight", "thor").getDouble(0);
-    double tvert = LimelightHelpers.getLimelightNTTableEntry("limelight", "tvert").getDouble(0);
-    return Math.abs(tvert / thor - 1.0) < 0.2;
+  public void updateDash() {
+    SmartDashboard.putNumber("Auto Stage", autoStage);
+    SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
   }
 }
