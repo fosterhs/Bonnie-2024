@@ -41,8 +41,6 @@ public class Robot extends TimedRobot {
   private static final String auto11 = "Troll Auto (Right)";
   private String autoSelected;
   private int autoStage = 1;
-  private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
-  private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
 
   // LED Variables
   private final CANdle candle0 = new CANdle(0, "rio"); // Initialzes the LEDs on the left.
@@ -51,9 +49,11 @@ public class Robot extends TimedRobot {
   private int noteIterations = 0;
   private int strobeIterations = 0;
 
+  // Rumble variables
   private Timer rumbleTimer = new Timer(); // Duration of rumble intake cue
-  private Timer noteFiredTimer = new Timer(); // Tracks time elapsed since note fired
   private boolean hadNote = false; // Tracks if the robot previously had a note
+
+  // Teleop controller variables
   private boolean rightTriggerWasPressed = false;
   private boolean leftTriggerWasPressed = false;
 
@@ -72,6 +72,8 @@ public class Robot extends TimedRobot {
   private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
   private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint
+  private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
+  private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
 
   public void robotInit() {
     // Allows the user to choose which auto to do
@@ -856,7 +858,6 @@ public class Robot extends TimedRobot {
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
     rumbleTimer.restart();
-    noteFiredTimer.restart();
   }
 
   public void teleopPeriodic() {
@@ -872,8 +873,7 @@ public class Robot extends TimedRobot {
       speedScaleFactor = 0.15;
     }
 
-    // Applies a deadband to controller inputs. Also limits the acceleration of
-    // controller inputs.
+    // Applies a deadband to controller inputs. Also limits the acceleration of controller inputs.
     double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftY(), 0.05) * speedScaleFactor)
         * Drivetrain.maxVelTeleop;
     double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftX(), 0.05) * speedScaleFactor)
@@ -1068,7 +1068,6 @@ public class Robot extends TimedRobot {
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
   private double[] distCalArray = { 1.58, 2.25, 2.75 }; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
   private double[] armCalArray = { -4.00, 4.80, 13.50 }; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
-
   public double getAimArmAngle() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance.
     double distToSpeaker = Math.sqrt(Math.pow(speakerY - swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
