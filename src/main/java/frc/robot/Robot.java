@@ -117,11 +117,10 @@ public class Robot extends TimedRobot {
 
   public void robotPeriodic() {
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
-    swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     arm.updateDashboard();
     thrower.updateDashboard();
     climber.updateDashboard();
-    SmartDashboard.putNumber("autoStage", autoStage);
+    updateDash();
     controlLEDs();
 
     // Resets the arm timer to 0 if the arm is not at the current setpoint.
@@ -218,6 +217,7 @@ public class Robot extends TimedRobot {
   }
 
   public void autonomousPeriodic() {
+    swerve.updateOdometry();
     thrower.periodic();
     arm.periodic();
     switch (autoSelected) {
@@ -852,20 +852,16 @@ public class Robot extends TimedRobot {
   
 
   public void teleopInit() {
-    double ta = LimelightHelpers.getTA("");
-    if (ta > 0.01) {
-      swerve.pushCalibration(); // Updates the robot's position on the field.
-    }
+    swerve.pushCalibration(); // Updates the robot's position on the field.
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
-    // arm.init();
     rumbleTimer.restart();
     noteFiredTimer.restart();
   }
 
   public void teleopPeriodic() {
-    updateVision(); // Checks to see ifs there are reliable April Tags in sight of the Limelight and
-                // updates the robot position on the field.
+    swerve.updateOdometry();
+    swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
       speedScaleFactor = 1.0;
     }
@@ -1018,17 +1014,17 @@ public class Robot extends TimedRobot {
   }
 
   public void disabledInit() {    
-    double ta = LimelightHelpers.getTA("");
-    if (ta > 0.01) {
-      swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
-    }
+    swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
   }
 
   public void disabledPeriodic() {
-    double ta = LimelightHelpers.getTA("");
-    if (ta > 0.01) {
-      swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-    }
+    swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+  }
+
+  // Sends information to the dashboard
+  public void updateDash() {
+    SmartDashboard.putNumber("Auto Stage", autoStage);
+    SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
   }
 
   // Sets the LEDs based on whether a note is detected.
@@ -1055,22 +1051,6 @@ public class Robot extends TimedRobot {
       candle0.setLEDs(255, 0, 255, 0, 0, 8);
       candle1.setLEDs(255, 0, 255, 0, 0, 8);
     }
-  }
-
-  // Sends April Tag data to the drivetrain to update the position of the robot on the field. Filters data based on the number of tags visible and their size.
-  public void updateVision() {
-    boolean isSquare = isSquare(); // Will be false if more than 1 April Tag is detected.
-    double ta = LimelightHelpers.getTA(""); // The area of the box bounding the April Tags in percent of the screen.
-    if (!isSquare && ta > 1.5 && swerve.getXVel() < 0.1 && swerve.getYVel() < 0.1 && swerve.getAngVel() < 0.1) {
-      swerve.addVisionEstimate(0.04, 0.04);
-    } 
-  }
-
-  // Determines whether a Limelight target is square. Useful for identifying whether multiple April Tages are detected.
-  public boolean isSquare() {
-    double thor = LimelightHelpers.getLimelightNTTableEntry("limelight", "thor").getDouble(0);
-    double tvert = LimelightHelpers.getLimelightNTTableEntry("limelight", "tvert").getDouble(0);
-    return Math.abs(tvert / thor - 1.0) < 0.2;
   }
 
   // Calculates the angle the robot should be facing to make the shot in degrees.
