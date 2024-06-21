@@ -35,7 +35,7 @@ class SwerveModule {
     driveMotor = new TalonFX(driveID, canbus);
     turnMotor = new TalonFX(turnID, canbus);
     driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 60.0, 3);
-    turnMotorFailure = !configTurnMotor(turnMotor, false, 60.0, 3);
+    turnMotorFailure = !configTurnMotor(turnMotor, true, 60.0, 3);
   }
 
   // Sets the swerve module to the given state (velocity and angle).
