@@ -35,7 +35,11 @@ class SwerveModule {
     driveMotor = new TalonFX(driveID, canbus);
     turnMotor = new TalonFX(turnID, canbus);
     driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 60.0, 3);
-    turnMotorFailure = !configTurnMotor(turnMotor, false, 60.0, 3);
+    turnMotorFailure = !configTurnMotor(turnMotor, true, 60.0, 3);
+    turnMotorInitialPos = turnMotor.getRotorPosition().waitForUpdate(1.0).getValueAsDouble();
+    driveMotorInitialPos = driveMotor.getRotorPosition().waitForUpdate(1.0).getValueAsDouble();
+    wheelInitialPos = getWheelEncoderAngle();
+    angleSetpoint = getTurnMotorAngle();
   }
 
   // Sets the swerve module to the given state (velocity and angle).
@@ -164,9 +168,6 @@ class SwerveModule {
         return false;
       }
     }
-
-    // Defines initial position of the module
-    driveMotorInitialPos = driveMotor.getRotorPosition().getValueAsDouble();
     return true;
   }
 
@@ -202,11 +203,6 @@ class SwerveModule {
         return false;
       }
     }
-    
-    // Defines initial position of the module
-    wheelInitialPos = getWheelEncoderAngle();
-    turnMotorInitialPos = turnMotor.getRotorPosition().getValueAsDouble();
-    angleSetpoint = getTurnMotorAngle();
     return true;
   }
 }
