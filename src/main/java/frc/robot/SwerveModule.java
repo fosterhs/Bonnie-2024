@@ -1,24 +1,29 @@
 package frc.robot;
 
 import com.ctre.phoenix6.StatusCode;
+import com.ctre.phoenix6.configs.CANcoderConfiguration;
+import com.ctre.phoenix6.configs.CANcoderConfigurator;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
 import com.ctre.phoenix6.controls.VelocityDutyCycle;
+import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.AbsoluteSensorRangeValue;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.SensorDirectionValue;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.wpilibj.AnalogEncoder;
 
 class SwerveModule {
   private static final double correctionFactor = 0.98; // Factor that corrects for real-world deviations from the odometry calculated position of the robot. These can be caused by things like tread wear. Set this value to 1, then make the robot follow a 1 meter path in auto. Set this value to the distance the robot actually traveled.
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
   private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
-  private final AnalogEncoder wheelEncoder; // The wheel encoder connected the the DIO port
+  private final CANcoder wheelEncoder; // The wheel encoder connected the the DIO port
   private final double wheelEncoderZero; // The reading of the wheel encoder when the wheel is pointed forwards. 
   private final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
   private final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
@@ -31,11 +36,12 @@ class SwerveModule {
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double _wheelEncoderZero, String canbus) {
     wheelEncoderZero = _wheelEncoderZero;
-    wheelEncoder = new AnalogEncoder(encoderID);
     driveMotor = new TalonFX(driveID, canbus);
     turnMotor = new TalonFX(turnID, canbus);
     driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 60.0, 3);
     turnMotorFailure = !configTurnMotor(turnMotor, true, 60.0, 3);
+    wheelEncoder = new CANcoder(encoderID, canbus);
+    configEncoder(wheelEncoder);
     turnMotorInitialPos = turnMotor.getRotorPosition().waitForUpdate(1.0).getValueAsDouble();
     driveMotorInitialPos = driveMotor.getRotorPosition().waitForUpdate(1.0).getValueAsDouble();
     wheelInitialPos = getWheelEncoderAngle();
@@ -108,7 +114,7 @@ class SwerveModule {
   
   // Returns the raw value of the wheel encoder. Range: -180 to 180 degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y).
   public double getWheelEncoderAngle() {
-    double wheelAngle = wheelEncoder.getAbsolutePosition()*360.0 - wheelEncoderZero;
+    double wheelAngle = wheelEncoder.getAbsolutePosition().getValueAsDouble()*360.0 - wheelEncoderZero;
     if (wheelAngle > 180.0) {
       wheelAngle = wheelAngle - 360.0;
     } else if (wheelAngle < -180.0) {
@@ -193,6 +199,12 @@ class SwerveModule {
     motorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0;
     motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0;
 
+    // Sets CANcoder parameters
+    motorConfigs.Feedback.FeedbackRemoteSensorID = wheelEncoder.getDeviceID();
+    motorConfigs.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
+    motorConfigs.Feedback.SensorToMechanismRatio = 1.0;
+    motorConfigs.Feedback.RotorToSensorRatio = turnGearRatio;
+
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int motorErrors = 0;
     boolean motorFailure = false;
@@ -204,5 +216,14 @@ class SwerveModule {
       }
     }
     return true;
+  }
+
+  private void configEncoder(CANcoder encoder) {
+    CANcoderConfigurator encoderConfigurator = encoder.getConfigurator();
+    CANcoderConfiguration encoderConfigs = new CANcoderConfiguration();
+    encoderConfigs.MagnetSensor.AbsoluteSensorRange= AbsoluteSensorRangeValue.Signed_PlusMinusHalf;
+    encoderConfigs.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
+    encoderConfigs.MagnetSensor.MagnetOffset = 0.4;
+    encoderConfigurator.apply(encoderConfigs);
   }
 }
