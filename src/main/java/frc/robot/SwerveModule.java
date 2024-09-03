@@ -36,12 +36,12 @@ class SwerveModule {
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double _wheelEncoderZero, String canbus) {
     wheelEncoderZero = _wheelEncoderZero;
+    wheelEncoder = new CANcoder(encoderID, canbus);
+    configEncoder(wheelEncoder);
     driveMotor = new TalonFX(driveID, canbus);
     turnMotor = new TalonFX(turnID, canbus);
     driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 60.0, 3);
     turnMotorFailure = !configTurnMotor(turnMotor, true, 60.0, 3);
-    wheelEncoder = new CANcoder(encoderID, canbus);
-    configEncoder(wheelEncoder);
     turnMotorInitialPos = turnMotor.getRotorPosition().waitForUpdate(1.0).getValueAsDouble();
     driveMotorInitialPos = driveMotor.getRotorPosition().waitForUpdate(1.0).getValueAsDouble();
     wheelInitialPos = getWheelEncoderAngle();
@@ -130,7 +130,7 @@ class SwerveModule {
   
   // Sets the angle of the module. Units: degrees Can accept values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
   private void setAngle(double angle) {
-    turnMotor.setControl(new MotionMagicDutyCycle(((angle-wheelInitialPos)*turnGearRatio)/360.0+turnMotorInitialPos).withEnableFOC(true));
+    turnMotor.setControl(new MotionMagicDutyCycle(angle/360.0).withEnableFOC(true));
   }
 
   // True if the drive motor failed to respond to configuration commands on startup or reboot. Is a likely indicator of motor or CAN failure.
@@ -193,9 +193,9 @@ class SwerveModule {
     motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
 
     // Setting Motion Magic parameters
-    motorConfigs.Slot0.kP = 0.8;
-    motorConfigs.Slot0.kI = 2.0;
-    motorConfigs.Slot0.kD = 0.006;
+    motorConfigs.Slot0.kP = 17.14;
+    motorConfigs.Slot0.kI = 0.1307;
+    motorConfigs.Slot0.kD = 0.00028;
     motorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0;
     motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0;
 
@@ -204,6 +204,7 @@ class SwerveModule {
     motorConfigs.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
     motorConfigs.Feedback.SensorToMechanismRatio = 1.0;
     motorConfigs.Feedback.RotorToSensorRatio = turnGearRatio;
+    motorConfigs.ClosedLoopGeneral.ContinuousWrap = true;
 
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorFailures
     int motorErrors = 0;
@@ -223,7 +224,7 @@ class SwerveModule {
     CANcoderConfiguration encoderConfigs = new CANcoderConfiguration();
     encoderConfigs.MagnetSensor.AbsoluteSensorRange= AbsoluteSensorRangeValue.Signed_PlusMinusHalf;
     encoderConfigs.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
-    encoderConfigs.MagnetSensor.MagnetOffset = 0.4;
+    encoderConfigs.MagnetSensor.MagnetOffset = wheelEncoderZero;
     encoderConfigurator.apply(encoderConfigs);
   }
 }
