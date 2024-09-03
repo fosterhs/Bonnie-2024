@@ -406,6 +406,10 @@ class Drivetrain {
     SmartDashboard.putBoolean("Front Right Swerve Module Drive Motor Failure", frontRightModule.getDriveMotorFailure());
     SmartDashboard.putBoolean("Back Right Swerve Module Drive Motor Failure", backRightModule.getDriveMotorFailure());
     SmartDashboard.putBoolean("Back Left Swerve Module Drive Motor Failure", backLeftModule.getDriveMotorFailure());
+    SmartDashboard.putBoolean("Front Left Swerve Module Encoder Failure", frontLeftModule.getEncoderFailure());
+    SmartDashboard.putBoolean("Front Right Swerve Module Encoder Failure", frontRightModule.getEncoderFailure());
+    SmartDashboard.putBoolean("Back Right Swerve Module Encoder Failure", backRightModule.getEncoderFailure());
+    SmartDashboard.putBoolean("Back Left Swerve Module Encoder Failure", backLeftModule.getEncoderFailure());
     SmartDashboard.putNumber("Robot X Position", getXPos());
     SmartDashboard.putNumber("Robot Y Position", getYPos());
     SmartDashboard.putNumber("Robot Angular Position (Fused)", getFusedAng());
