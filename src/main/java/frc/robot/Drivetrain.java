@@ -1,9 +1,11 @@
 package frc.robot;
 
 import java.util.ArrayList;
+
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
+
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
@@ -40,10 +42,10 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.316162109375, "canivore"); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.177978515625, "canivore");
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.480712890625, "canivore");
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.1005859375, "canivore");
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.349853515625, "canivore"); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.270263671875, "canivore");
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.232421875, "canivore");
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.462158203125, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
