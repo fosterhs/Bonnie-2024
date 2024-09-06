@@ -1029,27 +1029,36 @@ public class Robot extends TimedRobot {
 
   // Sets the LEDs based on whether a note is detected.
   public void controlLEDs() {
-    boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3();
-    if (hasNote) {
-      if (noteIterations % 4 == 0 && strobeIterations < 11) {
-        lightsOn = !lightsOn;
-        strobeIterations++;
-      }
-      noteIterations++;
-      if (lightsOn) {
-        candle0.setLEDs(0, 255, 0, 0, 0, 8);
-        candle1.setLEDs(0, 255, 0, 0, 0, 8);
-      } else {
-        candle0.setLEDs(0, 0, 0, 0, 0, 8);
-        candle1.setLEDs(0, 0, 0, 0, 0, 8);
-      }
+    boolean robotFailure = arm.getLeftMotorFailure() || arm.getRightMotorFailure() || 
+      climber.getLeftClimbMotorFailure() || climber.getRightClimbMotorFailure() || !climber.getLimitSensorDetected() ||
+      thrower.getIndexMotorFailure() || thrower.getVortex1Failure() || thrower.getVortex2Failure() ||
+      swerve.getModuleFailure();
+    if (robotFailure) {
+      candle0.setLEDs(255, 0, 0, 0, 0, 8);
+      candle1.setLEDs(255, 0, 0, 0, 0, 8);
     } else {
-      noteIterations = 0;
-      strobeIterations = 0;
-      lightsOn = false;
+      boolean hasNote = thrower.getSensor1() || thrower.getSensor2() || thrower.getSensor3();
+      if (hasNote) {
+        if (noteIterations % 4 == 0 && strobeIterations < 11) {
+          lightsOn = !lightsOn;
+          strobeIterations++;
+        }
+        noteIterations++;
+        if (lightsOn) {
+          candle0.setLEDs(0, 255, 0, 0, 0, 8);
+          candle1.setLEDs(0, 255, 0, 0, 0, 8);
+        } else {
+          candle0.setLEDs(0, 0, 0, 0, 0, 8);
+          candle1.setLEDs(0, 0, 0, 0, 0, 8);
+        }
+      } else {
+        noteIterations = 0;
+        strobeIterations = 0;
+        lightsOn = false;
 
-      candle0.setLEDs(255, 0, 255, 0, 0, 8);
-      candle1.setLEDs(255, 0, 255, 0, 0, 8);
+        candle0.setLEDs(255, 0, 255, 0, 0, 8);
+        candle1.setLEDs(255, 0, 255, 0, 0, 8);
+      }
     }
   }
 
