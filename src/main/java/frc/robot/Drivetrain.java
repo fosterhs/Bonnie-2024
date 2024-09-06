@@ -40,10 +40,10 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, 0.65, "canivore"); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, 0.73, "canivore");
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, 0.77, "canivore");
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.47, "canivore");
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.316162109375, "canivore"); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.177978515625, "canivore");
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.480712890625, "canivore");
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.1005859375, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
@@ -379,6 +379,14 @@ class Drivetrain {
   public double getPathAngleError() {
     return getAngleDistance(getFusedAng(), pathAngPos);
   }
+
+  // Returns true if any swerve module motors or encoders failed to configure on startup.
+  public boolean getModuleFailure() {
+    return frontLeftModule.getDriveMotorFailure() || frontLeftModule.getTurnMotorFailure() || frontLeftModule.getEncoderFailure() ||
+      frontRightModule.getDriveMotorFailure() || frontRightModule.getTurnMotorFailure() || frontRightModule.getEncoderFailure() ||
+      backLeftModule.getDriveMotorFailure() || backLeftModule.getTurnMotorFailure() || backLeftModule.getEncoderFailure() ||
+      backRightModule.getDriveMotorFailure() || backRightModule.getTurnMotorFailure() || backRightModule.getEncoderFailure();
+  }
   
   // Publishes all values to the dashboard. Should be called each period. Uncomment individual lines to publish that information.
   public void updateDash() {
@@ -390,14 +398,10 @@ class Drivetrain {
     SmartDashboard.putNumber("Front Right Swerve Module Velocity", frontRightModule.getDriveMotorVel());
     SmartDashboard.putNumber("Back Right Swerve Module Velocity", backRightModule.getDriveMotorVel());
     SmartDashboard.putNumber("Back Left Swerve Module Velocity", backLeftModule.getDriveMotorVel());
-    SmartDashboard.putNumber("Front Left Swerve Module Turn Motor Angle", frontLeftModule.getTurnMotorAngle());
-    SmartDashboard.putNumber("Front Right Swerve Module Turn Motor Angle", frontRightModule.getTurnMotorAngle());
-    SmartDashboard.putNumber("Back Right Swerve Module Turn Motor Angle", backRightModule.getTurnMotorAngle());
-    SmartDashboard.putNumber("Back Left Swerve Module Turn Motor Angle", backLeftModule.getTurnMotorAngle());
-    SmartDashboard.putNumber("Front Left Swerve Module Wheel Encoder Angle", frontLeftModule.getWheelEncoderAngle());
-    SmartDashboard.putNumber("Front Right Swerve Module Wheel Encoder Angle", frontRightModule.getWheelEncoderAngle());
-    SmartDashboard.putNumber("Back Right Swerve Module Wheel Encoder Angle", backRightModule.getWheelEncoderAngle());
-    SmartDashboard.putNumber("Back Left Swerve Module Wheel Encoder Angle", backLeftModule.getWheelEncoderAngle());
+    SmartDashboard.putNumber("Front Left Swerve Module Wheel Encoder Angle", frontLeftModule.getWheelAngle());
+    SmartDashboard.putNumber("Front Right Swerve Module Wheel Encoder Angle", frontRightModule.getWheelAngle());
+    SmartDashboard.putNumber("Back Right Swerve Module Wheel Encoder Angle", backRightModule.getWheelAngle());
+    SmartDashboard.putNumber("Back Left Swerve Module Wheel Encoder Angle", backLeftModule.getWheelAngle());
     SmartDashboard.putBoolean("Front Left Swerve Module Turn Motor Failure", frontLeftModule.getTurnMotorFailure());
     SmartDashboard.putBoolean("Front Right Swerve Module Turn Motor Failure", frontRightModule.getTurnMotorFailure());
     SmartDashboard.putBoolean("Back Right Swerve Module Turn Motor Failure", backRightModule.getTurnMotorFailure());
