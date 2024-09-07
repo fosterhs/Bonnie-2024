@@ -22,7 +22,7 @@ public class Arm {
   private final DutyCycleEncoder armEncoderRight = new DutyCycleEncoder(9); // Keeps track of the angle of the arm.
   private boolean armMotorLeftFailure = false; // Indicates whether the left motor failed to configure on startup.
   private boolean armMotorRightFailure = false; // Indicates whether the right motor failed to configure on startup.
-  private double armEncoderLeftZero = 0.696; // The reading of the left encoder in rotations when the arm is at 0 degrees.
+  private double armEncoderLeftZero = 0.691; // The reading of the left encoder in rotations when the arm is at 0 degrees.
   private double armEncoderRightZero = 0.659; // The reading of the right encoder in rotations when the arm is at 0 degrees.
   private double armMotorLeftInitialPos = 0.0; // The position of the left arm motor on startup in falcon rotations.
   private double armEncoderInitialPos = 0.0; // The position of the arm encoder on startup in degrees, with a zero offset applied.
