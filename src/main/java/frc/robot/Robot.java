@@ -19,6 +19,7 @@ public class Robot extends TimedRobot {
 
   // Initializes the different subsystems of the robot.
   private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
+  private final PDH pdh = new PDH(); // Tracks battery voltage, current draw, and the switchable channel. 
 
   // Auto Chooser Variables
   private final SendableChooser<String> autoChooser = new SendableChooser<>();
@@ -47,10 +48,12 @@ public class Robot extends TimedRobot {
     swerve.atPathEndpoint(0);
     swerve.drive(0.01, 0.0, 0.0, false, 0.0, 0.0);
     swerve.updateDash();
+    pdh.updateDash();
   }
 
   public void robotPeriodic() {
     swerve.updateDash(); // Pushes drivetrain information to the Dashboard.
+    pdh.updateDash();
     updateDash();
 
     // Re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.

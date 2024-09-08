@@ -30,9 +30,9 @@ class SwerveModule {
   private boolean turnMotorFailure = false; // Whether the turn motor has failed to configure correctly.
   private boolean encoderFailure = false; // Whether the wheel encoder failed to initialize. 
 
-  public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double _wheelEncoderZero, String canbus) {
+  public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double wheelEncoderZero, String canbus) {
     wheelEncoder = new CANcoder(encoderID, canbus);
-    encoderFailure = !configEncoder(wheelEncoder, 3, _wheelEncoderZero);
+    encoderFailure = !configEncoder(wheelEncoder, 3, wheelEncoderZero);
     turnMotor = new TalonFX(turnID, canbus);
     turnMotorFailure = !configTurnMotor(turnMotor, true, 60.0, 3);
     driveMotor = new TalonFX(driveID, canbus);
