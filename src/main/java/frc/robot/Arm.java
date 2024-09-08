@@ -91,7 +91,7 @@ public class Arm {
   }
 
   // Sends information to the dashboard each period. This is handled automatically by the class.
-  public void updateDashboard() {
+  public void updateDash() {
     SmartDashboard.putBoolean("Arm Left Motor Failure", getLeftMotorFailure());
     SmartDashboard.putBoolean("Arm Right Motor Failure", getLeftMotorFailure());
     SmartDashboard.putBoolean("Arm atSetpoint", atSetpoint());

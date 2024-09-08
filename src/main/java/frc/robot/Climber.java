@@ -151,7 +151,7 @@ public class Climber {
   }
 
   // Updates any important values on the dashboard.
-  public void updateDashboard() {
+  public void updateDash() {
     SmartDashboard.putBoolean("Climber Left Motor Failure", getLeftClimbMotorFailure());
     SmartDashboard.putBoolean("Climber Right Motor Failure", getRightClimbMotorFailure());
     SmartDashboard.putBoolean("Climber Left Limit Sensor", getLeftLimitSensor());

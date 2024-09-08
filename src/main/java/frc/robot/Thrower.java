@@ -286,7 +286,7 @@ public class Thrower {
   }
 
   // Sends information about the thrower to the dashboard each period. This is handled automatically by the thrower class.
-  public void updateDashboard() {
+  public void updateDash() {
     SmartDashboard.putBoolean("Thrower isSpunUp", isSpunUp());
     SmartDashboard.putBoolean("Thrower throwCommanded", isThrowing());
     SmartDashboard.putBoolean("Thrower ampScoreCommanded", isAmpScoring());
