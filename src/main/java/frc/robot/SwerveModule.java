@@ -23,20 +23,20 @@ class SwerveModule {
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
   private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
-  private final CANcoder wheelEncoder; // The wheel encoder connected the the DIO port
+  private final CANcoder wheelEncoder; // The CANcoder that measures the angle of the swerve wheel.
   private final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
   private final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
   private boolean driveMotorFailure = false; // Whether the drive motor has failed to configure correctly.
   private boolean turnMotorFailure = false; // Whether the turn motor has failed to configure correctly.
-  private boolean encoderFailure = false; // Whether the wheel encoder failed to initialize. 
+  private boolean encoderFailure = false; // Whether the wheel encoder has failed to configure correctly.
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double wheelEncoderZero, String canbus) {
     wheelEncoder = new CANcoder(encoderID, canbus);
     encoderFailure = !configEncoder(wheelEncoder, 3, wheelEncoderZero);
     turnMotor = new TalonFX(turnID, canbus);
-    turnMotorFailure = !configTurnMotor(turnMotor, true, 60.0, 3);
+    turnMotorFailure = !configTurnMotor(turnMotor, true, 40.0, 3);
     driveMotor = new TalonFX(driveID, canbus);
-    driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 60.0, 3);
+    driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 80.0, 3);
     driveMotor.setPosition(0.0, 0.03);
   }
 
@@ -67,7 +67,7 @@ class SwerveModule {
     return (driveMotor.getPosition().getValueAsDouble())*wheelCirc*correctionFactor/driveGearRatio;
   }
   
-  // Returns the raw value of the wheel encoder. Range: -180 to 180 degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y).
+  // Returns the raw value of the wheel encoder. Range: -180 to 180 degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y). CCW positive coordinate system.
   public double getWheelAngle() {
     return wheelEncoder.getAbsolutePosition().getValueAsDouble()*360.0;
   }
@@ -107,10 +107,8 @@ class SwerveModule {
     motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
     
     // Setting current limits
-    motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    motorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
-    motorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
-    motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+    motorConfigs.CurrentLimits.StatorCurrentLimitEnable = true;
+    motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
     // Setting PID parameters for velocity control
     motorConfigs.Slot0.kP = 0.008;
@@ -141,10 +139,8 @@ class SwerveModule {
     motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
 
     // Setting current limits
-    motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    motorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
-    motorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
-    motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+    motorConfigs.CurrentLimits.StatorCurrentLimitEnable = true;
+    motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
     // Setting Motion Magic parameters
     motorConfigs.Slot0.kP = 17.14;
