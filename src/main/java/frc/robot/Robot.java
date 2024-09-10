@@ -25,7 +25,7 @@ public class Robot extends TimedRobot {
   private final Thrower thrower = new Thrower();
   private final Arm arm = new Arm();
   private final Climber climber = new Climber();
-  private final PDH pdh = new PDH();
+  // private final PDH pdh = new PDH();
 
   // Auto Chooser Variables
   private final SendableChooser<String> autoChooser = new SendableChooser<>();
@@ -123,7 +123,7 @@ public class Robot extends TimedRobot {
     arm.updateDash();
     thrower.updateDash();
     climber.updateDash();
-    pdh.updateDash();
+    // pdh.updateDash();
     updateDash();
     controlLEDs();
 
