@@ -1,11 +1,9 @@
 package frc.robot;
 
 import java.util.ArrayList;
-
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
-
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
