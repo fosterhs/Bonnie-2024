@@ -31,10 +31,10 @@ class SwerveModule {
   private boolean driveMotorFailure = false; // Whether the drive motor has failed to configure correctly.
   private boolean turnMotorFailure = false; // Whether the turn motor has failed to configure correctly.
   private boolean encoderFailure = false; // Whether the wheel encoder has failed to configure correctly.
-  public StatusSignal<Double> drivePos;
-  public StatusSignal<Double> driveVel;
-  public StatusSignal<Double> wheelPos;
-  public StatusSignal<Double> wheelVel;
+  public StatusSignal<Double> drivePos; // Stores the current position of the drive motor in shaft revolutions. The value is reset to 0 at startup.
+  public StatusSignal<Double> driveVel; // Stores the current velocity of the drive motor in shaft revolutions per second. 
+  public StatusSignal<Double> wheelPos; // Stores the current angular position of the swerve wheel in rotations between -0.5 and 0.5.
+  public StatusSignal<Double> wheelVel; // Stores the current angular velocity of the swerve wheel in rotations per second. 
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double wheelEncoderZero, String canbus) {
     wheelEncoder = new CANcoder(encoderID, canbus);

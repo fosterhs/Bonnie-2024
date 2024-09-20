@@ -1,7 +1,6 @@
 package frc.robot;
 
 import java.util.ArrayList;
-
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.Pigeon2;
@@ -49,10 +48,11 @@ class Drivetrain {
   public final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.462158203125, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
+  // Gyroscope Variables
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
-  public StatusSignal<Double> pigeonPitch;
-  public StatusSignal<Double> pigeonYaw;
-  public StatusSignal<Double> pigeonYawVel;
+  public StatusSignal<Double> pigeonPitch; // Stores the pitch of the robot in degrees.
+  public StatusSignal<Double> pigeonYaw; // Stores the yaw (turning angle) of the robot in degrees.
+  public StatusSignal<Double> pigeonYawVel; // Stores the yaw velocity (turning rate) of the robot in degrees per second.
 
   // Limelight (LL) Variables
   private final int maxCalibrationFrames = 50; // The number of LL frames that will be averaged to determine the position of the robot when it is disabled() or being calibrated.
