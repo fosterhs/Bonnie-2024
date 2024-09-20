@@ -1,6 +1,9 @@
 package frc.robot;
 
 import java.util.ArrayList;
+
+import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
@@ -40,13 +43,16 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.349853515625, "canivore"); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.270263671875, "canivore");
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.232421875, "canivore");
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.462158203125, "canivore");
+  public final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.349853515625, "canivore"); 
+  public final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.270263671875, "canivore");
+  public final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.232421875, "canivore");
+  public final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.462158203125, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
+  public StatusSignal<Double> pigeonPitch;
+  public StatusSignal<Double> pigeonYaw;
+  public StatusSignal<Double> pigeonYawVel;
 
   // Limelight (LL) Variables
   private final int maxCalibrationFrames = 50; // The number of LL frames that will be averaged to determine the position of the robot when it is disabled() or being calibrated.
@@ -82,6 +88,9 @@ class Drivetrain {
     angleController.setIntegratorRange(-maxAngularVelAuto*0.8, maxAngularVelAuto*0.8);
     resetGyro(); // Sets the gyro angle to 0 based on the current heading of the robot.
     calibrationTimer.restart();
+    pigeonYaw = pigeon.getYaw();
+    pigeonYawVel = pigeon.getAngularVelocityZWorld();
+    pigeonPitch = pigeon.getPitch();
   }
   
   // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel. 
@@ -332,12 +341,17 @@ class Drivetrain {
   
   // Returns the angular position of the robot in degrees. The angular position is referenced to the starting angle of the robot. CCW is positive. Will return 0 in the case of a gyro failure.
   public double getGyroAng() {
-    return pigeon.getYaw().getValueAsDouble();
+    return BaseStatusSignal.getLatencyCompensatedValue(pigeonYaw, pigeonYawVel, 0.02);
+  }
+
+  // Returns the angular velocity of the robot in degrees per second.
+  public double getGyroAngVel() {
+    return pigeonYawVel.getValueAsDouble();
   }
 
   // Returns the pitch of the robot in degrees. An elevated front is positive. An elevated rear is negative.
   public double getGyroPitch() {
-    return pigeon.getPitch().getValueAsDouble();
+    return pigeonPitch.getValueAsDouble();
   }
 
   // Returns true if the robot is on the red alliance.
@@ -412,6 +426,10 @@ class Drivetrain {
     SmartDashboard.putNumber("Front Right Swerve Module Wheel Encoder Angle", frontRightModule.getWheelAngle());
     SmartDashboard.putNumber("Back Right Swerve Module Wheel Encoder Angle", backRightModule.getWheelAngle());
     SmartDashboard.putNumber("Back Left Swerve Module Wheel Encoder Angle", backLeftModule.getWheelAngle());
+    SmartDashboard.putNumber("Front Left Swerve Module Wheel Encoder Velocity", frontLeftModule.getWheelVel());
+    SmartDashboard.putNumber("Front Right Swerve Module Wheel Encoder Velocity", frontRightModule.getWheelVel());
+    SmartDashboard.putNumber("Back Right Swerve Module Wheel Encoder Velocity", backRightModule.getWheelVel());
+    SmartDashboard.putNumber("Back Left Swerve Module Wheel Encoder Velocity", backLeftModule.getWheelVel());
     SmartDashboard.putBoolean("Front Left Swerve Module Turn Motor Failure", frontLeftModule.getTurnMotorFailure());
     SmartDashboard.putBoolean("Front Right Swerve Module Turn Motor Failure", frontRightModule.getTurnMotorFailure());
     SmartDashboard.putBoolean("Back Right Swerve Module Turn Motor Failure", backRightModule.getTurnMotorFailure());
@@ -428,6 +446,7 @@ class Drivetrain {
     SmartDashboard.putNumber("Robot Y Position", getYPos());
     SmartDashboard.putNumber("Robot Angular Position (Fused)", getFusedAng());
     SmartDashboard.putNumber("Robot Angular Position (Gyro)", getGyroAng());
+    SmartDashboard.putNumber("Robot Angular Velocity (Gryo)", getGyroAngVel());
     SmartDashboard.putNumber("Robot Pitch", getGyroPitch());
     SmartDashboard.putNumber("Robot Demanded X Velocity", getXVel());
     SmartDashboard.putNumber("Robot Demanded Y Velocity", getYVel());

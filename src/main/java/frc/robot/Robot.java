@@ -1,6 +1,8 @@
 package frc.robot;
 
 import com.ctre.phoenix.led.CANdle;
+import com.ctre.phoenix6.BaseStatusSignal;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
@@ -221,6 +223,7 @@ public class Robot extends TimedRobot {
   }
 
   public void autonomousPeriodic() {
+    refreshStatusSignals();
     swerve.updateOdometry();
     thrower.periodic();
     arm.periodic();
@@ -863,6 +866,7 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopPeriodic() {
+    refreshStatusSignals();
     swerve.updateOdometry();
     swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
@@ -1020,6 +1024,7 @@ public class Robot extends TimedRobot {
   }
 
   public void disabledPeriodic() {
+    refreshStatusSignals();
     swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 
@@ -1105,5 +1110,14 @@ public class Robot extends TimedRobot {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance.
     double distToSpeaker = Math.sqrt(Math.pow(speakerY - swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
     return distToSpeaker < maxShotDistance;
+  }
+
+  // Pauses the robot code while the most recent sensor information is uploaded to the CAN bus.
+  public void refreshStatusSignals() {
+    BaseStatusSignal.waitForAll(0.02, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
+      swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
+      swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
+      swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
+      swerve.frontRightModule.drivePos, swerve.frontRightModule.driveVel, swerve.frontRightModule.wheelPos, swerve.frontRightModule.wheelVel);
   }
 }

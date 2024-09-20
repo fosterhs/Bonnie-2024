@@ -1,6 +1,8 @@
 package frc.robot;
 
+import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
+import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.CANcoderConfigurator;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -29,6 +31,10 @@ class SwerveModule {
   private boolean driveMotorFailure = false; // Whether the drive motor has failed to configure correctly.
   private boolean turnMotorFailure = false; // Whether the turn motor has failed to configure correctly.
   private boolean encoderFailure = false; // Whether the wheel encoder has failed to configure correctly.
+  public StatusSignal<Double> drivePos;
+  public StatusSignal<Double> driveVel;
+  public StatusSignal<Double> wheelPos;
+  public StatusSignal<Double> wheelVel;
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double wheelEncoderZero, String canbus) {
     wheelEncoder = new CANcoder(encoderID, canbus);
@@ -38,13 +44,18 @@ class SwerveModule {
     driveMotor = new TalonFX(driveID, canbus);
     driveMotorFailure = !configDriveMotor(driveMotor, invertDrive, 80.0, 3);
     driveMotor.setPosition(0.0, 0.03);
+    drivePos = driveMotor.getPosition();
+    driveVel = driveMotor.getVelocity();
+    wheelPos = wheelEncoder.getAbsolutePosition();
+    wheelVel = wheelEncoder.getVelocity();
   }
 
   // Sets the swerve module to the given state (velocity and angle).
   public void setSMS(SwerveModuleState desiredState) {
-    SwerveModuleState optimizedState = SwerveModuleState.optimize(desiredState, Rotation2d.fromDegrees(getWheelAngle()));
+    Rotation2d currentWheelAngle = Rotation2d.fromDegrees(getWheelAngle());
+    SwerveModuleState optimizedState = SwerveModuleState.optimize(desiredState, currentWheelAngle);
     setAngle(optimizedState.angle.getDegrees());
-    setVel(optimizedState.speedMetersPerSecond);
+    setVel(optimizedState.speedMetersPerSecond*optimizedState.angle.minus(currentWheelAngle).getCos()); // Cosine compensation for wheel velocity.
   }
   
   // Returns the velocity and angle of the module.
@@ -59,17 +70,22 @@ class SwerveModule {
 
   // Returns the velocity of the wheel. Unit: meters per second
   public double getDriveMotorVel() {
-    return driveMotor.getVelocity().getValueAsDouble()*wheelCirc*correctionFactor/driveGearRatio;
+    return driveVel.getValueAsDouble()*wheelCirc*correctionFactor/driveGearRatio;
   }
 
   // Returns total distance the wheel has rotated. Unit: meters
   public double getDriveMotorPos() {
-    return (driveMotor.getPosition().getValueAsDouble())*wheelCirc*correctionFactor/driveGearRatio;
+    return BaseStatusSignal.getLatencyCompensatedValue(drivePos, driveVel, 0.02)*wheelCirc*correctionFactor/driveGearRatio;
   }
   
   // Returns the raw value of the wheel encoder. Range: -180 to 180 degrees. 0 degrees corresponds to facing to the front (+x). 90 degrees in facing left (+y). CCW positive coordinate system.
   public double getWheelAngle() {
-    return wheelEncoder.getAbsolutePosition().getValueAsDouble()*360.0;
+    return BaseStatusSignal.getLatencyCompensatedValue(wheelPos, wheelVel, 0.02)*360.0;
+  }
+
+  // Returns the velocity of the swerve wheel in degrees/second.
+  public double getWheelVel() {
+    return wheelVel.getValueAsDouble()*360.0;
   }
   
   // Sets the velocity of the module. Units: meters per second
