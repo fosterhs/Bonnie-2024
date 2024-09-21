@@ -2,7 +2,6 @@ package frc.robot;
 
 import com.ctre.phoenix.led.CANdle;
 import com.ctre.phoenix6.BaseStatusSignal;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
@@ -78,7 +77,12 @@ public class Robot extends TimedRobot {
   private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
 
+  Timer test = new Timer();
+
   public void robotInit() {
+    configStatusSignals();
+    refreshStatusSignals();
+
     // Allows the user to choose which auto to do
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
@@ -111,6 +115,7 @@ public class Robot extends TimedRobot {
     swerve.atPathEndpoint(0);
     swerve.drive(0.01, 0.0, 0.0, false, 0.0, 0.0);
     swerve.updateDash();
+    swerve.updateOdometry();
     climber.setManual(0.0, 0.0);
     arm.atSetpoint();
     arm.periodic();
@@ -867,7 +872,9 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     refreshStatusSignals();
+    test.restart();
     swerve.updateOdometry();
+    System.out.println(test.get());
     swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
       speedScaleFactor = 1.0;
@@ -1114,7 +1121,16 @@ public class Robot extends TimedRobot {
 
   // Pauses the robot code while the most recent sensor information is uploaded to the CAN bus.
   public void refreshStatusSignals() {
-    BaseStatusSignal.waitForAll(0.02, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
+    BaseStatusSignal.waitForAll(0.01, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
+      swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
+      swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
+      swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
+      swerve.frontRightModule.drivePos, swerve.frontRightModule.driveVel, swerve.frontRightModule.wheelPos, swerve.frontRightModule.wheelVel);
+  }
+
+  // Pauses the robot code while the most recent sensor information is uploaded to the CAN bus.
+  public void configStatusSignals() {
+    BaseStatusSignal.setUpdateFrequencyForAll(200.0, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
       swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
       swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
       swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
