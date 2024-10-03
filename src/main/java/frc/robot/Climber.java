@@ -25,8 +25,8 @@ public class Climber {
   private boolean userLockout = true; // Prevents the user from moving the climber if true. Prevents accidental collisions between the arm and the climber.
 
   public Climber() {
-    leftClimbMotorFailure = !configClimbMotor(leftClimbMotor, true, 60.0, 3);
-    rightClimbMotorFailure = !configClimbMotor(rightClimbMotor, false, 60.0, 3);
+    leftClimbMotorFailure = !configClimbMotor(leftClimbMotor, true, 25.0, 3);
+    rightClimbMotorFailure = !configClimbMotor(rightClimbMotor, false, 25.0, 3);
     leftClimbMotorZero = leftClimbMotor.getRotorPosition().getValueAsDouble();
     rightClimbMotorZero = rightClimbMotor.getRotorPosition().getValueAsDouble();
     limitSensorDetected = getLeftLimitSensor() && getRightLimitSensor();
@@ -42,7 +42,10 @@ public class Climber {
 
   // Sets the output of each climb motor. the ClimbPower inputs can range from -1 to 1. -1 corresponds to full power down and +1 is full power up.
   public void setManual(double leftClimbPower, double rightClimbPower) {
-    if (!userLockout && limitSensorDetected) {
+    if (!userLockout) {
+      leftClimbMotor.setControl(new DutyCycleOut(leftClimbPower));
+      rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower));
+      /*
       if (getLeftLimitSensor() && leftClimbPower < 0.0) {
         leftClimbPower = 0.0;
       }
@@ -58,6 +61,10 @@ public class Climber {
         rightClimbPower = 0.0;
       }
       rightClimbMotor.setControl(new DutyCycleOut(rightClimbPower).withEnableFOC(true));
+    */
+    } else {
+      leftClimbMotor.setControl(new DutyCycleOut(0.0));
+      rightClimbMotor.setControl(new DutyCycleOut(0.0));
     }
   }
 
@@ -107,12 +114,12 @@ public class Climber {
 
   // Returns true if the sensor indicates that the left climber is bottomed out.
   public boolean getLeftLimitSensor() {
-    return !leftLimitSensor.get();
+    return leftLimitSensor.get();
   }
 
   // Returns true if the sensor indicates that the right climber is bottomed out.
   public boolean getRightLimitSensor() {
-    return !rightLimitSensor.get();
+    return rightLimitSensor.get();
   }
   
   // Allows the user to move the climbers. Should only be called at the end of a match after the arm has been lowered.
@@ -172,10 +179,8 @@ public class Climber {
     motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
 
     // Setting current limits
-    motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    motorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
-    motorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
-    motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+    motorConfigs.CurrentLimits.StatorCurrentLimitEnable = true;
+    motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
     // Setting Motion Magic parameters
     motorConfigs.Slot0.kP = 0.8;

@@ -72,7 +72,7 @@ public class Robot extends TimedRobot {
   private final double armAmpSetpoint = 48.0; // The arm's inital amp scoring position in degrees.
   private final double armIntakeSetpoint = -5.0; // The arm's intake position in degrees.
   private final double armAmpRaiseRate = 6.0; // The rate at which the arm is raised during amp scoring in deg/sec.
-  private final double armManualSetpoint = 8.0; // THe arm's manual shooting position in degrees.
+  private final double armManualSetpoint = 18.0; // THe arm's manual shooting position in degrees.
   private final Timer armTimer = new Timer(); // Tracks the number of secound that the arm is at the setpoint
   private final Timer ampTimer = new Timer(); // Controls the inclination of the arm during amp scoring.
   private boolean lastIsAmpScoring = false; // Stores whether the thrower was amp scoring in the previous period.
@@ -862,14 +862,19 @@ public class Robot extends TimedRobot {
   
 
   public void teleopInit() {
+    System.out.println("ti0");
     swerve.pushCalibration(); // Updates the robot's position on the field.
+    System.out.println("ti1");
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
     rumbleTimer.restart();
+    System.out.println("tif");
   }
 
   public void teleopPeriodic() {
+    System.out.println("tp0");
     refreshStatusSignals();
+    System.out.println("tp1");
     swerve.updateOdometry();
     swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
@@ -898,7 +903,7 @@ public class Robot extends TimedRobot {
     } else if (driver.getRawButtonPressed(5)) { // Left Bumper
       swerve.resetDriveController(swerve.isBlueAlliance() ? -90.0 : 90.0); // Rotate to amp.
     } else if (rightTriggerPressed && !rightTriggerWasPressed) {
-      swerve.resetDriveController(getAimHeading());
+      swerve.resetDriveController(180.0);
     } else if (leftTriggerPressed && !leftTriggerWasPressed) {
       swerve.resetDriveController(swerve.isBlueAlliance() ? -90.0 : 90.0); // Rotate to amp.
     }
@@ -910,7 +915,7 @@ public class Robot extends TimedRobot {
     } else if (driver.getRawButton(5)) { // Left Bumper
       swerve.driveTo(1.8, (swerve.isBlueAlliance() ? 7.42 : Drivetrain.fieldWidth - 7.42), (swerve.isBlueAlliance() ? -90.0 : 90.0)); // Snap to amp.
     } else if (rightTriggerPressed) {
-      swerve.aimDrive(xVel, yVel, getAimHeading(), true);
+      swerve.aimDrive(xVel, yVel, 180.0, true);
     } else if (leftTriggerPressed) {
       swerve.aimDrive(xVel, yVel, swerve.isBlueAlliance() ? -90.0 : 90.0, true);
     } else {
@@ -1006,7 +1011,7 @@ public class Robot extends TimedRobot {
     thrower.periodic(); // Should be called in teleopPeriodic() and autoPeriodic(). Handles the internal logic of the thrower.
     if (climber.getUserLockout()) {
       if (operator.getRawButton(6)) { // Right Bumper
-        if (currArmState == ArmState.SHOOT && arm.atSetpoint()) {
+        if (currArmState == ArmState.SHOOT || currArmState == ArmState.MANUAL_SHOOT && arm.atSetpoint()) {
           thrower.commandThrow(); // Commands the thrower to throw a note with the commanded flywheel velocity in rotations per second.
         } else if (currArmState == ArmState.AMP && arm.atSetpoint()) {
           thrower.commandAmpScore();
@@ -1086,7 +1091,7 @@ public class Robot extends TimedRobot {
 
   // Calcualtes the arm angle that the robot should be at to make the shot. Uses a distance-angle calibration array and linear interpolation.
   private double[] distCalArray = { 1.58, 2.25, 2.75 }; // Stores the distance between the center of the robot and the center of the speaker in meters. Should be sorted with smallest distances first.
-  private double[] armCalArray = { -4.00, 4.80, 13.50 }; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
+  private double[] armCalArray = { -6.00, 2.80, 11.50 }; // Stores the arm angle that corresponds with each distance value. This is the angle the arm should be at to make the shot in degrees.
   public double getAimArmAngle() {
     double speakerY = swerve.isBlueAlliance() ? 5.548 : Drivetrain.fieldWidth - 5.548; // The y-coordinate of the center of the speaker slot in meters, adjusted for alliance.
     double distToSpeaker = Math.sqrt(Math.pow(speakerY - swerve.getYPos(), 2) + Math.pow(swerve.getXPos(), 2)); // The current distance to the speaker based on the robot's position on the field in meters.
