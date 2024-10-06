@@ -384,10 +384,8 @@ public class Thrower {
     motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
 
     // Setting current limits
-    motorConfigs.CurrentLimits.SupplyCurrentLimitEnable = true;
-    motorConfigs.CurrentLimits.SupplyCurrentLimit = currentLimit;
-    motorConfigs.CurrentLimits.SupplyCurrentThreshold = currentLimit;
-    motorConfigs.CurrentLimits.SupplyTimeThreshold = 0.5;
+    motorConfigs.CurrentLimits.StatorCurrentLimitEnable = true;
+    motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
   
     // Setting Velocity PID parameters
     motorConfigs.Slot0.kP = 0.008;
