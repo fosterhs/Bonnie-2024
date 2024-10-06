@@ -1,5 +1,6 @@
 package frc.robot;
 
+import com.ctre.phoenix6.BaseStatusSignal;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -29,6 +30,9 @@ public class Robot extends TimedRobot {
   private int autoStage = 1;
 
   public void robotInit() {
+    configStatusSignals(); // Changes the update frequency of the sensors to 250 Hz.
+    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
+
     // Sets up the Auto Chooser
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
@@ -77,8 +81,8 @@ public class Robot extends TimedRobot {
   }
 
   public void autonomousPeriodic() {
+    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     switch (autoSelected) {
       case auto1:
         switch (autoStage) {
@@ -113,6 +117,7 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopPeriodic() {
+    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     
@@ -137,11 +142,31 @@ public class Robot extends TimedRobot {
   }
 
   public void disabledPeriodic() {
+    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
     swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 
+  // Publishes information to the dashboard.
   public void updateDash() {
     SmartDashboard.putNumber("Auto Stage", autoStage);
     SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
+  }
+
+  // Pauses the robot code to wait for the most recent sensor data to be recieved. Will wait up to 8 milliseconds for all sensors to update.
+  public void refreshStatusSignals() {
+    BaseStatusSignal.waitForAll(0.008, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
+      swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
+      swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
+      swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
+      swerve.frontRightModule.drivePos, swerve.frontRightModule.driveVel, swerve.frontRightModule.wheelPos, swerve.frontRightModule.wheelVel);
+  }
+
+  // Changes the update frequency of the sensors to 250 Hz (once every 4 milliseconds) from a default value of 100 Hz (once every 10 milliseconds). This has the downside of increasing CAN bus utilization.
+  public void configStatusSignals() {
+    BaseStatusSignal.setUpdateFrequencyForAll(250.0, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
+      swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
+      swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
+      swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
+      swerve.frontRightModule.drivePos, swerve.frontRightModule.driveVel, swerve.frontRightModule.wheelPos, swerve.frontRightModule.wheelVel);
   }
 }
