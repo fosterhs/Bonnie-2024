@@ -862,19 +862,14 @@ public class Robot extends TimedRobot {
   
 
   public void teleopInit() {
-    System.out.println("ti0");
     swerve.pushCalibration(); // Updates the robot's position on the field.
-    System.out.println("ti1");
     thrower.init(); // Must be called during autoInit() and teleopInit() for the thrower to work properly.
     climber.init();
     rumbleTimer.restart();
-    System.out.println("tif");
   }
 
   public void teleopPeriodic() {
-    System.out.println("tp0");
     refreshStatusSignals();
-    System.out.println("tp1");
     swerve.updateOdometry();
     swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     if (driver.getRawButtonPressed(4)) { // Y Button
