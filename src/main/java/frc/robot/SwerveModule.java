@@ -7,8 +7,8 @@ import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.CANcoderConfigurator;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfigurator;
-import com.ctre.phoenix6.controls.MotionMagicDutyCycle;
-import com.ctre.phoenix6.controls.VelocityDutyCycle;
+import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.AbsoluteSensorRangeValue;
@@ -90,12 +90,12 @@ class SwerveModule {
   
   // Sets the velocity of the module. Units: meters per second
   private void setVel(double vel) {
-    driveMotor.setControl(new VelocityDutyCycle(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
+    driveMotor.setControl(new VelocityVoltage(vel*driveGearRatio/(wheelCirc*correctionFactor)).withEnableFOC(true));
   }
   
   // Sets the angle of the module. Units: degrees Can accept values outside of -180 to 180, corresponding to multiple rotations of the swerve wheel.
   private void setAngle(double angle) {
-    turnMotor.setControl(new MotionMagicDutyCycle(angle/360.0).withEnableFOC(true));
+    turnMotor.setControl(new MotionMagicTorqueCurrentFOC(angle/360.0));
   }
 
   // True if the drive motor failed to respond to configuration commands on startup or reboot. Is a likely indicator of motor or CAN failure.
@@ -127,10 +127,11 @@ class SwerveModule {
     motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
     // Setting PID parameters for velocity control
-    motorConfigs.Slot0.kP = 0.008;
-    motorConfigs.Slot0.kI = 0.06;
-    motorConfigs.Slot0.kD = 0.0002;
-    motorConfigs.Slot0.kV = 0.009;
+    motorConfigs.Slot0.kP = 0.25;
+    motorConfigs.Slot0.kI = 0.5;
+    motorConfigs.Slot0.kD = 0.0;
+    motorConfigs.Slot0.kV = 0.12;
+    motorConfigs.Slot0.kS = 0.16;
 
     // Attempts to repeatedly configure the motor up to the number of times indicated by maxMotorErrors
     int motorErrors = 0;
@@ -159,11 +160,11 @@ class SwerveModule {
     motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
     // Setting Motion Magic parameters
-    motorConfigs.Slot0.kP = 17.14;
-    motorConfigs.Slot0.kI = 0.1307;
-    motorConfigs.Slot0.kD = 0.00028;
-    motorConfigs.MotionMagic.MotionMagicAcceleration = 46.67;
-    motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 4.667;
+    motorConfigs.Slot0.kP = 800.0;
+    motorConfigs.Slot0.kI = 0.0;
+    motorConfigs.Slot0.kD = 18.0;
+    motorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0/turnGearRatio;
+    motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0/turnGearRatio;
 
     // Sets CANcoder parameters
     motorConfigs.Feedback.FeedbackRemoteSensorID = wheelEncoder.getDeviceID();
