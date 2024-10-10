@@ -105,6 +105,17 @@ class Drivetrain {
     }
   }
 
+  // Forces the swerve modules into an x-lock pattern to resist movement. Useful for defense or if the robot must remain stationary. 
+  public void xLock() {
+    xVel = 0.0;
+    yVel = 0.0;
+    angVel = 0.0;
+    frontLeftModule.setSMS(new SwerveModuleState(0.0, Rotation2d.fromDegrees(45.0)));
+    frontRightModule.setSMS(new SwerveModuleState(0.0, Rotation2d.fromDegrees(-45.0)));
+    backLeftModule.setSMS(new SwerveModuleState(0.0, Rotation2d.fromDegrees(-45.0)));
+    backRightModule.setSMS(new SwerveModuleState(0.0, Rotation2d.fromDegrees(45.0)));
+  }
+
   // Should be called immediately prior to aimDrive() or driveTo(). Resets the PID controllers. Target angle specifies the first angle that will be demanded.
   public void resetDriveController(double targetAngle) {
     xController.reset(getXPos(), 0.0);
@@ -248,7 +259,7 @@ class Drivetrain {
     frontRightModule.driveMotor.getPosition(), frontRightModule.driveMotor.getVelocity(), frontRightModule.wheelEncoder.getAbsolutePosition(), frontRightModule.wheelEncoder.getVelocity(),
     backLeftModule.driveMotor.getPosition(), backLeftModule.driveMotor.getVelocity(), backLeftModule.wheelEncoder.getAbsolutePosition(), backLeftModule.wheelEncoder.getVelocity(),
     backRightModule.driveMotor.getPosition(), backRightModule.driveMotor.getVelocity(), backRightModule.wheelEncoder.getAbsolutePosition(), backRightModule.wheelEncoder.getVelocity());
-    
+
     odometry.update(Rotation2d.fromDegrees(getGyroAng()), getSMPs());
   }
 

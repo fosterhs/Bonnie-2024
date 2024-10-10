@@ -37,6 +37,7 @@ public class Robot extends TimedRobot {
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
+    swerve.xLock();
     swerve.aimDrive(-3.0, 2.0, 105.0, false);
     swerve.driveTo(1.0, -2.0, -75.0);
     swerve.resetPathController(0);
@@ -138,7 +139,12 @@ public class Robot extends TimedRobot {
     double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftY(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
     double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftX(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
-    swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0);
+
+    if (driver.getRawButtonPressed(3)) {
+      swerve.xLock(); // X buttton forces the swerve modules into an x-lock pattern to resist movement.
+    } else {
+      swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
+    }
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
     if (driver.getRawButtonPressed(7)) swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
