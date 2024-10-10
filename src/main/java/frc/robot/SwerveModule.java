@@ -36,7 +36,7 @@ class SwerveModule {
     driveMotor = new TalonFX(driveID, canbus);
     configDriveMotor(driveMotor, invertDrive, 100.0);
     driveMotor.setPosition(0.0, 0.03);
-    BaseStatusSignal.setUpdateFrequencyForAll(250.0, driveMotor.getPosition(), driveMotor.getVelocity(), wheelEncoder.getAbsolutePosition(), wheelEncoder.getVelocity());
+    BaseStatusSignal.setUpdateFrequencyForAll(250.0, driveMotor.getPosition(), driveMotor.getVelocity(), wheelEncoder.getAbsolutePosition(), wheelEncoder.getVelocity(), turnMotor.getDutyCycle());
     ParentDevice.optimizeBusUtilizationForAll(driveMotor, turnMotor, wheelEncoder);
   }
 
