@@ -151,6 +151,7 @@ public class Robot extends TimedRobot {
   }
 
   public void disabledPeriodic() {
+    swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 

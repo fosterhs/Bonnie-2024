@@ -2,6 +2,7 @@ package frc.robot;
 
 import java.util.ArrayList;
 import com.ctre.phoenix6.BaseStatusSignal;
+import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.PathPlannerTrajectory;
@@ -85,6 +86,7 @@ class Drivetrain {
     resetGyro(); // Sets the gyro angle to 0 based on the current heading of the robot.
     calibrationTimer.restart();
     BaseStatusSignal.setUpdateFrequencyForAll(250.0, pigeon.getYaw(), pigeon.getAngularVelocityZWorld(), pigeon.getPitch());
+    ParentDevice.optimizeBusUtilizationForAll(pigeon);
   }
   
   // Drives the robot at a certain speed and rotation rate. Units: meters per second for xVel and yVel, radians per second for angVel. 
@@ -241,6 +243,12 @@ class Drivetrain {
 
   // Updates the position of the robot on the field. Should be called each period to remain accurate. Tends to noticably drift for periods of time >15 sec.
   public void updateOdometry() {
+    BaseStatusSignal.waitForAll(0.008, pigeon.getYaw(), pigeon.getAngularVelocityZWorld(), pigeon.getPitch(),
+    frontLeftModule.driveMotor.getPosition(), frontLeftModule.driveMotor.getVelocity(), frontLeftModule.wheelEncoder.getAbsolutePosition(), frontLeftModule.wheelEncoder.getVelocity(),
+    frontRightModule.driveMotor.getPosition(), frontRightModule.driveMotor.getVelocity(), frontRightModule.wheelEncoder.getAbsolutePosition(), frontRightModule.wheelEncoder.getVelocity(),
+    backLeftModule.driveMotor.getPosition(), backLeftModule.driveMotor.getVelocity(), backLeftModule.wheelEncoder.getAbsolutePosition(), backLeftModule.wheelEncoder.getVelocity(),
+    backRightModule.driveMotor.getPosition(), backRightModule.driveMotor.getVelocity(), backRightModule.wheelEncoder.getAbsolutePosition(), backRightModule.wheelEncoder.getVelocity());
+    
     odometry.update(Rotation2d.fromDegrees(getGyroAng()), getSMPs());
   }
 

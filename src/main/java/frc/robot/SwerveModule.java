@@ -8,6 +8,7 @@ import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
+import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.AbsoluteSensorRangeValue;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
@@ -23,9 +24,9 @@ class SwerveModule {
   private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
   private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
   private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
-  private final CANcoder wheelEncoder; // The CANcoder that measures the angle of the swerve wheel.
-  private final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
-  private final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
+  public final CANcoder wheelEncoder; // The CANcoder that measures the angle of the swerve wheel.
+  public final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
+  public final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double wheelEncoderZero, String canbus) {
     wheelEncoder = new CANcoder(encoderID, canbus);
@@ -36,6 +37,7 @@ class SwerveModule {
     configDriveMotor(driveMotor, invertDrive, 100.0);
     driveMotor.setPosition(0.0, 0.03);
     BaseStatusSignal.setUpdateFrequencyForAll(250.0, driveMotor.getPosition(), driveMotor.getVelocity(), wheelEncoder.getAbsolutePosition(), wheelEncoder.getVelocity());
+    ParentDevice.optimizeBusUtilizationForAll(driveMotor, turnMotor, wheelEncoder);
   }
 
   // Sets the swerve module to the given state (velocity and angle).
