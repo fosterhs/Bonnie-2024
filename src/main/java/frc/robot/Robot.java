@@ -37,8 +37,8 @@ public class Robot extends TimedRobot {
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
-    swerve.aimDrive(-0.03, 0.02, -0.01, false);
-    swerve.driveTo(0.01, -0.02, 0.03);
+    swerve.aimDrive(-3.0, 2.0, 105.0, false);
+    swerve.driveTo(1.0, -2.0, -75.0);
     swerve.resetPathController(0);
     swerve.followPath(0);
     swerve.pushCalibration();
