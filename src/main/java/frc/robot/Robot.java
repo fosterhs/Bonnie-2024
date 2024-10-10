@@ -1,6 +1,5 @@
 package frc.robot;
 
-import com.ctre.phoenix6.BaseStatusSignal;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -20,7 +19,6 @@ public class Robot extends TimedRobot {
 
   // Initializes the different subsystems of the robot.
   private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
-  private final PDH pdh = new PDH(); // Tracks battery voltage, current draw, and the switchable channel on the power distribution hub. 
 
   // Auto Variables
   private final SendableChooser<String> autoChooser = new SendableChooser<>();
@@ -30,10 +28,7 @@ public class Robot extends TimedRobot {
   private int autoStage = 1;
 
   public void robotInit() {
-    configStatusSignals(); // Changes the update frequency of the sensors to 250 Hz.
-    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
-
-    // Sets up the Auto Chooser
+    // Configures the auto chooser on the dashboard.
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
     SmartDashboard.putData("Autos", autoChooser);
@@ -42,24 +37,40 @@ public class Robot extends TimedRobot {
 
     // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
     swerve.resetDriveController(0.0);
-    swerve.aimDrive(0.01, 0.0, 0.0, true);
-    swerve.driveTo(0.0, 0.0, 0.0);
+    swerve.aimDrive(-0.03, 0.02, -0.01, false);
+    swerve.driveTo(0.01, -0.02, 0.03);
+    swerve.resetPathController(0);
+    swerve.followPath(0);
+    swerve.pushCalibration();
     swerve.addCalibrationEstimate();
     swerve.pushCalibration();
     swerve.resetCalibration();
-    swerve.resetPathController(0);
-    swerve.followPath(0);
-    swerve.atPathEndpoint(0);
-    swerve.drive(0.01, 0.0, 0.0, false, 0.0, 0.0);
+    swerve.resetGyro();
+    swerve.addVisionEstimate(0.1, 0.1, 0.1);
+    swerve.updateOdometry();
+    swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
+    System.out.println("Swerve atDriveGoal: " + swerve.atDriveGoal());
+    System.out.println("Swerve atPathEndpoint: " + swerve.atPathEndpoint(0));
+    System.out.println("Swerve getAngVel: " + swerve.getAngVel());
+    System.out.println("Swerve getCalibrationTimer: " + swerve.getCalibrationTimer());
+    System.out.println("Swerve getFusedAng: " + swerve.getFusedAng());
+    System.out.println("Swerve getGyroAng: " + swerve.getGyroAng());
+    System.out.println("Swerve getGyroPitch: " + swerve.getGyroPitch());
+    System.out.println("Swerve getPathAngleError: " + swerve.getPathAngleError());
+    System.out.println("Swerve getPathPosError: " + swerve.getPathPosError());
+    System.out.println("Swerve getXPos: " + swerve.getXPos());
+    System.out.println("Swerve getXVel: " + swerve.getXVel());
+    System.out.println("Swerve getYPos: " + swerve.getYPos());
+    System.out.println("Swerve getYVel: " + swerve.getYVel());
+    System.out.println("Swerve isBlueAlliance: " + swerve.isBlueAlliance());
+    System.out.println("Swerve isRedAlliance: " + swerve.isRedAlliance());
     swerve.updateDash();
-    pdh.updateDash();
     updateDash();
   }
 
   public void robotPeriodic() {
     // Publishes information about the robot and robot subsystems to the Dashboard.
     swerve.updateDash();
-    pdh.updateDash();
     updateDash();
 
     if (driver.getRawButtonPressed(8)) swerve.resetGyro(); // Menu Button re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
@@ -81,7 +92,6 @@ public class Robot extends TimedRobot {
   }
 
   public void autonomousPeriodic() {
-    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     switch (autoSelected) {
       case auto1:
@@ -117,7 +127,6 @@ public class Robot extends TimedRobot {
   }
 
   public void teleopPeriodic() {
-    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     
@@ -142,31 +151,12 @@ public class Robot extends TimedRobot {
   }
 
   public void disabledPeriodic() {
-    refreshStatusSignals(); // Pauses the robot code to wait for the most recent sensor data to be recieved.
     swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 
   // Publishes information to the dashboard.
   public void updateDash() {
-    SmartDashboard.putNumber("Auto Stage", autoStage);
     SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
-  }
-
-  // Pauses the robot code to wait for the most recent sensor data to be recieved. Will wait up to 8 milliseconds for all sensors to update.
-  public void refreshStatusSignals() {
-    BaseStatusSignal.waitForAll(0.008, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
-      swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
-      swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
-      swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
-      swerve.frontRightModule.drivePos, swerve.frontRightModule.driveVel, swerve.frontRightModule.wheelPos, swerve.frontRightModule.wheelVel);
-  }
-
-  // Changes the update frequency of the sensors to 250 Hz (once every 4 milliseconds) from a default value of 100 Hz (once every 10 milliseconds). This has the downside of increasing CAN bus utilization.
-  public void configStatusSignals() {
-    BaseStatusSignal.setUpdateFrequencyForAll(250.0, swerve.pigeonPitch, swerve.pigeonYaw, swerve.pigeonYawVel,
-      swerve.backLeftModule.drivePos, swerve.backLeftModule.driveVel, swerve.backLeftModule.wheelPos, swerve.backLeftModule.wheelVel,
-      swerve.backRightModule.drivePos, swerve.backRightModule.driveVel, swerve.backRightModule.wheelPos, swerve.backRightModule.wheelVel, 
-      swerve.frontLeftModule.drivePos, swerve.frontLeftModule.driveVel, swerve.frontLeftModule.wheelPos, swerve.frontLeftModule.wheelVel,
-      swerve.frontRightModule.drivePos, swerve.frontRightModule.driveVel, swerve.frontRightModule.wheelPos, swerve.frontRightModule.wheelVel);
+    //SmartDashboard.putNumber("Auto Stage", autoStage);
   }
 }
