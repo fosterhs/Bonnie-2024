@@ -140,7 +140,7 @@ public class Robot extends TimedRobot {
     double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftX(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
-    if (driver.getRawButtonPressed(3)) {
+    if (driver.getRawButton(3)) {
       swerve.xLock(); // X buttton forces the swerve modules into an x-lock pattern to resist movement.
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
