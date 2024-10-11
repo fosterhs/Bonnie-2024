@@ -48,12 +48,11 @@ class Drivetrain {
   private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.462158203125, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
-  // Gyroscope Variables
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
 
   // Limelight (LL) Variables
-  private final int maxCalibrationFrames = 50; // The number of LL frames that will be averaged to determine the position of the robot when it is disabled() or being calibrated.
-  private final int minCalibrationFrames = 3; // The minimum amount of LL frames that must be processed to accept a calibration.
+  private final int maxCalibrationFrames = 20; // The number of LL frames that will be averaged to determine the position of the robot when it is disabled() or being calibrated.
+  private final int minCalibrationFrames = 2; // The minimum amount of LL frames that must be processed to accept a calibration.
   private double[][] calibrationArray = new double[3][maxCalibrationFrames]; // An array that stores the LL botpose for the most recent frames, up to the number of frames specified by maxCalibrationFrames
   private int calibrationIndex = 0; // The index of the most recent entry into the calibrationPosition array. The index begins at 0 and goes up to calibrationFrames-1, after which it returns to 0 and repeats.
   private int calibrationFrames = 0; // The current number of frames stored in the calibrationPosition array. 
@@ -68,8 +67,8 @@ class Drivetrain {
   private final ProfiledPIDController yController = new ProfiledPIDController(3.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxVelAuto, maxAccAuto)); // Controls the y-position of the robot.
   private final ProfiledPIDController angleController = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(maxAngularVelAuto, maxAngularAccAuto)); // Controls the angle of the robot.
   private boolean atDriveGoal = false; // Whether the robot is at the target within the tolerance specified by posTol and angTol when controlled by aimDrive() or moveToTarget()
-  private double posTol = 0.07; // The allowable error in the x and y position of the robot in meters.
-  private double angTol = 2.5; // The allowable error in the angle of the robot in degrees.
+  private double posTol = 0.03; // The allowable error in the x and y position of the robot in meters.
+  private double angTol = 1.0; // The allowable error in the angle of the robot in degrees.
   
   // These variables are updated each period so they can be passed along to the user or the dashboard.
   private double xVel = 0.0; // Unit: meters per second
@@ -132,9 +131,8 @@ class Drivetrain {
     double angleDistance = getAngleDistance(getFusedAng(), targetAngle);
     atDriveGoal = Math.abs(angleDistance) < angTol;
     double _angVel = angleController.calculate(angleDistance*Math.PI/180.0, 0.0);
-    if (atDriveGoal) {
-      _angVel = 0.0;
-    }
+    if (atDriveGoal) _angVel = 0.0;
+
     if (Math.abs(_angVel) > Drivetrain.maxAngularVelAuto) {
       _angVel = _angVel > 0.0 ? Drivetrain.maxAngularVelAuto : -Drivetrain.maxAngularVelAuto;
     }
@@ -153,15 +151,9 @@ class Drivetrain {
 
     // Checks to see if all 3 targets have been achieved. Sets velocities to 0 to prevent twitchy robot motions at near 0 velocities.
     atDriveGoal = atXTarget && atYTarget && atAngTarget;
-    if (atXTarget) {
-      xVelSetpoint = 0.0;
-    } 
-    if (atYTarget) {
-      yVelSetpoint = 0.0;
-    } 
-    if (atAngTarget) {
-      angVelSetpoint = 0.0;
-    }
+    if (atXTarget) xVelSetpoint = 0.0;
+    if (atYTarget) yVelSetpoint = 0.0;
+    if (atAngTarget) angVelSetpoint = 0.0;
 
     // Caps the velocities if the PID controllers return values above the specified maximums.
     if (Math.abs(xVelSetpoint) > maxVelAuto) {
