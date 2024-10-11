@@ -2,9 +2,7 @@ package frc.robot;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
-import com.ctre.phoenix6.configs.CANcoderConfigurator;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.configs.TalonFXConfigurator;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
@@ -75,64 +73,61 @@ class SwerveModule {
 
   // Configures the swerve module's drive motor.
   private void configDriveMotor(TalonFX motor, boolean invert, double currentLimit) {
-    // Creates a configurator and config object to configure the motor.
-    TalonFXConfigurator motorConfigurator = motor.getConfigurator();
     TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
 
     motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
+
+    // Current limit configuration.
     motorConfigs.CurrentLimits.StatorCurrentLimitEnable = true;
     motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
-    // Setting Velocity Voltage parameters.
+    // VelocityVoltage closed-loop control configuration.
     motorConfigs.Slot0.kP = 0.25; // Units: volts per 1 motor rotation per second of error.
     motorConfigs.Slot0.kI = 0.5; // Units: volts per 1 motor rotation per second * 1 second of error.
     motorConfigs.Slot0.kD = 0.0; // Units: volts per 1 motor rotation per second / 1 second of error.
     motorConfigs.Slot0.kV = 0.12; // The amount of voltage required to create 1 motor rotation per second.
     motorConfigs.Slot0.kS = 0.16; // The amount of voltage required to barely overcome static friction in the swerve wheel.
 
-    motorConfigurator.apply(motorConfigs, 0.03);
+    motor.getConfigurator().apply(motorConfigs, 0.03);
   }
 
   // Configures the swerve module's turn motor.
   private void configTurnMotor(TalonFX motor, boolean invert, double currentLimit) {
-    // Creates a configurator and config object to configure the motor.
-    TalonFXConfigurator motorConfigurator = motor.getConfigurator();
     TalonFXConfiguration motorConfigs = new TalonFXConfiguration();
 
     motorConfigs.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     motorConfigs.MotorOutput.Inverted = invert ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
+
+    // Current limit configuration.
     motorConfigs.CurrentLimits.StatorCurrentLimitEnable = true;
     motorConfigs.CurrentLimits.StatorCurrentLimit = currentLimit;
 
-    // Setting Motion Magic TorqueFOC parameters
+    // MotionMagicTorqueFOC closed-loop control configuration.
     motorConfigs.Slot0.kP = 800.0; // Units: amperes per 1 swerve wheel rotation of error.
     motorConfigs.Slot0.kI = 0.0; // Units: amperes per 1 swerve wheel rotation * 1 second of error.
     motorConfigs.Slot0.kD = 18.0; // Units: amperes per 1 swerve wheel rotation / 1 second of error.
     motorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0/turnGearRatio; // Units: rotations per second per second.
     motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0/turnGearRatio; // Units: roations per second.
 
-    // Sets CANcoder parameters
+    // CANcoder feedback configurations.
     motorConfigs.Feedback.FeedbackRemoteSensorID = wheelEncoder.getDeviceID();
     motorConfigs.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
     motorConfigs.Feedback.SensorToMechanismRatio = 1.0;
     motorConfigs.Feedback.RotorToSensorRatio = turnGearRatio;
     motorConfigs.ClosedLoopGeneral.ContinuousWrap = true;
 
-    motorConfigurator.apply(motorConfigs, 0.03);
+    motor.getConfigurator().apply(motorConfigs, 0.03);
   }
 
   // Configures the swerve module's wheel encoder.
   private void configEncoder(CANcoder encoder, double wheelEncoderZero) {
-    // Creates a configurator and config object to configure the motor.
-    CANcoderConfigurator encoderConfigurator = encoder.getConfigurator();
     CANcoderConfiguration encoderConfigs = new CANcoderConfiguration();
 
-    // Sets encoder settings such as range, direction and zero. 
     encoderConfigs.MagnetSensor.AbsoluteSensorRange = AbsoluteSensorRangeValue.Signed_PlusMinusHalf;
     encoderConfigs.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
     encoderConfigs.MagnetSensor.MagnetOffset = wheelEncoderZero;
 
-    encoderConfigurator.apply(encoderConfigs, 0.03);
+    encoder.getConfigurator().apply(encoderConfigs, 0.03);
   }
 }
