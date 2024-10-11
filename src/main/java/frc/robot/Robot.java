@@ -98,12 +98,11 @@ public class Robot extends TimedRobot {
       case auto1:
         switch (autoStage) {
           case 1:
-            // Auto 1 code goes here.
-            // Stage 1 code goes here.
+            // Auto 1, Stage 1 code goes here.
           break;
 
           case 2:
-            // Stage 2 code goes here.
+            // Auto 1, Stage 2 code goes here.
           break;
         }
       break;
@@ -111,12 +110,11 @@ public class Robot extends TimedRobot {
       case auto2:
         switch (autoStage) {
           case 1:
-            // Auto 2 code goes here.
-            // Stage 1 code goes here.
+            // Auto 2, Stage 1 code goes here.
           break;
 
           case 2:
-            // Stage 2 code goes here.
+            // Auto 2, Stage 2 code goes here.
           break;
         }
       break;
@@ -142,7 +140,7 @@ public class Robot extends TimedRobot {
 
     if (driver.getRawButton(3)) {
       swerve.xLock(); // X buttton forces the swerve modules into an x-lock pattern to resist movement.
-    } else {
+    } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05) {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
     }
 
