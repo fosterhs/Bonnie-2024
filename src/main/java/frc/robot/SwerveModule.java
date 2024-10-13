@@ -18,10 +18,11 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 
 class SwerveModule {
-  private static final double correctionFactor = 0.97; // Factor that corrects for real-world deviations from the odometry calculated position of the robot. These can be caused by things like tread wear. Set this value to 1, then make the robot follow a 1 meter path in auto. Set this value to the distance the robot actually traveled.
-  private static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
-  private static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
-  private static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
+  public static final double correctionFactor = 0.97; // Factor that corrects for real-world deviations from the odometry calculated position of the robot. These can be caused by things like tread wear. Set this value to 1, then make the robot follow a 1 meter path in auto. Set this value to the distance the robot actually traveled.
+  public static final double wheelCirc = 4.0*0.0254*Math.PI; // Circumference of the wheel. Unit: meters
+  public static final double turnGearRatio = 150.0/7.0; // Turn motor rotor rotations per turn rotation of the swerve wheel.
+  public static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
+  public static final double maxVel = 5800.0*wheelCirc*correctionFactor/(60.0*driveGearRatio); // The maximum speed of the swerve module in meters per second.
   public final CANcoder wheelEncoder; // The CANcoder that measures the angle of the swerve wheel.
   public final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
   public final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
@@ -32,7 +33,7 @@ class SwerveModule {
     turnMotor = new TalonFX(turnID, canbus);
     configTurnMotor(turnMotor, true, 40.0);
     driveMotor = new TalonFX(driveID, canbus);
-    configDriveMotor(driveMotor, invertDrive, 100.0);
+    configDriveMotor(driveMotor, invertDrive, 80.0);
     driveMotor.setPosition(0.0, 0.03);
     BaseStatusSignal.setUpdateFrequencyForAll(250.0, driveMotor.getPosition(), driveMotor.getVelocity(), wheelEncoder.getAbsolutePosition(), wheelEncoder.getVelocity(), turnMotor.getDutyCycle());
     ParentDevice.optimizeBusUtilizationForAll(driveMotor, turnMotor, wheelEncoder);

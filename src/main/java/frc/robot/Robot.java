@@ -33,40 +33,8 @@ public class Robot extends TimedRobot {
     autoChooser.addOption(auto2, auto2);
     SmartDashboard.putData("Autos", autoChooser);
 
-    swerve.loadPath("Example", 0.0, 0.0, 0.0, 180.0); // Loads a path into the drivetrain with the given parameters.
-
-    // Helps prevent loop overruns when the robot is first enabled. These calls cause the robot to initialize code in other parts of the program so it does not need to be initialized during autonomousInit() or teleopInit(), saving computational resources.
-    swerve.resetDriveController(0.0);
-    swerve.xLock();
-    swerve.aimDrive(-3.0, 2.0, 105.0, false);
-    swerve.driveTo(1.0, -2.0, -75.0);
-    swerve.resetPathController(0);
-    swerve.followPath(0);
-    swerve.pushCalibration();
-    swerve.addCalibrationEstimate();
-    swerve.pushCalibration();
-    swerve.resetCalibration();
-    swerve.resetGyro();
-    swerve.addVisionEstimate(0.1, 0.1, 0.1);
-    swerve.updateOdometry();
-    swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
-    System.out.println("swerve atDriveGoal: " + swerve.atDriveGoal());
-    System.out.println("swerve atPathEndpoint: " + swerve.atPathEndpoint(0));
-    System.out.println("swerve getAngVel: " + swerve.getAngVel());
-    System.out.println("swerve getCalibrationTimer: " + swerve.getCalibrationTimer());
-    System.out.println("swerve getFusedAng: " + swerve.getFusedAng());
-    System.out.println("swerve getGyroAng: " + swerve.getGyroAng());
-    System.out.println("swerve getGyroPitch: " + swerve.getGyroPitch());
-    System.out.println("swerve getPathAngleError: " + swerve.getPathAngleError());
-    System.out.println("swerve getPathPosError: " + swerve.getPathPosError());
-    System.out.println("swerve getXPos: " + swerve.getXPos());
-    System.out.println("swerve getXVel: " + swerve.getXVel());
-    System.out.println("swerve getYPos: " + swerve.getYPos());
-    System.out.println("swerve getYVel: " + swerve.getYVel());
-    System.out.println("swerve isBlueAlliance: " + swerve.isBlueAlliance());
-    System.out.println("swerve isRedAlliance: " + swerve.isRedAlliance());
-    swerve.updateDash();
-    updateDash();
+    swerve.loadPath("Example", 0.0, 0.0, 0.0, 180.0); // Loads a Path Planner generated path into the path follower code in the drivetrain. 
+    runAll(); // Helps prevent loop overruns on startup by running every command before the match starts.
   }
 
   public void robotPeriodic() {
@@ -161,7 +129,42 @@ public class Robot extends TimedRobot {
 
   // Publishes information to the dashboard.
   public void updateDash() {
-    SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
+    //SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
     //SmartDashboard.putNumber("Auto Stage", autoStage);
+  }
+
+  // Helps prevent loop overruns on startup by running every user created command in every class before the match starts. Not sure why this helps, but it does.
+  public void runAll() {
+    swerve.resetDriveController(0.0);
+    swerve.xLock();
+    swerve.aimDrive(-3.0, 2.0, 105.0, false);
+    swerve.driveTo(1.0, -2.0, -75.0);
+    swerve.resetPathController(0);
+    swerve.followPath(0);
+    swerve.pushCalibration();
+    swerve.addCalibrationEstimate();
+    swerve.pushCalibration();
+    swerve.resetCalibration();
+    swerve.resetGyro();
+    swerve.addVisionEstimate(0.1, 0.1, 0.1);
+    swerve.updateOdometry();
+    swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
+    System.out.println("swerve atDriveGoal: " + swerve.atDriveGoal());
+    System.out.println("swerve atPathEndpoint: " + swerve.atPathEndpoint(0));
+    System.out.println("swerve getAngVel: " + swerve.getAngVel());
+    System.out.println("swerve getCalibrationTimer: " + swerve.getCalibrationTimer());
+    System.out.println("swerve getFusedAng: " + swerve.getFusedAng());
+    System.out.println("swerve getGyroAng: " + swerve.getGyroAng());
+    System.out.println("swerve getGyroPitch: " + swerve.getGyroPitch());
+    System.out.println("swerve getPathAngleError: " + swerve.getPathAngleError());
+    System.out.println("swerve getPathPosError: " + swerve.getPathPosError());
+    System.out.println("swerve getXPos: " + swerve.getXPos());
+    System.out.println("swerve getXVel: " + swerve.getXVel());
+    System.out.println("swerve getYPos: " + swerve.getYPos());
+    System.out.println("swerve getYVel: " + swerve.getYVel());
+    System.out.println("swerve isBlueAlliance: " + swerve.isBlueAlliance());
+    System.out.println("swerve isRedAlliance: " + swerve.isRedAlliance());
+    swerve.updateDash();
+    updateDash();
   }
 }
