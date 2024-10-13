@@ -24,7 +24,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
-  public static final double maxAcc = 1.0*9.811; // The maximum acceleration of the robot, typically limited by the coefficient of friction between the swerve wheels and the field.
+  public static final double maxAcc = 1.0*9.80665; // The maximum acceleration of the robot, typically limited by the coefficient of friction between the swerve wheels and the field.
   public static final double robotX = 0.60324; // The length of the robot from front to back in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotY = 0.45084; // The length of the robot from left to right in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotR = Math.sqrt(Math.pow(robotX/2.0, 2) + Math.pow(robotY/2.0, 2)); // The "radius" of the robot from robot center to the center of the swerve wheel in units of meters.
