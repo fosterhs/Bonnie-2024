@@ -24,17 +24,18 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
+  public static final double maxAcc = 1.0*9.811; // The maximum acceleration of the robot, typically limited by the coefficient of friction between the swerve wheels and the field.
   public static final double robotX = 0.60324; // The length of the robot from front to back in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotY = 0.45084; // The length of the robot from left to right in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotR = Math.sqrt(Math.pow(robotX/2.0, 2) + Math.pow(robotY/2.0, 2)); // The "radius" of the robot from robot center to the center of the swerve wheel in units of meters.
   public static final double fieldWidth = 8.0137; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
   public static final double maxVelTeleop = SwerveModule.maxVel; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
   public static final double maxAngularVelTeleop = SwerveModule.maxVel/robotR; // User defined maximum rotational speed of the robot. Enforced during teleop. Unit: raidans per second Robot maximum is 4pi rad/s.
-  public static final double maxAccTeleop = 7.0; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
+  public static final double maxAccTeleop = maxAcc; // User defined maximum acceleration of the robot. Enforced during teleop. Unit: meters per second^2 Robot maximum is 5 m/s2.
   public static final double maxAngularAccTeleop = maxAccTeleop/robotR; // User defined maximum rotational acceleration of the robot. Enforced during teleop. Unit: raidans per second^2 Robot maximum is 5pi rad/s2.
   public static final double maxVelAuto = SwerveModule.maxVel; // User defined maximum speed of the robot. Enforced during auto. Unit: meters per second
   public static final double maxAngularVelAuto = SwerveModule.maxVel/robotR; // User defined maximum rotational speed of the robot. Enforced during auto. Unit: raidans per second
-  public static final double maxAccAuto = 5.0; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
+  public static final double maxAccAuto = 0.8*maxAcc; // User defined maximum acceleration of the robot. Enforced during auto. Unit: meters per second^2
   public static final double maxAngularAccAuto = maxAccAuto/robotR; // User defined maximum rotational acceleration of the robot. Enforced during auto. Unit: raidans per second^2
 
   // Positions of the swerve modules relative to the center of the roboot. +x points towards the robot's front. +y points to the robot's left. Units: meters.
