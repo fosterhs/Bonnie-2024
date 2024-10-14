@@ -16,7 +16,7 @@ public class Robot extends TimedRobot {
   private final SlewRateLimiter yAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop / Drivetrain.maxVelTeleop);
   private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAccTeleop / Drivetrain.maxAngularVelTeleop);
   private double speedScaleFactor = 1.0; // Scales the speed of the robot that results from controller inputs. 1.0 corresponds to full speed. 0.0 is fully stopped.
-  private boolean lock = false;
+  private boolean lock = false; // Controls whether the swerve drive is in x-lock (for defense) or is driving. 
 
   // Initializes the different subsystems of the robot.
   private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
@@ -108,13 +108,13 @@ public class Robot extends TimedRobot {
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
     if (driver.getRawButton(3)) {
-      lock = true;
+      lock = true; // Pressing the x-button causes the swerve modules to lock (for defense).
     } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05) {
-      lock = false;
+      lock = false; // Pressing any joystick more than 5% will cause the swerve modules stop locking and begin driving.
     }
 
     if (lock) {
-      swerve.xLock();
+      swerve.xLock(); // Locks the swerve modules (for defense).
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
     }
@@ -141,7 +141,7 @@ public class Robot extends TimedRobot {
   }
 
   // Helps prevent loop overruns on startup by running every user created command in every class before the match starts. Not sure why this helps, but it does.
-  public void runAll() {
+  public void runAll() { 
     swerve.resetDriveController(0.0);
     swerve.xLock();
     swerve.aimDrive(-3.0, 2.0, 105.0, false);
