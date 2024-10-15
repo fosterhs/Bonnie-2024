@@ -85,7 +85,7 @@ class SwerveModule {
 
     // VelocityVoltage closed-loop control configuration.
     motorConfigs.Slot0.kP = 0.25; // Units: volts per 1 motor rotation per second of error.
-    motorConfigs.Slot0.kI = 0.5; // Units: volts per 1 motor rotation per second * 1 second of error.
+    motorConfigs.Slot0.kI = 25.0; // Units: volts per 1 motor rotation per second * 1 second of error. Change to 0.5 for Kraken X60 motors.
     motorConfigs.Slot0.kD = 0.0; // Units: volts per 1 motor rotation per second / 1 second of error.
     motorConfigs.Slot0.kV = 0.12; // The amount of voltage required to create 1 motor rotation per second.
     motorConfigs.Slot0.kS = 0.16; // The amount of voltage required to barely overcome static friction in the swerve wheel.
@@ -107,7 +107,7 @@ class SwerveModule {
     // MotionMagicTorqueFOC closed-loop control configuration.
     motorConfigs.Slot0.kP = 800.0; // Units: amperes per 1 swerve wheel rotation of error.
     motorConfigs.Slot0.kI = 0.0; // Units: amperes per 1 swerve wheel rotation * 1 second of error.
-    motorConfigs.Slot0.kD = 18.0; // Units: amperes per 1 swerve wheel rotation / 1 second of error.
+    motorConfigs.Slot0.kD = 30.0; // Units: amperes per 1 swerve wheel rotation / 1 second of error. Change to 18.0 for Kraken X60 motors.
     motorConfigs.MotionMagic.MotionMagicAcceleration = 1000.0/turnGearRatio; // Units: rotations per second per second.
     motorConfigs.MotionMagic.MotionMagicCruiseVelocity = 100.0/turnGearRatio; // Units: roations per second.
 
