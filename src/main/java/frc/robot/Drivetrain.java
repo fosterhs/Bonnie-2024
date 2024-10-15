@@ -24,7 +24,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 class Drivetrain {
-  public static final double maxAcc = 1.0*9.80665; // The maximum acceleration of the robot, typically limited by the coefficient of friction between the swerve wheels and the field.
+  public static final double maxAcc = 0.7*9.80665; // The maximum acceleration of the robot, typically limited by the coefficient of friction between the swerve wheels and the field.
   public static final double robotX = 0.60324; // The length of the robot from front to back in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotY = 0.45084; // The length of the robot from left to right in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotR = Math.sqrt(Math.pow(robotX/2.0, 2) + Math.pow(robotY/2.0, 2)); // The "radius" of the robot from robot center to the center of the swerve wheel in units of meters.
@@ -46,10 +46,10 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.349853515625, "canivore"); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.270263671875, "canivore");
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.232421875, "canivore");
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.462158203125, "canivore");
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.345703, "canivore"); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, -0.269775, "canivore");
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, -0.230713, "canivore");
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.463867, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
