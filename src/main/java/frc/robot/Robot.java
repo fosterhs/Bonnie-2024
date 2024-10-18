@@ -17,6 +17,7 @@ public class Robot extends TimedRobot {
   private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAccTeleop / Drivetrain.maxAngularVelTeleop);
   private double speedScaleFactor = 1.0; // Scales the speed of the robot that results from controller inputs. 1.0 corresponds to full speed. 0.0 is fully stopped.
   private boolean lock = false; // Controls whether the swerve drive is in x-lock (for defense) or is driving. 
+  private double driveHeading = 0.0;
 
   // Initializes the different subsystems of the robot.
   private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
@@ -92,6 +93,7 @@ public class Robot extends TimedRobot {
   
   public void teleopInit() {
     swerve.pushCalibration(); // Updates the robot's position on the field.
+    swerve.resetDriveController(driveHeading);
   }
 
   public void teleopPeriodic() {
@@ -101,7 +103,7 @@ public class Robot extends TimedRobot {
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
     if (driver.getRawButtonPressed(2)) speedScaleFactor = 0.6; // B button sets the drivetrain in medium speed mode.
     if (driver.getRawButtonPressed(1)) speedScaleFactor = 0.15; // A button sets the drivetrain in low speed mode.
-
+    
     // Applies a deadband to controller inputs. Also limits the acceleration of controller inputs.
     double xVel = xAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftY(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
     double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftX(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
@@ -109,14 +111,18 @@ public class Robot extends TimedRobot {
 
     if (driver.getRawButton(3)) {
       lock = true; // Pressing the x-button causes the swerve modules to lock (for defense).
-    } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05) {
+    } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05 || Math.abs(driver.getRightY()) >= 0.05) {
       lock = false; // Pressing any joystick more than 5% will cause the swerve modules stop locking and begin driving.
+    }
+
+    if (Math.abs(driver.getRightX()) > 0.25 || Math.abs(driver.getRightY()) > 0.25) {
+      driveHeading = getAngle(driver.getRightX(), -driver.getRightY());
     }
 
     if (lock) {
       swerve.xLock(); // Locks the swerve modules (for defense).
     } else {
-      swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
+      swerve.aimDrive(xVel, yVel, driveHeading, true);
     }
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
@@ -138,6 +144,23 @@ public class Robot extends TimedRobot {
   public void updateDash() {
     //SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
     //SmartDashboard.putNumber("Auto Stage", autoStage);
+  }
+
+  // Returns the polar angle corresponding a set of cartesian x,y points. Angles are in degrees between -180 and 180, with 0 corresponding (0,1). CCW is positive. 
+  public double getAngle(double x, double y) {
+    if (x == 0) {
+      if (y > 0) {
+        return 0.0;
+      } else {
+        return 180.0;
+      }
+    } else {
+      if (x > 0) {
+        return -90.0 + Math.atan(y/x)*180.0/Math.PI;
+      } else {
+        return 90.0 + Math.atan(y/x)*180.0/Math.PI;
+      }
+    }
   }
 
   // Helps prevent loop overruns on startup by running every user created command in every class before the match starts. Not sure why this helps, but it does.
