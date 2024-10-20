@@ -2,6 +2,7 @@ package frc.robot;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -96,7 +97,7 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(0.04, 0.04, 10); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10))); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
     if (driver.getRawButtonPressed(2)) speedScaleFactor = 0.6; // B button sets the drivetrain in medium speed mode.
@@ -153,7 +154,7 @@ public class Robot extends TimedRobot {
     swerve.pushCalibration();
     swerve.resetCalibration();
     swerve.resetGyro();
-    swerve.addVisionEstimate(0.1, 0.1, 0.1);
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)));
     swerve.updateOdometry();
     swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
     System.out.println("swerve atDriveGoal: " + swerve.atDriveGoal());
