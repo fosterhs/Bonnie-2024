@@ -34,7 +34,6 @@ public class Robot extends TimedRobot {
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
     SmartDashboard.putData("Autos", autoChooser);
-
     swerve.loadPath("Example", 0.0, 0.0, 0.0, 180.0); // Loads a Path Planner generated path into the path follower code in the drivetrain. 
     runAll(); // Helps prevent loop overruns on startup by running every command before the match starts.
   }
@@ -97,7 +96,7 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10))); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "front"); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
     if (driver.getRawButtonPressed(2)) speedScaleFactor = 0.6; // B button sets the drivetrain in medium speed mode.
@@ -122,7 +121,7 @@ public class Robot extends TimedRobot {
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
     if (driver.getRawButtonPressed(7)) swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
-    if (driver.getRawButton(7)) swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    if (driver.getRawButton(7)) swerve.addCalibrationEstimate("front"); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
     if (driver.getRawButtonReleased(7)) swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
   }
 
@@ -132,7 +131,7 @@ public class Robot extends TimedRobot {
 
   public void disabledPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addCalibrationEstimate(); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    swerve.addCalibrationEstimate("front"); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
   }
 
   // Publishes information to the dashboard.
@@ -150,11 +149,11 @@ public class Robot extends TimedRobot {
     swerve.resetPathController(0);
     swerve.followPath(0);
     swerve.pushCalibration();
-    swerve.addCalibrationEstimate();
+    swerve.addCalibrationEstimate("front");
     swerve.pushCalibration();
     swerve.resetCalibration();
     swerve.resetGyro();
-    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)));
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "front");
     swerve.updateOdometry();
     swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
     System.out.println("swerve atDriveGoal: " + swerve.atDriveGoal());
