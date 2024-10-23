@@ -97,7 +97,8 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "front"); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
-    
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "back");
+
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
     if (driver.getRawButtonPressed(2)) speedScaleFactor = 0.6; // B button sets the drivetrain in medium speed mode.
     if (driver.getRawButtonPressed(1)) speedScaleFactor = 0.15; // A button sets the drivetrain in low speed mode.
@@ -132,6 +133,7 @@ public class Robot extends TimedRobot {
   public void disabledPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
     swerve.addCalibrationEstimate("front"); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    swerve.addCalibrationEstimate("back");
   }
 
   // Publishes information to the dashboard.
