@@ -272,7 +272,7 @@ class Drivetrain {
     int tagCount = botpose.tagCount; // The number of AprilTags detected in the current frame.
     double tagArea = botpose.avgTagArea*tagCount; // The total area in the current frame that is covered by AprilTags in percent (from 0 to 100).
     double robotVel = Math.sqrt(Math.pow(getXVel(), 2) + Math.pow(getYVel(), 2)); // The velocity of the robot in meters per second.
-    if (currentFrame != lastFrame && tagCount >= 2 && tagArea > 1.5 && robotVel < 0.1 && getAngVel() < 0.1) { // >1 April Tag is detected, the robot is relatively close to the April Tags, the robot is relatively stationary, and there is a new frame.
+    if (currentFrame != lastFrame && tagCount >= 2 && tagArea > 0.2 && robotVel < 0.1 && getAngVel() < 0.1) { // >1 April Tag is detected, the robot is relatively close to the April Tags, the robot is relatively stationary, and there is a new frame.
       odometry.setVisionMeasurementStdDevs(VecBuilder.fill(xSD, ySD, Units.degreesToRadians(angSD)));
       odometry.addVisionMeasurement(new Pose2d(botpose.pose.getX(), botpose.pose.getY(), Rotation2d.fromDegrees(getFusedAng())), botpose.timestampSeconds);      
       if (limelightName == "limelight-front") lastFrameFront = currentFrame;
@@ -406,10 +406,10 @@ class Drivetrain {
     //SmartDashboard.putNumber("Front Right Swerve Module Wheel Encoder Angle", frontRightModule.getWheelAngle());
     //SmartDashboard.putNumber("Back Right Swerve Module Wheel Encoder Angle", backRightModule.getWheelAngle());
     //SmartDashboard.putNumber("Back Left Swerve Module Wheel Encoder Angle", backLeftModule.getWheelAngle());
-    //SmartDashboard.putNumber("Robot X Position", getXPos());
-    //SmartDashboard.putNumber("Robot Y Position", getYPos());
-    //SmartDashboard.putNumber("Robot Angular Position (Fused)", getFusedAng());
-    //SmartDashboard.putNumber("Robot Angular Position (Gyro)", getGyroAng());
+    SmartDashboard.putNumber("Robot X Position", getXPos());
+    SmartDashboard.putNumber("Robot Y Position", getYPos());
+    SmartDashboard.putNumber("Robot Angular Position (Fused)", getFusedAng());
+    SmartDashboard.putNumber("Robot Angular Position (Gyro)", getGyroAng());
     //SmartDashboard.putNumber("Robot Pitch", getGyroPitch());
     //SmartDashboard.putNumber("Robot Demanded X Velocity", getXVel());
     //SmartDashboard.putNumber("Robot Demanded Y Velocity", getYVel());
