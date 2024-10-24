@@ -264,17 +264,15 @@ class Drivetrain {
   // Incorporates vision information to determine the position of the robot on the field. Should be used only when vision information is deemed to be highly reliable (>1 april tag, close to april tag...)
   // xSD, ySD, and angSD tell the pose estimator how much to trust vision estimates. Larger values are less trustworthy. Units: xSD and ySD are in meters and angSD is in degrees. Default values can be found in pose estimate initialization.
   public void addVisionEstimate(double xSD, double ySD, double angSD, String limelightName) {
-    double robotBlueHeading = isBlueAlliance() ? getFusedAng() : getFusedAng() - 180.0;
-    LimelightHelpers.SetRobotOrientation(limelightName, robotBlueHeading, pigeon.getAngularVelocityZWorld().getValueAsDouble(), 0.0, 0.0, 0.0, 0.0);
+    double blueHeading = isBlueAlliance() ? getFusedAng() : getFusedAng() - 180.0; // Converts the robot's angular position to the blue coordinate system.
+    LimelightHelpers.SetRobotOrientation(limelightName, blueHeading, pigeon.getAngularVelocityZWorld().getValueAsDouble(), 0.0, 0.0, 0.0, 0.0); // Communicates the robot's heading to the Limelight.
     long currentFrame = LimelightHelpers.getLimelightNTTableEntry(limelightName, "hb").getInteger(0); // Gets the Limelight frame number from network tables.
-    double thor = LimelightHelpers.getLimelightNTTableEntry(limelightName, "thor").getDouble(0); // The horizontal width of the box bounding the April Tags in pixels.
-    double tvert = LimelightHelpers.getLimelightNTTableEntry(limelightName, "tvert").getDouble(0); // The vertical width of the box bounding the April Tags in pixels.
-    double ta = LimelightHelpers.getTA(limelightName); // The area of the box bounding the April Tags in percent of the screen.
-    boolean tv = LimelightHelpers.getTV(limelightName); // Whether a target is detected.
-    boolean isSquare = Math.abs(tvert / thor - 1.0) < 0.2; // Checks to see if the box bounding the April Tags is square, indicating that 1 April Tag is likely detected.
-    long lastFrame = limelightName == "limelight-front" ? lastFrameFront : lastFrameBack;
-    if (currentFrame != lastFrame && tv && !isSquare && ta > 1.5 && getXVel() < 0.1 && getYVel() < 0.1 && getAngVel() < 0.1) { // >1 April Tag is detected, the robot is relatively close to the April Tags, the robot is relatively stationary, and there is a new frame.
-      PoseEstimate botpose = isBlueAlliance() ? LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName) : LimelightHelpers.getBotPoseEstimate_wpiRed_MegaTag2(limelightName); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
+    long lastFrame = limelightName == "limelight-front" ? lastFrameFront : lastFrameBack; // Gets the Limelight frame number of the last frame that was utlizied for robot localization.
+    PoseEstimate botpose = isBlueAlliance() ? LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName) : LimelightHelpers.getBotPoseEstimate_wpiRed_MegaTag2(limelightName); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
+    int tagCount = botpose.tagCount; // The number of AprilTags detected in the current frame.
+    double tagArea = botpose.avgTagArea*tagCount; // The total area in the current frame that is covered by AprilTags in percent (from 0 to 100).
+    double robotVel = Math.sqrt(Math.pow(getXVel(), 2) + Math.pow(getYVel(), 2)); // The velocity of the robot in meters per second.
+    if (currentFrame != lastFrame && tagCount >= 2 && tagArea > 1.5 && robotVel < 0.1 && getAngVel() < 0.1) { // >1 April Tag is detected, the robot is relatively close to the April Tags, the robot is relatively stationary, and there is a new frame.
       odometry.setVisionMeasurementStdDevs(VecBuilder.fill(xSD, ySD, Units.degreesToRadians(angSD)));
       odometry.addVisionMeasurement(new Pose2d(botpose.pose.getX(), botpose.pose.getY(), Rotation2d.fromDegrees(getFusedAng())), botpose.timestampSeconds);      
       if (limelightName == "limelight-front") lastFrameFront = currentFrame;
@@ -296,20 +294,16 @@ class Drivetrain {
   public void addCalibrationEstimate(String limelightName) {
     long currentFrame = LimelightHelpers.getLimelightNTTableEntry(limelightName, "hb").getInteger(0); // Gets the Limelight frame number from network tables.
     long lastFrame = limelightName == "limelight-front" ? lastFrameFront : lastFrameBack;
-    boolean tv = LimelightHelpers.getTV(limelightName); // Whether a target is detected.
-    SmartDashboard.putBoolean("test", tv);
-    if (tv && currentFrame != lastFrame) { // Checks to see whether there is at least 1 vision target and the LL has provided a new frame.
+    PoseEstimate botpose = isBlueAlliance() ? LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName) : LimelightHelpers.getBotPoseEstimate_wpiRed(limelightName);
+    if (botpose.tagCount > 0 && currentFrame != lastFrame) { // Checks to see whether there is at least 1 vision target and the LL has provided a new frame.
+      calibrationArray[0][calibrationIndex] = botpose.pose.getX(); // Adds an x-position entry to the calibrationPosition array. 
+      calibrationArray[1][calibrationIndex] = botpose.pose.getY(); // Adds a y-position entry to the calibrationPosition array. 
+      calibrationArray[2][calibrationIndex] = botpose.pose.getRotation().getDegrees(); // Adds a angle-position entry to the calibrationPosition array. 
+      calibrationIndex = (calibrationIndex + 1) % maxCalibrationFrames; // Handles the looping of the calibrationIndex variable. 
+      if (calibrationFrames < maxCalibrationFrames) calibrationFrames++;  // Increments calibrationPoints until the calibrationPosition array is full.
       if (limelightName == "limelight-front") lastFrameFront = currentFrame;
       if (limelightName == "limelight-back") lastFrameBack = currentFrame;
-      double[] botpose = isBlueAlliance() ? LimelightHelpers.getBotPose_wpiBlue(limelightName) : LimelightHelpers.getBotPose_wpiRed(limelightName); // Transforms the vision position estimate to the appropriate coordinate system for the robot's alliance color
-      calibrationArray[0][calibrationIndex] = botpose[0]; // Adds an x-position entry to the calibrationPosition array. 
-      calibrationArray[1][calibrationIndex] = botpose[1]; // Adds a y-position entry to the calibrationPosition array. 
-      calibrationArray[2][calibrationIndex] = botpose[5]; // Adds a angle-position entry to the calibrationPosition array. 
-      calibrationIndex = (calibrationIndex + 1) % maxCalibrationFrames; // Handles the looping of the calibrationIndex variable. 
       calibrationTimer.restart();
-      if (calibrationFrames < maxCalibrationFrames) { // Increments calibrationPoints until the calibrationPosition array is full.
-        calibrationFrames++; 
-      }
     } 
   }
 
