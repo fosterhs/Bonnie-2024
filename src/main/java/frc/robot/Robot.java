@@ -43,6 +43,10 @@ public class Robot extends TimedRobot {
     swerve.updateDash();
     updateDash();
 
+    // Updates the Limelights with the robot heading (for MegaTag2).
+    swerve.updateVisionHeading("limelight-front");
+    swerve.updateVisionHeading("limelight-back");
+
     if (driver.getRawButtonPressed(8)) swerve.resetGyro(); // Menu Button re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
   }
 
@@ -96,8 +100,8 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "limelight-front"); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
-    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "limelight-back");
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "limelight-front", true); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "limelight-back", true);
 
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
     if (driver.getRawButtonPressed(2)) speedScaleFactor = 0.6; // B button sets the drivetrain in medium speed mode.
@@ -123,8 +127,8 @@ public class Robot extends TimedRobot {
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
     if (driver.getRawButtonPressed(7)) swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
     if (driver.getRawButton(7)) { // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-      swerve.addCalibrationEstimate("limelight-front");
-      swerve.addCalibrationEstimate("limelight-back");
+      swerve.addCalibrationEstimate("limelight-front", false);
+      swerve.addCalibrationEstimate("limelight-back", false);
     }
     if (driver.getRawButtonReleased(7)) swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
   }
@@ -135,8 +139,8 @@ public class Robot extends TimedRobot {
 
   public void disabledPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addCalibrationEstimate("limelight-front"); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-    swerve.addCalibrationEstimate("limelight-back");
+    swerve.addCalibrationEstimate("limelight-front", false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    swerve.addCalibrationEstimate("limelight-back", false);
   }
 
   // Publishes information to the dashboard.
@@ -154,11 +158,12 @@ public class Robot extends TimedRobot {
     swerve.resetPathController(0);
     swerve.followPath(0);
     swerve.pushCalibration();
-    swerve.addCalibrationEstimate("limelight-front");
+    swerve.addCalibrationEstimate("limelight-back", false);
     swerve.pushCalibration();
     swerve.resetCalibration();
     swerve.resetGyro();
-    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "limelight-front");
+    swerve.updateVisionHeading("limelight-front");
+    swerve.addVisionEstimate(0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), "limelight-front", true);
     swerve.updateOdometry();
     swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
     System.out.println("swerve atDriveGoal: " + swerve.atDriveGoal());
