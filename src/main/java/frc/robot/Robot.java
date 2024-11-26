@@ -99,8 +99,9 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addVisionEstimate(0, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
-    swerve.addVisionEstimate(1, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true);
+    for (int i = 0; i < swerve.limelights.length; i++) { // Iterates through each limelight.
+      swerve.addVisionEstimate(i, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    }
 
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
     if (driver.getRawButtonPressed(2)) speedScaleFactor = 0.6; // B button sets the drivetrain in medium speed mode.
@@ -112,7 +113,7 @@ public class Robot extends TimedRobot {
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngularVelTeleop;
 
     if (driver.getRawButton(3)) {
-      lock = true; // Pressing the x-button causes the swerve modules to lock (for defense).
+      lock = true; // Pressing the X-button causes the swerve modules to lock (for defense).
     } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05) {
       lock = false; // Pressing any joystick more than 5% will cause the swerve modules stop locking and begin driving.
     }
@@ -125,9 +126,10 @@ public class Robot extends TimedRobot {
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
     if (driver.getRawButtonPressed(7)) swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
-    if (driver.getRawButton(7)) { // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-      swerve.addCalibrationEstimate(0, false);
-      swerve.addCalibrationEstimate(1, false);
+    if (driver.getRawButton(7)) {
+      for (int i = 0; i < swerve.limelights.length; i++) { // Iterates through each limelight.
+        swerve.addCalibrationEstimate(i, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+      }
     }
     if (driver.getRawButtonReleased(7)) swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
   }
@@ -138,8 +140,9 @@ public class Robot extends TimedRobot {
 
   public void disabledPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    swerve.addCalibrationEstimate(0, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
-    swerve.addCalibrationEstimate(1, false);
+    for (int i = 0; i < swerve.limelights.length; i++) { // Iterates through each limelight.
+      swerve.addCalibrationEstimate(i, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    }
   }
 
   // Publishes information to the dashboard.
@@ -162,7 +165,7 @@ public class Robot extends TimedRobot {
     swerve.resetCalibration();
     swerve.resetGyro();
     swerve.updateVisionHeading();
-    swerve.addVisionEstimate(1, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true);
+    swerve.addVisionEstimate(0, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true);
     swerve.updateOdometry();
     swerve.drive(0.01, 0.0, 0.0, true, 0.0, 0.0);
     System.out.println("swerve atDriveGoal: " + swerve.atDriveGoal());

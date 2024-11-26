@@ -24,8 +24,8 @@ class SwerveModule {
   public static final double driveGearRatio = 300.0/49.0; // Drive motor rotor rotations per drive rotation of the swerve wheel.
   public static final double maxVel = 5800.0*wheelCirc*correctionFactor/(60.0*driveGearRatio); // The maximum speed of the swerve module in meters per second.
   public final CANcoder wheelEncoder; // The CANcoder that measures the angle of the swerve wheel.
-  public final TalonFX driveMotor; // The Falcon 500 motor that controls the driving of the swerve module.
-  public final TalonFX turnMotor; // The Falcon 500 motor that controls the turning of the swerve module.
+  public final TalonFX driveMotor; // The Kraken X60 motor that controls the driving of the swerve module.
+  public final TalonFX turnMotor; // The Kraken X60 motor that controls the turning of the swerve module.
 
   public SwerveModule(int turnID, int driveID, int encoderID, boolean invertDrive, double wheelEncoderZero, String canbus) {
     wheelEncoder = new CANcoder(encoderID, canbus);
