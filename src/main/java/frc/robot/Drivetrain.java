@@ -90,8 +90,8 @@ class Drivetrain {
     angleController.setIntegratorRange(-maxAngularVelAuto*0.8, maxAngularVelAuto*0.8);
     resetGyro(); // Sets the gyro angle to 0 based on the current heading of the robot.
     calibrationTimer.restart();
-    for (int i = 0; i < lastFrames.length; i++) {
-      lastFrames[i] = 0;
+    for (int limelightIndex = 0; limelightIndex < lastFrames.length; limelightIndex++) {
+      lastFrames[limelightIndex] = 0;
     }
     BaseStatusSignal.setUpdateFrequencyForAll(250.0, pigeon.getYaw(), pigeon.getAngularVelocityZWorld(), pigeon.getPitch());
     ParentDevice.optimizeBusUtilizationForAll(pigeon);
@@ -266,9 +266,9 @@ class Drivetrain {
 
   // Communicates the robot's heading to the Limelight. Should be called each period, and before any calls to addVisionEstimate() or addCalibrationEstimate()
   public void updateVisionHeading() {
-    for (int i = 0; i < limelights.length; i++) { // Iterates through each limelight.
+    for (int limelightIndex = 0; limelightIndex < limelights.length; limelightIndex++) { // Iterates through each limelight.
       double blueHeading = isBlueAlliance() ? getFusedAng() : getFusedAng() - 180.0; // Converts the robot's angular position to the blue coordinate system.
-      LimelightHelpers.SetRobotOrientation(limelights[i], blueHeading, pigeon.getAngularVelocityZWorld().getValueAsDouble(), 0.0, 0.0, 0.0, 0.0); // Communicates the robot's heading to the Limelight.
+      LimelightHelpers.SetRobotOrientation(limelights[limelightIndex], blueHeading, pigeon.getAngularVelocityZWorld().getValueAsDouble(), 0.0, 0.0, 0.0, 0.0); // Communicates the robot's heading to the Limelight.
     }
   }
   
@@ -300,8 +300,8 @@ class Drivetrain {
     calibrationArray = new double[3][maxCalibrationFrames];
     calibrationIndex = 0;
     calibrationFrames = 0;
-    for (int i = 0; i < lastFrames.length; i++) {
-      lastFrames[i] = 0;
+    for (int limelightIndex = 0; limelightIndex < lastFrames.length; limelightIndex++) {
+      lastFrames[limelightIndex] = 0;
     }
   }
 
@@ -331,12 +331,12 @@ class Drivetrain {
   public void pushCalibration() {
     if (calibrationFrames > minCalibrationFrames) {
       double[] calibrationSum = new double[5];
-      for (int index = 0; index < calibrationFrames; index++) {
-        calibrationSum[0] = calibrationSum[0] + calibrationArray[0][index];
-        calibrationSum[1] = calibrationSum[1] + calibrationArray[1][index];
-        calibrationSum[2] = calibrationSum[2] + Math.sin(calibrationArray[2][index]*Math.PI/180.0);
-        calibrationSum[3] = calibrationSum[3] + Math.cos(calibrationArray[2][index]*Math.PI/180.0);
-        calibrationSum[4] = calibrationSum[4] + Math.abs(calibrationArray[2][index]);
+      for (int calibrationIndex = 0; calibrationIndex < calibrationFrames; calibrationIndex++) {
+        calibrationSum[0] = calibrationSum[0] + calibrationArray[0][calibrationIndex];
+        calibrationSum[1] = calibrationSum[1] + calibrationArray[1][calibrationIndex];
+        calibrationSum[2] = calibrationSum[2] + Math.sin(calibrationArray[2][calibrationIndex]*Math.PI/180.0);
+        calibrationSum[3] = calibrationSum[3] + Math.cos(calibrationArray[2][calibrationIndex]*Math.PI/180.0);
+        calibrationSum[4] = calibrationSum[4] + Math.abs(calibrationArray[2][calibrationIndex]);
       }
       double calibrationAng = calibrationSum[4]/calibrationFrames > 90.0 ? Math.atan(calibrationSum[2]/calibrationSum[3]) + Math.PI : Math.atan(calibrationSum[2]/calibrationSum[3]);
       odometry.resetPosition(Rotation2d.fromDegrees(getGyroAng()), getSMPs(), new Pose2d(calibrationSum[0]/calibrationFrames, calibrationSum[1]/calibrationFrames, Rotation2d.fromRadians(calibrationAng))); // Averages the values in the calibrationPosition Array and sets the robot position based on the averages.

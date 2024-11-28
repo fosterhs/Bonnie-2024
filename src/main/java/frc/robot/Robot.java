@@ -16,6 +16,7 @@ public class Robot extends TimedRobot {
   private final SlewRateLimiter xAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop / Drivetrain.maxVelTeleop);
   private final SlewRateLimiter yAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop / Drivetrain.maxVelTeleop);
   private final SlewRateLimiter angAccLimiter = new SlewRateLimiter(Drivetrain.maxAngularAccTeleop / Drivetrain.maxAngularVelTeleop);
+
   private double speedScaleFactor = 1.0; // Scales the speed of the robot that results from controller inputs. 1.0 corresponds to full speed. 0.0 is fully stopped.
   private boolean lock = false; // Controls whether the swerve drive is in x-lock (for defense) or is driving. 
 
@@ -34,6 +35,7 @@ public class Robot extends TimedRobot {
     autoChooser.setDefaultOption(auto1, auto1);
     autoChooser.addOption(auto2, auto2);
     SmartDashboard.putData("Autos", autoChooser);
+
     swerve.loadPath("Example", 0.0, 0.0, 0.0, 180.0); // Loads a Path Planner generated path into the path follower code in the drivetrain. 
     runAll(); // Helps prevent loop overruns on startup by running every command before the match starts.
   }
@@ -43,9 +45,7 @@ public class Robot extends TimedRobot {
     swerve.updateDash();
     updateDash();
 
-    // Updates the Limelights with the robot heading (for MegaTag2).
-    swerve.updateVisionHeading();
-
+    swerve.updateVisionHeading(); // Updates the Limelights with the robot heading (for MegaTag2).
     if (driver.getRawButtonPressed(8)) swerve.resetGyro(); // Menu Button re-zeros the angle reading of the gyro to the current angle of the robot. Should be called if the gyroscope readings are no longer well correlated with the field.
   }
 
@@ -99,8 +99,8 @@ public class Robot extends TimedRobot {
 
   public void teleopPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    for (int i = 0; i < swerve.limelights.length; i++) { // Iterates through each limelight.
-      swerve.addVisionEstimate(i, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
+    for (int limelightIndex = 0; limelightIndex < swerve.limelights.length; limelightIndex++) { // Iterates through each limelight.
+      swerve.addVisionEstimate(limelightIndex, 0.7, 0.7, Units.degreesToRadians(Math.pow(10, 10)), true); // Checks to see ifs there are reliable April Tags in sight of the Limelight and updates the robot position on the field.
     }
 
     if (driver.getRawButtonPressed(4)) speedScaleFactor = 1.0; // Y Button sets the drivetrain in full speed mode.
@@ -127,8 +127,8 @@ public class Robot extends TimedRobot {
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
     if (driver.getRawButtonPressed(7)) swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
     if (driver.getRawButton(7)) {
-      for (int i = 0; i < swerve.limelights.length; i++) { // Iterates through each limelight.
-        swerve.addCalibrationEstimate(i, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+      for (int limelightIndex = 0; limelightIndex < swerve.limelights.length; limelightIndex++) { // Iterates through each limelight.
+        swerve.addCalibrationEstimate(limelightIndex, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
       }
     }
     if (driver.getRawButtonReleased(7)) swerve.pushCalibration(); // Updates the position of the robot on the field based on previous calculations.
@@ -140,8 +140,8 @@ public class Robot extends TimedRobot {
 
   public void disabledPeriodic() {
     swerve.updateOdometry(); // Keeps track of the position of the robot on the field. Must be called each period.
-    for (int i = 0; i < swerve.limelights.length; i++) { // Iterates through each limelight.
-      swerve.addCalibrationEstimate(i, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
+    for (int limelightIndex = 0; limelightIndex < swerve.limelights.length; limelightIndex++) { // Iterates through each limelight.
+      swerve.addCalibrationEstimate(limelightIndex, false); // Collects additional data to calculate the position of the robot on the field based on visible April Tags.
     }
   }
 
