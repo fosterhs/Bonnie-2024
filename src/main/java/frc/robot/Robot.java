@@ -10,7 +10,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends TimedRobot {
   private final XboxController driver = new XboxController(0); // Initializes the driver controller.
-  private final XboxController operator = new XboxController(1); // Initializes the operator controller.
+  // private final XboxController operator = new XboxController(1); // Initializes the operator controller.
 
   // Limits the acceleration of the drivetrain by smoothing controller inputs.
   private final SlewRateLimiter xAccLimiter = new SlewRateLimiter(Drivetrain.maxAccTeleop / Drivetrain.maxVelTeleop);
