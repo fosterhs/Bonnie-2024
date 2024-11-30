@@ -26,8 +26,8 @@ import frc.robot.LimelightHelpers.PoseEstimate;
 
 class Drivetrain {
   public static final double maxAcc = 0.7*9.80665; // The maximum acceleration of the robot, typically limited by the coefficient of friction between the swerve wheels and the field.
-  public static final double robotX = 0.60324; // The length of the robot from front to back in units of meters. Measured from the centers of each swerve wheel.
-  public static final double robotY = 0.45084; // The length of the robot from left to right in units of meters. Measured from the centers of each swerve wheel.
+  public static final double robotX = (24.0-2*2.625)*0.0254; // The length of the robot from front to back in units of meters. Measured from the centers of each swerve wheel.
+  public static final double robotY = (24.0-2*2.625)*0.0254; // The length of the robot from left to right in units of meters. Measured from the centers of each swerve wheel.
   public static final double robotR = Math.sqrt(Math.pow(robotX/2.0, 2) + Math.pow(robotY/2.0, 2)); // The "radius" of the robot from robot center to the center of the swerve wheel in units of meters.
   public static final double fieldWidth = 8.0137; // The width of the field in meters. Used to translate between Blue and Red coordinate systems.
   public static final double maxVelTeleop = SwerveModule.maxVel; // User defined maximum speed of the robot. Enforced during teleop. Unit: meters per second Robot maximum is 4 m/s.
