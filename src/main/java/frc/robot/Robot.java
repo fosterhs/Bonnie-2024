@@ -150,7 +150,7 @@ public class Robot extends TimedRobot {
     //SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
     //SmartDashboard.putNumber("Auto Stage", autoStage);
   }
-
+//HI IS THIS HERE!
   // Helps prevent loop overruns on startup by running every user created command in every class before the match starts. Not sure why this helps, but it does.
   public void runAll() { 
     swerve.resetDriveController(0.0);
