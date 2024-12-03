@@ -30,6 +30,26 @@ public class Robot extends TimedRobot {
   private String autoSelected;
   private int autoStage = 1;
 
+  public void twoStageShooting(double robotX,double robotY,double robotAngle){
+    swerve.driveTo(robotX, robotY, robotAngle);
+    if (driver.getXButton()) {
+      swerve.driveTo(robotX, robotY, robotAngle);
+    } else if (swerve.atDriveGoal()){
+      
+    }
+   
+
+     if (LimelightHelpers.getTX(swerve.limelights[0]) > 1) {
+      swerve.drive(robotAngle, robotAngle, robotX, lock, robotY, robotAngle);
+    } else if(-1 < LimelightHelpers.getTX(swerve.limelights[0])) {
+      //Drive right
+    } else {
+      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+    }
+
+
+  }
+
   public void robotInit() {
     // Configures the auto chooser on the dashboard.
     autoChooser.setDefaultOption(auto1, auto1);
@@ -112,7 +132,7 @@ public class Robot extends TimedRobot {
     double yVel = yAccLimiter.calculate(MathUtil.applyDeadband(-driver.getLeftX(), 0.05)*speedScaleFactor)*Drivetrain.maxVelTeleop;
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngVelTeleop;
 
-    if (driver.getRawButton(3)) {
+    if (driver.getRawButton(9)) {
       lock = true; // Pressing the X-button causes the swerve modules to lock (for defense).
     } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05) {
       lock = false; // Pressing any joystick more than 5% will cause the swerve modules stop locking and begin driving.
@@ -120,9 +140,11 @@ public class Robot extends TimedRobot {
 
     if (lock) {
       swerve.xLock(); // Locks the swerve modules (for defense).
+    } else if (driver.getRawButton(3)) {
+      twoStageShooting(2.14, 2.5137, 180.0);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
-    }
+    } 
 
     // The following 3 calls allow the user to calibrate the position of the robot based on April Tag information. Should be called when the robot is stationary. Button 7 is "View", the right center button.
     if (driver.getRawButtonPressed(7)) swerve.resetCalibration(); // Begins calculating the position of the robot on the field based on visible April Tags.
@@ -150,7 +172,7 @@ public class Robot extends TimedRobot {
     //SmartDashboard.putNumber("Speed Scale Factor", speedScaleFactor);
     //SmartDashboard.putNumber("Auto Stage", autoStage);
   }
-//HI IS THIS HERE!
+
   // Helps prevent loop overruns on startup by running every user created command in every class before the match starts. Not sure why this helps, but it does.
   public void runAll() { 
     swerve.resetDriveController(0.0);
