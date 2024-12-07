@@ -47,10 +47,10 @@ class Drivetrain {
   private static final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(frontLeftModulePos, frontRightModulePos, backRightModulePos, backLeftModulePos);
 
   // Initializes each swerve module.
-  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.187988, "canivore"); 
-  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, 0.116699 , "canivore");
-  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, 0.179688 , "canivore");
-  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.326172, "canivore");
+  private final SwerveModule frontLeftModule = new SwerveModule(1, 2, 1, false, -0.188232, "canivore"); 
+  private final SwerveModule frontRightModule = new SwerveModule(3, 4, 2, true, 0.105957 , "canivore");
+  private final SwerveModule backRightModule = new SwerveModule(5, 6, 3, true, 0.161621 , "canivore");
+  private final SwerveModule backLeftModule = new SwerveModule(7, 8, 4, false, 0.293457, "canivore");
   private final SwerveModule[] modules = {frontLeftModule, frontRightModule, backRightModule, backLeftModule};
 
   private final Pigeon2 pigeon = new Pigeon2(0, "canivore"); // Pigeon 2.0 CAN Gyroscope
