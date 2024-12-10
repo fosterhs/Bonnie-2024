@@ -19,6 +19,7 @@ public class Robot extends TimedRobot {
 
   private double speedScaleFactor = 1.0; // Scales the speed of the robot that results from controller inputs. 1.0 corresponds to full speed. 0.0 is fully stopped.
   private boolean lock = false; // Controls whether the swerve drive is in x-lock (for defense) or is driving. 
+  private boolean aimEnd = false;
 
   // Initializes the different subsystems of the robot.
   private final Drivetrain swerve = new Drivetrain(); // Contains the Swerve Modules, Gyro, Path Follower, Target Tracking, Odometry, and Vision Calibration.
@@ -30,22 +31,47 @@ public class Robot extends TimedRobot {
   private String autoSelected;
   private int autoStage = 1;
 
-  public void twoStageShooting(double robotX,double robotY,double robotAngle){
-    swerve.driveTo(robotX, robotY, robotAngle);
-    if (driver.getXButton()) {
-      swerve.driveTo(robotX, robotY, robotAngle);
-    } else if (swerve.atDriveGoal()){
-      
-    }
-   
+  public void twoStageShootingInit(double robotAngle) {
+    swerve.resetDriveController(robotAngle);
+    aimEnd = false;
+  }
 
-     if (LimelightHelpers.getTX(swerve.limelights[0]) > 1) {
-      swerve.drive(robotAngle, robotAngle, robotX, lock, robotY, robotAngle);
-    } else if(-1 < LimelightHelpers.getTX(swerve.limelights[0])) {
-      //Drive right
-    } else {
-      swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+  public void twoStageShooting(double robotX,double robotY,double robotAngle) {
+
+    swerve.driveTo(robotX, robotY, robotAngle);
+     
+    if (swerve.atDriveGoal()) {
+      aimEnd = true;
     }
+
+    double xVel;
+    double yVel;
+
+
+    if (aimEnd){
+      if (LimelightHelpers.getTX(swerve.limelights[0]) > 1.8) {
+        //swerve.drive(0.0, 1.0, 0.0, true, 0.0, 0.0);
+      } else if (LimelightHelpers.getTX(swerve.limelights[0]) < -1.8) {
+        //swerve.drive(0.0, -1.0, 0.0, true, 0.0, 0.0);
+      } else {
+         //swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+      }   
+    }
+
+    if (aimEnd){
+      if (LimelightHelpers.getTY(swerve.limelights[0]) > 1.8) {
+        //swerve.drive(1.0, 1.0, 0.0, true, 0.0, 0.0);
+      } else if (LimelightHelpers.getTY(swerve.limelights[0]) < -1.8) {
+        //swerve.drive(-1.0, 0.0, 0.0, true, 0.0, 0.0);
+      } else {
+         //swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
+      }   
+
+      swerve.drive(xVel, yVel, 0.0, false, 0,0, 0.0);
+    }
+
+
+
 
 
   }
@@ -133,10 +159,18 @@ public class Robot extends TimedRobot {
     double angVel = angAccLimiter.calculate(MathUtil.applyDeadband(-driver.getRightX(), 0.05)*speedScaleFactor)*Drivetrain.maxAngVelTeleop;
 
     if (driver.getRawButton(9)) {
-      lock = true; // Pressing the X-button causes the swerve modules to lock (for defense).
+      lock = true; // Pressing the ?-button causes the swerve modules to lock (for defense).
     } else if (Math.abs(driver.getLeftY()) >= 0.05 || Math.abs(driver.getLeftX()) >= 0.05 || Math.abs(driver.getRightX()) >= 0.05) {
       lock = false; // Pressing any joystick more than 5% will cause the swerve modules stop locking and begin driving.
     }
+    
+    if (driver.getXButtonPressed()) {
+      twoStageShootingInit(180.0);
+    }
+
+    if (driver.getXButtonReleased()) {
+      aimEnd = false;
+    } 
 
     if (lock) {
       swerve.xLock(); // Locks the swerve modules (for defense).

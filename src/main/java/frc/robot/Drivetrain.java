@@ -426,9 +426,9 @@ class Drivetrain {
     //SmartDashboard.putNumber("Front Right Swerve Module Wheel Encoder Angle", frontRightModule.getWheelAngle());
     //SmartDashboard.putNumber("Back Right Swerve Module Wheel Encoder Angle", backRightModule.getWheelAngle());
     //SmartDashboard.putNumber("Back Left Swerve Module Wheel Encoder Angle", backLeftModule.getWheelAngle());
-    //SmartDashboard.putNumber("Robot X Position", getXPos());
-    //SmartDashboard.putNumber("Robot Y Position", getYPos());
-    //SmartDashboard.putNumber("Robot Angular Position (Fused)", getFusedAng());
+    SmartDashboard.putNumber("Robot X Position", getXPos());
+    SmartDashboard.putNumber("Robot Y Position", getYPos());
+    SmartDashboard.putNumber("Robot Angular Position (Fused)", getFusedAng());
     //SmartDashboard.putNumber("Robot Angular Position (Gyro)", getGyroAng());
     //SmartDashboard.putNumber("Robot Pitch", getGyroPitch());
     //SmartDashboard.putNumber("Robot Demanded X Velocity", getXVel());
