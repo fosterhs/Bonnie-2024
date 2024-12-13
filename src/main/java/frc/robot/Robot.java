@@ -36,7 +36,7 @@ public class Robot extends TimedRobot {
     aimEnd = false;
   }
 
-  public void twoStageShooting(double robotX,double robotY,double robotAngle) {
+  public void twoStageShooting(double robotX,double robotY,double robotAngle, double xVel, double yVel) {
 
     swerve.driveTo(robotX, robotY, robotAngle);
      
@@ -44,8 +44,6 @@ public class Robot extends TimedRobot {
       aimEnd = true;
     }
 
-    double xVel;
-    double yVel;
 
 
     if (aimEnd){
@@ -67,7 +65,7 @@ public class Robot extends TimedRobot {
          //swerve.drive(0.0, 0.0, 0.0, true, 0.0, 0.0);
       }   
 
-      swerve.drive(xVel, yVel, 0.0, false, 0,0, 0.0);
+      swerve.drive(xVel, yVel, 0.0, false, 0.0, 0.0);
     }
 
 
@@ -175,7 +173,7 @@ public class Robot extends TimedRobot {
     if (lock) {
       swerve.xLock(); // Locks the swerve modules (for defense).
     } else if (driver.getRawButton(3)) {
-      twoStageShooting(2.14, 2.5137, 180.0);
+      twoStageShooting(2.14, 2.5137, 180.0, 1.0, 1.0);
     } else {
       swerve.drive(xVel, yVel, angVel, true, 0.0, 0.0); // Drive at the velocity demanded by the controller.
     } 
